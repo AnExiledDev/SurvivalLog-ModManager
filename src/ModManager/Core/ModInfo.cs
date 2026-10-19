@@ -19,6 +19,9 @@ public sealed record ModInfo(string? Author, Description? Description, IReadOnly
     public static readonly ModInfo None = new(null, null, Array.Empty<ModLink>());
 
     public ModLink? Link(LinkKind kind) => Links.FirstOrDefault(link => link.Kind == kind);
+
+    /// <summary>"owner/repository" when the mod names one on GitHub; its releases are where updates are looked for.</summary>
+    public string? GitHubRepository => Link(LinkKind.GitHub)?.Url is { } url ? url.Substring(ModInfoReader.GitHubBase.Length) : null;
 }
 
 /// <summary>The info read from a mod, plus the values it set that could not be used, so the author can find out why.</summary>
@@ -41,6 +44,8 @@ public static class ModInfoReader
 
     private const int MaxAuthorLength = 80;
     private const int MaxDescriptionLength = 1000;
+    public const string GitHubBase = "https://github.com/";
+
     private const string NexusGame = "https://www.nexusmods.com/survivallog/mods/";
 
     /// <summary>The first value of each key counts. Keys without the prefix belong to someone else and are passed over.</summary>
@@ -105,10 +110,10 @@ public static class ModInfoReader
     {
         var parts = value.Split('/');
 
-        return parts.Length == 2 && parts.All(IsGitHubName) ? "https://github.com/" + parts[0] + "/" + parts[1] : null;
+        return parts.Length == 2 && parts.All(IsGitHubName) ? GitHubBase + parts[0] + "/" + parts[1] : null;
     }
 
-    private static bool IsGitHubName(string part) =>
+    public static bool IsGitHubName(string part) =>
         part.Length is > 0 and <= 100 && part != "." && part != ".." && part.All(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '-' or '_' or '.');
 
     /// <summary>Only web addresses: the link is opened by the player's browser, so a file or program path is never accepted.</summary>

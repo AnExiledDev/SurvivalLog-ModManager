@@ -23,6 +23,7 @@ internal sealed class PluginCatalog
 
     private readonly StartValues _startValues = new();
     private readonly PluginFolders _folders;
+    private readonly UpdateBook _updates;
     private readonly string _selfGuid;
     private readonly Action<string> _log;
     private readonly HashSet<string> _reportedFailures = new();
@@ -33,9 +34,10 @@ internal sealed class PluginCatalog
 
     private IReadOnlyList<(string Path, PluginFile Plugin)>? _offAtStart;
 
-    public PluginCatalog(PluginFolders folders, string selfGuid, Action<string> log)
+    public PluginCatalog(PluginFolders folders, UpdateBook updates, string selfGuid, Action<string> log)
     {
         _folders = folders;
+        _updates = updates;
         _selfGuid = selfGuid;
         _log = log;
     }
@@ -128,7 +130,10 @@ internal sealed class PluginCatalog
             ? SwitchPlanner.ForLoaded(node, nodes, _selfGuid, _folders.IsOn(CurrentPath(location)))
             : new ModSwitch.Unavailable();
 
-        return new ModEntry(guid, plugin.Metadata.Name, plugin.Metadata.Version.ToString(), Path.GetFileName(location ?? ""), state, InfoOf(guid, location), modSwitch);
+        var version = plugin.Metadata.Version.ToString();
+        var info = InfoOf(guid, location);
+
+        return new ModEntry(guid, plugin.Metadata.Name, version, Path.GetFileName(location ?? ""), state, info, modSwitch, _updates.StateOf(info.GitHubRepository, version));
     }
 
     private ModEntry OffEntry((string Path, PluginFile Plugin) off)
@@ -136,7 +141,9 @@ internal sealed class PluginCatalog
         var plugin = off.Plugin;
         var modSwitch = new ModSwitch.Allowed(_folders.IsOn(CurrentPath(off.Path)), Array.Empty<string>());
 
-        return new ModEntry(plugin.Guid, plugin.Name, plugin.Version, Path.GetFileName(off.Path), new ModState.Off(), Info(plugin), modSwitch);
+        var info = Info(plugin);
+
+        return new ModEntry(plugin.Guid, plugin.Name, plugin.Version, Path.GetFileName(off.Path), new ModState.Off(), info, modSwitch, _updates.StateOf(info.GitHubRepository, plugin.Version));
     }
 
     /// <summary>Plugins found in the folders for turned-off plugins, read once: the list stays as it was at the start, while their files may move.</summary>

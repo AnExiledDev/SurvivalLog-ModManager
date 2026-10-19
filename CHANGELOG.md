@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- Update checks: at each game start, mods that name a GitHub repository are checked for a newer release. Mods with an update are marked in the list and get an "Updates" filter, and their page shows the release notes and a GET UPDATE button that opens the release page. No account or key is needed. Turn it off with `Updates.CheckForUpdates`.
+
 ## 0.2.0
 
 - Turn mods on or off from a switch on each mod's page. The DLL moves to `BepInEx\disabled-plugins` (or back) and the change applies at the next start. Turned-off mods are listed under "Off". Turning a mod off names the mods that need it.

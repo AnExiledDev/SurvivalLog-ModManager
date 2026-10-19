@@ -27,6 +27,9 @@ public static class PageScript
     /// <summary>Redraws everything while the screen stays open, after a change that touches more than one mod.</summary>
     public static string Replace(ModsView view, ModNote? note) => Call("replace", ViewJson(view) + "," + (note == null ? "null" : ModNoteJson(note)));
 
+    /// <summary>Redraws everything with news from outside the page (an update check finished), leaving the page's note alone.</summary>
+    public static string Refresh(ModsView view) => Call("replace", ViewJson(view));
+
     public static string Close() => Call("close", "");
 
     /// <summary>Ends a key capture the player cancelled or that found nothing to write.</summary>
@@ -59,6 +62,7 @@ public static class PageScript
         json.Append(",\"about\":").Append(mod.Info.Description is { } about ? "{\"en\":" + Str(about.English) + ",\"zh\":" + Str(about.Chinese) + "}" : "null");
         json.Append(",\"links\":").Append(List(mod.Info.Links, link => Str(PageCommand.LinkName(link.Kind))));
         json.Append(",\"switch\":").Append(SwitchJson(mod.Switch));
+        json.Append(",\"update\":").Append(UpdateJson(mod.Update));
         json.Append(",\"settings\":").Append(List(settings, SettingJson));
 
         return json.Append('}').ToString();
@@ -122,6 +126,29 @@ public static class PageScript
         ModSwitch.Locked locked => "{\"kind\":\"locked\",\"self\":" + Bool(locked.IsModManager) + ",\"neededBy\":" + List(locked.NeededBy, Str) + "}",
         ModSwitch.Unavailable => "{\"kind\":\"none\"}",
         _ => throw new ArgumentOutOfRangeException(nameof(modSwitch), modSwitch, null),
+    };
+
+    private static string UpdateJson(UpdateState update) => update switch
+    {
+        UpdateState.NotChecked => "{\"kind\":\"none\"}",
+        UpdateState.Checking => "{\"kind\":\"checking\"}",
+        UpdateState.UpToDate upToDate => "{\"kind\":\"current\",\"tag\":" + Str(upToDate.Tag) + "}",
+        UpdateState.Available available => "{\"kind\":\"available\",\"tag\":" + Str(available.Tag) + ",\"notes\":" + NotesJson(available.Notes) + "}",
+        UpdateState.NoReleases => "{\"kind\":\"noReleases\"}",
+        UpdateState.Failed failed => "{\"kind\":\"failed\",\"reason\":" + Str(failed.Reason) + "}",
+        UpdateState.Unreadable unreadable => "{\"kind\":\"unreadable\",\"tag\":" + Str(unreadable.Tag) + "}",
+        _ => throw new ArgumentOutOfRangeException(nameof(update), update, null),
+    };
+
+    private static string NotesJson(NotesState notes) => notes switch
+    {
+        NotesState.NotAsked => "{\"kind\":\"notAsked\"}",
+        NotesState.Loading => "{\"kind\":\"loading\"}",
+        NotesState.Ready ready => "{\"kind\":\"text\",\"text\":" + Str(ready.Text) + "}",
+        NotesState.Empty => "{\"kind\":\"empty\"}",
+        NotesState.Busy => "{\"kind\":\"busy\"}",
+        NotesState.Failed failed => "{\"kind\":\"failed\",\"reason\":" + Str(failed.Reason) + "}",
+        _ => throw new ArgumentOutOfRangeException(nameof(notes), notes, null),
     };
 
     private static string ModNoteJson(ModNote note) =>

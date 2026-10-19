@@ -47,6 +47,12 @@ public abstract record PageCommand
     /// <summary>Open one of the mod's links. The page names the kind only; the address comes from the mod's own info.</summary>
     public sealed record OpenLink(string Guid, LinkKind Kind) : PageCommand;
 
+    /// <summary>Fetch the notes of the release this mod can update to. The page asks when it first shows the update.</summary>
+    public sealed record Notes(string Guid) : PageCommand;
+
+    /// <summary>Open the page of the release this mod can update to. The address comes from GitHub's own redirect.</summary>
+    public sealed record OpenUpdate(string Guid) : PageCommand;
+
     public sealed record Unknown(string Text) : PageCommand;
 
     public static PageCommand Parse(string message)
@@ -75,6 +81,8 @@ public abstract record PageCommand
         ("showCfg", 2) => new ShowConfigFile(parts[1]),
         ("switch", 3) when parts[2] is "0" or "1" => new Switch(parts[1], parts[2] == "1"),
         ("link", 3) when LinkKindOf(parts[2]) is { } kind => new OpenLink(parts[1], kind),
+        ("notes", 2) => new Notes(parts[1]),
+        ("update", 2) => new OpenUpdate(parts[1]),
         _ => null,
     };
 

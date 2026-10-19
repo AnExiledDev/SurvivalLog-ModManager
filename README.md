@@ -16,8 +16,9 @@ Open it with F10, or with the MODS button in the Esc menu or on the title screen
 - **Open the .cfg folder**: a button opens Explorer with the mod's .cfg file selected.
 - **Turn mods on or off**: the switch at the top of a mod's page moves its DLL out of `BepInEx\plugins` into `BepInEx\disabled-plugins` (or back). The change applies at the next game start, and the screen marks mods waiting for a restart. Turned-off mods stay in the list under "Off", and their settings files are kept. Turning a mod off also lists the mods that need it, since they will not start either. Mods in `BepInEx\plugins-disabled` are listed too and can be turned back on.
 - **Mod info and links**: a mod can give a short description, its author, and links to its Nexus Mods page, GitHub repository or website. The link buttons open them in your browser.
+- **Update checks**: each time the game starts, the Mod Manager asks GitHub whether mods that name a GitHub repository have a newer release. Mods with an update get an UPDATE mark in the list and an "Updates" filter. A mod's page shows the new version, the release notes, and a GET UPDATE button that opens the release page in your browser. Only GitHub is contacted, no account or key is needed, and it can be turned off in the settings.
 
-The Mod Manager adds nothing to your save and does not edit game files. It only writes the .cfg files of the mods whose settings you change, and moves the DLLs of mods you turn on or off.
+The Mod Manager adds nothing to your save and does not edit game files. It only writes the .cfg files of the mods whose settings you change, and moves the DLLs of mods you turn on or off. Its only network use is the update check, which asks GitHub for the latest release of each mod that names a repository.
 
 ## Known issues and limits
 
@@ -26,6 +27,8 @@ The Mod Manager adds nothing to your save and does not edit game files. It only 
 - Turning a mod on does not turn on the mods it needs. Turn those on as well.
 - The Mod Manager and Exiled's Toolkit cannot be turned off here, since the screen needs them. Delete their DLLs to remove them.
 - A mod whose DLL is outside `BepInEx\plugins` cannot be turned on or off here.
+- Update checks only cover mods that name a GitHub repository (see "For mod authors"). GET UPDATE opens the release page; download and install the update yourself.
+- Release notes come from GitHub's public API, which allows 60 requests an hour without an account. Past that, the page says the notes cannot be loaded right now; the update itself is still shown.
 
 ## Requirements
 
@@ -53,7 +56,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.18902 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.2.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.3.0 or later, update the Toolkit. Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`. The same lines are in `BepInEx\mod-manager.log`, which survives restarts.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.3.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.3.0 or later, update the Toolkit. Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`. Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked. The same lines are in `BepInEx\mod-manager.log`, which survives restarts.
 
 ## For mod authors
 
@@ -76,7 +79,7 @@ Or in code: `[assembly: AssemblyMetadata("ModManager.NexusId", "47")]`.
 | `ModManager.Description` | Up to 1000 characters. English, then a new line (`&#10;` in a .csproj), then Chinese; the screen shows the half that matches its language. |
 | `ModManager.Author` | Up to 80 characters. |
 | `ModManager.NexusId` | The number at the end of your mod's Nexus Mods address, `nexusmods.com/survivallog/mods/<number>`. |
-| `ModManager.GitHub` | `owner/repository`. |
+| `ModManager.GitHub` | `owner/repository`. The Mods screen also checks this repository's GitHub releases for updates, comparing the latest release tag (such as `v1.2.0`) with your mod's version. |
 | `ModManager.Website` | A full `http` or `https` address. |
 
 Values that do not fit are left out, and `BepInEx\mod-manager.log` says which and why.

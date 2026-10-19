@@ -36,7 +36,15 @@
       pendingOffTitle: 'Off from the next start.', pendingOffBody: 'It keeps running until you restart the game.',
       pendingOnTitle: 'On from the next start.', pendingOnBody: 'Restart the game to start it.',
       alsoStops: list => 'These need it and will not start either: ' + list + '.',
-      footerRestart: n => (n === 1 ? '1 mod turns' : n + ' mods turn') + ' on or off at the next start.'
+      footerRestart: n => (n === 1 ? '1 mod turns' : n + ' mods turn') + ' on or off at the next start.',
+      updates: 'Updates', pipUpdate: 'UPDATE', getUpdate: 'GET UPDATE',
+      updateTitle: tag => 'Version ' + tag + ' is out.', updateBody: version => 'You have ' + version + '.',
+      updChecking: 'checking for updates', updCurrent: 'up to date', updNoReleases: 'no releases on GitHub yet',
+      updFailed: 'could not check for updates', updUnreadable: tag => 'latest release ' + tag,
+      whatsNew: "WHAT'S NEW", notesLoading: 'Loading the release notes.', notesEmpty: 'This release has no notes.',
+      notesBusy: 'GitHub is busy for now (it limits how often anyone without an account can ask). The release page has the notes.',
+      notesFailed: 'Could not load the release notes. The release page has them.',
+      footerUpdates: n => (n === 1 ? '1 mod has' : n + ' mods have') + ' an update.'
     },
     zh: {
       loaded: '已加载', settings: '项设置', toggle: '切换', close: '关闭', search: '搜索所有设置',
@@ -63,7 +71,15 @@
       pendingOffTitle: '下次启动时关闭。', pendingOffBody: '在重启游戏之前它会继续运行。',
       pendingOnTitle: '下次启动时开启。', pendingOnBody: '重启游戏后它就会启动。',
       alsoStops: list => '以下模组需要它，也不会启动：' + list + '。',
-      footerRestart: n => n + ' 个模组将在下次启动时开启或关闭。'
+      footerRestart: n => n + ' 个模组将在下次启动时开启或关闭。',
+      updates: '可更新', pipUpdate: '更新', getUpdate: '获取更新',
+      updateTitle: tag => '新版本 ' + tag + ' 已发布。', updateBody: version => '你的版本是 ' + version + '。',
+      updChecking: '正在检查更新', updCurrent: '已是最新', updNoReleases: 'GitHub 上还没有发布版本',
+      updFailed: '无法检查更新', updUnreadable: tag => '最新发布 ' + tag,
+      whatsNew: '更新内容', notesLoading: '正在加载更新说明。', notesEmpty: '这个版本没有更新说明。',
+      notesBusy: 'GitHub 暂时繁忙（它限制了未登录时的查询次数）。发布页面上有更新说明。',
+      notesFailed: '无法加载更新说明。发布页面上有。',
+      footerUpdates: n => n + ' 个模组有更新。'
     }
   };
 
@@ -79,7 +95,8 @@
     notes: {},
     isTyping: false,
     rows: [],
-    modNote: null
+    modNote: null,
+    notesAsked: {}
   };
 
   const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite' };
@@ -111,6 +128,8 @@
   const word = key => WORDS[state.lang][key];
   const isChanged = s => s.current !== s.default;
   const isChangedThisSession = s => s.current !== s.atStart;
+  const hasUpdate = m => m.update.kind === 'available';
+  const tagText = tag => /^[vV]\d/.test(tag) ? tag.slice(1) : tag;
   const settingId = (mod, s) => mod.guid + '\n' + s.section + '\n' + s.key;
   const mods = () => (state.view ? state.view.mods : []);
   const modByGuid = guid => mods().find(m => m.guid === guid);
@@ -204,6 +223,7 @@
 #slmm .pip { font-family: var(--mono); font-size: .7rem; line-height: 1; padding: 3px 5px; border-radius: 2px; letter-spacing: .5px; }
 #slmm .pip.chg { color: var(--amber); border: 1px solid rgba(235,163,8,0.45); }
 #slmm .pip.offp { color: #999; border: 1px dashed #666; }
+#slmm .pip.upd { color: #111; background: var(--teal); border: 1px solid var(--teal); }
 #slmm .problem { font-family: var(--mono); font-size: .75rem; color: #c98a8a; line-height: 1.5; padding: 4px 18px 6px; white-space: pre-wrap; word-break: break-word; }
 
 #slmm .pane { overflow-y: auto; min-height: 0; position: relative; }
@@ -226,6 +246,8 @@
 #slmm .meta { display: flex; align-items: center; gap: 18px; padding: 16px 40px 0; flex-wrap: wrap; }
 #slmm .meta .id { font-family: var(--mono); font-size: .82rem; color: #777; letter-spacing: .5px; }
 #slmm .meta .id b { color: #bbb; font-weight: 400; }
+#slmm .meta .id.upd-ok { color: var(--teal); }
+#slmm .meta .id.upd-bad { color: #c98a8a; }
 #slmm .links { display: flex; gap: 10px; padding: 16px 40px 0; flex-wrap: wrap; }
 #slmm .key-btn { font-family: var(--mono); cursor: pointer; padding: 7px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #ccc; font-size: .85rem; letter-spacing: 1px; transition: all .15s; border-radius: 2px; white-space: nowrap; }
 #slmm .key-btn:hover { background: rgba(235,163,8,0.15); border-color: var(--amber); color: var(--amber); }
@@ -304,6 +326,13 @@
 #slmm .notice.ok .ico { color: var(--teal); }
 #slmm .notice.warn { border-color: rgba(255,90,90,0.5); color: #c98a8a; }
 #slmm .notice.warn .ico { color: var(--red); }
+#slmm .notice.upd { border: 1px solid rgba(143,199,191,0.55); background: rgba(143,199,191,0.06); color: #bbb; }
+#slmm .notice.upd .ico { color: var(--teal); }
+#slmm .upd-main { flex: 1; min-width: 0; }
+#slmm .upd-notes { margin-top: 12px; max-height: 260px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: .9rem; color: #aaa; border-left: 2px solid rgba(143,199,191,0.35); padding: 2px 0 2px 12px; }
+#slmm .upd-h { font-family: var(--mono); font-size: .75rem; letter-spacing: 2px; color: var(--teal); margin-bottom: 6px; }
+#slmm .upd-line { margin-top: 8px; font-size: .88rem; color: #888; }
+#slmm .upd-act { margin-top: 14px; display: flex; gap: 10px; }
 #slmm .empty { padding: 70px 40px; text-align: center; color: #777; }
 #slmm .empty .big { font-family: var(--display); font-size: 2rem; color: #555; letter-spacing: 3px; margin-bottom: 10px; }
 
@@ -340,6 +369,7 @@
       <div class="chips">
         <div class="chip on" data-filter="all"><span data-word="all"></span> <i data-count="all"></i></div>
         <div class="chip" data-filter="changed"><span data-word="changed"></span> <i data-count="changed"></i></div>
+        <div class="chip" data-filter="updates"><span data-word="updates"></span> <i data-count="updates"></i></div>
       </div>
       <div class="list"></div>
     </div>
@@ -378,6 +408,9 @@
   function renderChrome() {
     const all = mods();
     const openKey = state.view ? state.view.openKey : '';
+    const updates = all.filter(hasUpdate).length;
+
+    if (!updates && state.filter === 'updates') state.filter = 'all';
 
     root.querySelectorAll('[data-word]').forEach(el => { el.textContent = word(el.dataset.word); });
     root.querySelectorAll('[data-lang]').forEach(el => el.classList.toggle('on', el.dataset.lang === state.lang));
@@ -387,7 +420,9 @@
     setCount('settings', all.reduce((sum, m) => sum + m.settings.length, 0));
     setCount('all', all.length);
     setCount('changed', all.filter(m => m.settings.some(isChanged)).length);
+    setCount('updates', updates);
     setCount('openKey', openKey);
+    $('[data-filter="updates"]').style.display = updates ? '' : 'none';
     $('[data-part="openKey"]').style.display = openKey && openKey !== 'None' ? '' : 'none';
   }
 
@@ -400,6 +435,7 @@
     let shown = mods();
 
     if (state.filter === 'changed') shown = shown.filter(m => m.settings.some(isChanged));
+    else if (state.filter === 'updates') shown = shown.filter(hasUpdate);
 
     if (q) shown = shown.filter(m => m.name.toLowerCase().indexOf(q) >= 0 || m.guid.toLowerCase().indexOf(q) >= 0 || m.settings.some(s => matchesQuery(m, s, q)));
 
@@ -436,7 +472,8 @@
     const isSelected = m.guid === state.selected && !state.query;
     const pips = (changed ? '<span class="pip chg">' + changed + '</span>' : '') +
       (m.state === 'off' ? '<span class="pip offp">' + esc(word('statusOff')) + '</span>' : '') +
-      (isPending(m) ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : '');
+      (isPending(m) ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : '') +
+      (hasUpdate(m) ? '<span class="pip upd">' + esc(word('pipUpdate')) + '</span>' : '');
 
     return '<div class="mod' + (isSelected ? ' sel' : '') + (m.loaded ? '' : ' off') + '" data-mod="' + esc(m.guid) + '" style="animation-delay:' + delay + 'ms">' +
       '<div class="mono" style="' + monoStyle(m.name) + '">' + esc(initials(m.name)) + '</div>' +
@@ -463,7 +500,16 @@
 
     if (names.indexOf(state.tab) < 0) state.tab = '';
 
-    pane.innerHTML = hero(m) + meta(m) + about(m) + links(m) + tabs(m, names) + modNotices(m) + paneBody(m, names);
+    pane.innerHTML = hero(m) + meta(m) + about(m) + links(m) + updateNotice(m) + tabs(m, names) + modNotices(m) + paneBody(m, names);
+    askForNotes(m);
+  }
+
+  // Release notes are fetched the first time a mod's update is shown, not for every mod at the start.
+  function askForNotes(m) {
+    if (!hasUpdate(m) || m.update.notes.kind !== 'notAsked' || state.notesAsked[m.guid]) return;
+
+    state.notesAsked[m.guid] = true;
+    send('notes', [m.guid]);
   }
 
   // A mod whose switch now points the other way from how the game started it.
@@ -509,7 +555,40 @@
     const file = m.file ? '<span class="id"><b>' + esc(m.file) + '</b></span>' : '';
     const author = m.author ? '<span class="id">' + esc(word('by')) + ' <b>' + esc(m.author) + '</b></span>' : '';
 
-    return '<div class="meta"><span class="id">v<b>' + esc(m.version) + '</b></span>' + author + '<span class="id"><b>' + esc(m.guid) + '</b></span>' + file + '</div>';
+    return '<div class="meta"><span class="id">v<b>' + esc(m.version) + '</b></span>' + updateStatus(m.update) + author + '<span class="id"><b>' + esc(m.guid) + '</b></span>' + file + '</div>';
+  }
+
+  // How the update check went, beside the version. An available update gets its own notice instead.
+  function updateStatus(update) {
+    const status = (kind, text, title) => '<span class="id' + (kind ? ' ' + kind : '') + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(text) + '</span>';
+
+    switch (update.kind) {
+      case 'checking': return status('', word('updChecking'), '');
+      case 'current': return status('upd-ok', word('updCurrent'), update.tag);
+      case 'noReleases': return status('', word('updNoReleases'), '');
+      case 'failed': return status('upd-bad', word('updFailed'), update.reason);
+      case 'unreadable': return status('', word('updUnreadable')(update.tag), '');
+      default: return '';
+    }
+  }
+
+  function updateNotice(m) {
+    if (!hasUpdate(m)) return '';
+
+    return '<div class="notice upd"><span class="ico">&#x2191;</span><div class="upd-main"><b>' + esc(word('updateTitle')(tagText(m.update.tag))) + '</b> ' + esc(word('updateBody')(m.version)) +
+      releaseNotes(m.update.notes) + '<div class="upd-act"><div class="key-btn" data-act="update">' + esc(word('getUpdate')) + ' &#x2197;</div></div></div></div>';
+  }
+
+  function releaseNotes(notes) {
+    const line = (text, title) => '<div class="upd-line"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(text) + '</div>';
+
+    switch (notes.kind) {
+      case 'text': return '<div class="upd-notes"><div class="upd-h">' + esc(word('whatsNew')) + '</div>' + esc(notes.text) + '</div>';
+      case 'empty': return line(word('notesEmpty'), '');
+      case 'busy': return line(word('notesBusy'), '');
+      case 'failed': return line(word('notesFailed'), notes.reason);
+      default: return line(word('notesLoading'), '');
+    }
   }
 
   function about(m) {
@@ -694,9 +773,11 @@
     const changed = mods().reduce((sum, m) => sum + m.settings.filter(isChangedThisSession).length, 0);
     const restarts = mods().filter(isPending).length;
     const restartText = restarts ? ' <em>' + esc(word('footerRestart')(restarts)) + '</em>' : '';
+    const updates = mods().filter(hasUpdate).length;
+    const updateText = updates ? ' <em>' + esc(word('footerUpdates')(updates)) + '</em>' : '';
 
     $('.status-dot').classList.toggle('warn', changed > 0 || restarts > 0);
-    $('.ft-t').innerHTML = (changed ? word('footerSome')(changed) : esc(word('footerNone'))) + restartText;
+    $('.ft-t').innerHTML = (changed ? word('footerSome')(changed) : esc(word('footerNone'))) + restartText + updateText;
   }
 
   // ===== What the player does =====
@@ -775,6 +856,7 @@
 
     if (actName === 'showCfg') send('showCfg', [state.selected]);
     else if (actName === 'link') send('link', [state.selected, act.dataset.kind]);
+    else if (actName === 'update') send('update', [state.selected]);
     else if (actName === 'resetMod') resetMod();
     else if (actName === 'reset' && row) resetRow(row);
     else if (actName === 'bind' && row) bind(row, act);
@@ -933,6 +1015,7 @@
     state.pending = null;
     state.binding = null;
     state.modNote = null;
+    state.notesAsked = {};
 
     if (!modByGuid(state.selected)) state.selected = view.mods.length ? (view.mods.find(m => m.loaded) || view.mods[0]).guid : null;
 
@@ -959,13 +1042,19 @@
     state.pending = null;
   }
 
-  // A switch flip can change more than one mod, so the whole list comes back; the selection and language stay.
+  // A switch flip can change more than one mod, so the whole list comes back; the selection and language stay. With no
+  // note it is news from outside (an update check), which waits while the player types rather than taking the field away.
   function replace(view, note) {
     if (!state.view) return;
 
     state.view = view;
-    state.modNote = note;
-    state.binding = null;
+
+    if (note === undefined && state.isTyping) return;
+
+    if (note !== undefined) {
+      state.modNote = note;
+      state.binding = null;
+    }
 
     if (!modByGuid(state.selected)) state.selected = view.mods.length ? view.mods[0].guid : null;
 

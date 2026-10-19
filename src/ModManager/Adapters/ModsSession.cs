@@ -21,28 +21,45 @@ internal sealed class ModsSession
 
     private readonly ModsPage _page;
     private readonly PluginCatalog _catalog;
+    private readonly UpdateBook _updates;
+    private readonly UpdateChecks _checks;
     private readonly PageMailbox _mailbox;
     private readonly WebKeyboard _keyboard = new();
     private readonly KeyCapture _capture = new();
     private readonly Func<KeyCode> _openKey;
+    private readonly Func<bool> _isCheckingForUpdates;
     private readonly Action<string> _log;
     private bool _isOpen;
+    private bool _hasStarted;
     private int _typingEndedAtFrame = -100;
 
-    public ModsSession(ModsPage page, PluginCatalog catalog, Func<KeyCode> openKey, Action<string> log)
+    public ModsSession(ModsPage page, PluginCatalog catalog, UpdateBook updates, UpdateChecks checks, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
+        _updates = updates;
+        _checks = checks;
         _mailbox = PageInbox.Listen(PageCommand.Prefix);
         _openKey = openKey;
+        _isCheckingForUpdates = isCheckingForUpdates;
         _log = log;
     }
 
     public void Update(float now, int frame)
     {
+        if (!_hasStarted)
+        {
+            // On the first frame rather than in Load, so plugins that load after this one are in the list.
+            _hasStarted = true;
+
+            if (_isCheckingForUpdates()) CheckForUpdates(true);
+        }
+
         _page.KeepInstalled(now);
 
         while (_mailbox.TryTake(out var message)) Handle(PageCommand.Parse(message), frame);
+
+        if (_checks.TakeFinished() && _isOpen) _page.Run(PageScript.Refresh(View()));
 
         if (_capture.Target != null)
         {
@@ -101,12 +118,38 @@ internal sealed class ModsSession
             case PageCommand.OpenLink link:
                 OpenLink(link.Guid, link.Kind);
                 break;
+            case PageCommand.Notes notes:
+                FetchNotes(notes.Guid);
+                break;
+            case PageCommand.OpenUpdate openUpdate:
+                Open(UpdateFor(openUpdate.Guid)?.PageUrl);
+                break;
             case PageCommand.Unknown unknown:
                 _log("unknown message from the Mods page: " + unknown.Text);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(command), command, null);
         }
+    }
+
+    /// <summary>Starts or stops the update checks, at the start and whenever the player changes the setting.</summary>
+    public void CheckForUpdates(bool isOn)
+    {
+        if (isOn) _checks.Start(_catalog.Mods().Select(mod => mod.Info.GitHubRepository).OfType<string>());
+        else _checks.Stop();
+
+        if (_isOpen) _page.Run(PageScript.Refresh(View()));
+    }
+
+    private LatestRelease.Found? UpdateFor(string guid) => _catalog.Mod(guid) is { } mod ? _updates.UpdateFor(mod.Info.GitHubRepository, mod.Version) : null;
+
+    private void FetchNotes(string guid)
+    {
+        if (UpdateFor(guid) is not { } release) return;
+
+        _checks.FetchNotes(release);
+
+        if (_isOpen) _page.Run(PageScript.Refresh(View()));
     }
 
     private void Toggle()
@@ -228,10 +271,11 @@ internal sealed class ModsSession
     }
 
     /// <summary>The address is taken from the mod's own info, which only holds checked web addresses.</summary>
-    private void OpenLink(string guid, LinkKind kind)
-    {
-        var url = _catalog.Link(guid, kind)?.Url;
+    private void OpenLink(string guid, LinkKind kind) => Open(_catalog.Link(guid, kind)?.Url);
 
+    /// <summary>Opens a checked web address in the player's browser.</summary>
+    private void Open(string? url)
+    {
         if (url == null) return;
 
         try

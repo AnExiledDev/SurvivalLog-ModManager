@@ -1,0 +1,284 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using ModManager.Core;
+using Xunit;
+
+namespace ModManager.Tests;
+
+public class ReleaseVersionTests
+{
+    [Theory]
+    [InlineData("v0.2.2", "0.2.0")]
+    [InlineData("ExiledToolkit-0.3.0", "0.2.9")]
+    [InlineData("1.10", "1.9")]
+    [InlineData("1.0.0", "1.0.0-beta")]
+    [InlineData("1.0.0-beta.10", "1.0.0-beta.2")]
+    [InlineData("1.0.0-beta", "1.0.0-alpha")]
+    [InlineData("1.0.0-alpha.1", "1.0.0-alpha")]
+    [InlineData("2.0.0-rc.1", "1.9.9")]
+    public void The_first_is_newer(string newer, string older)
+    {
+        Assert.True(Version(newer).CompareTo(Version(older)) > 0);
+        Assert.True(Version(older).CompareTo(Version(newer)) < 0);
+    }
+
+    [Theory]
+    [InlineData("1.2", "1.2.0")]
+    [InlineData("v1.2.0", "1.2.0.0")]
+    [InlineData("1.0+build5", "1.0")]
+    public void These_are_the_same_version(string one, string other)
+    {
+        Assert.Equal(0, Version(one).CompareTo(Version(other)));
+    }
+
+    [Theory]
+    [InlineData("latest")]
+    [InlineData("")]
+    [InlineData("1.2.x")]
+    [InlineData("1.2.3.4.5")]
+    [InlineData("1..2")]
+    [InlineData("1.0-")]
+    [InlineData("1.0-beta..1")]
+    [InlineData("99999999999")]
+    public void A_tag_without_a_usable_version_is_unreadable(string text)
+    {
+        Assert.Null(ReleaseVersion.Parse(text));
+    }
+
+    private static ReleaseVersion Version(string text) => ReleaseVersion.Parse(text) ?? throw new InvalidOperationException(text + " did not parse");
+}
+
+public class LatestReleaseFinderTests
+{
+    private static Func<Uri, Task<HttpAnswer>> GitHub(params (string Url, HttpAnswer Answer)[] answers)
+    {
+        var byUrl = answers.ToDictionary(pair => pair.Url, pair => pair.Answer);
+
+        return uri => Task.FromResult(byUrl.TryGetValue(uri.AbsoluteUri, out var answer) ? answer : new HttpAnswer.Answered(500, null, ""));
+    }
+
+    private static HttpAnswer Redirect(string location) => new HttpAnswer.Answered(302, location, "");
+
+    [Fact]
+    public void The_latest_release_is_where_its_page_redirects_to()
+    {
+        var head = GitHub(("https://github.com/Ann/Mod/releases/latest", Redirect("https://github.com/Ann/Mod/releases/tag/v1.2.0")));
+
+        var found = Assert.IsType<LatestRelease.Found>(LatestReleaseFinder.Find("Ann/Mod", head).Result);
+
+        Assert.Equal("v1.2.0", found.Tag);
+        Assert.Equal("https://github.com/Ann/Mod/releases/tag/v1.2.0", found.PageUrl);
+        Assert.Equal(("Ann", "Mod"), (found.Owner, found.Repository));
+    }
+
+    [Fact]
+    public void A_renamed_repository_is_followed_to_its_new_name()
+    {
+        var head = GitHub(
+            ("https://github.com/Ann/Old/releases/latest", new HttpAnswer.Answered(301, "https://github.com/Ann/New/releases/latest", "")),
+            ("https://github.com/Ann/New/releases/latest", Redirect("/Ann/New/releases/tag/2.0")));
+
+        var found = Assert.IsType<LatestRelease.Found>(LatestReleaseFinder.Find("Ann/Old", head).Result);
+
+        Assert.Equal("New", found.Repository);
+        Assert.Equal("https://github.com/Ann/New/releases/tag/2.0", found.PageUrl);
+    }
+
+    [Fact]
+    public void A_repository_without_releases_redirects_to_the_release_list()
+    {
+        var head = GitHub(("https://github.com/Ann/Mod/releases/latest", Redirect("https://github.com/Ann/Mod/releases")));
+
+        Assert.IsType<LatestRelease.NoReleases>(LatestReleaseFinder.Find("Ann/Mod", head).Result);
+    }
+
+    [Theory]
+    [InlineData("https://evil.example/Ann/Mod/releases/tag/v1")]
+    [InlineData("http://github.com/Ann/Mod/releases/tag/v1")]
+    [InlineData("https://github.com.evil.example/Ann/Mod/releases/tag/v1")]
+    [InlineData("https://user@github.com/Ann/Mod/releases/tag/v1")]
+    [InlineData("https://github.com:8443/Ann/Mod/releases/tag/v1")]
+    [InlineData("https://github.com/login")]
+    [InlineData("https://github.com/Ann/Mod/releases/tag/")]
+    [InlineData("")]
+    public void A_redirect_anywhere_but_a_github_release_page_is_not_trusted(string location)
+    {
+        var head = GitHub(("https://github.com/Ann/Mod/releases/latest", Redirect(location)));
+
+        Assert.IsType<LatestRelease.Failed>(LatestReleaseFinder.Find("Ann/Mod", head).Result);
+    }
+
+    [Fact]
+    public void A_missing_repository_or_no_connection_fails_with_the_reason()
+    {
+        var missing = GitHub(("https://github.com/Ann/Gone/releases/latest", new HttpAnswer.Answered(404, null, "")));
+
+        Assert.Contains("Ann/Gone", Assert.IsType<LatestRelease.Failed>(LatestReleaseFinder.Find("Ann/Gone", missing).Result).Reason);
+        Assert.Equal("offline", Assert.IsType<LatestRelease.Failed>(LatestReleaseFinder.Find("Ann/Mod", _ => Task.FromResult<HttpAnswer>(new HttpAnswer.Unreachable("offline"))).Result).Reason);
+    }
+
+    [Fact]
+    public void Redirects_that_go_round_in_circles_stop()
+    {
+        var asked = 0;
+
+        Task<HttpAnswer> Loop(Uri uri)
+        {
+            asked++;
+
+            return Task.FromResult<HttpAnswer>(Redirect(uri.AbsoluteUri));
+        }
+
+        Assert.IsType<LatestRelease.Failed>(LatestReleaseFinder.Find("Ann/Mod", Loop).Result);
+        Assert.True(asked < 10);
+    }
+}
+
+public class ReleaseNotesTests
+{
+    private static readonly LatestRelease.Found Release = new("Ann", "Mod", "v1.0 beta", "https://github.com/Ann/Mod/releases/tag/v1.0%20beta");
+
+    [Fact]
+    public void The_notes_are_the_release_body_as_plain_text()
+    {
+        var notes = ReleaseNotes.From(new HttpAnswer.Answered(200, null, "{\"tag_name\":\"v1\",\"body\":\"Fixed a crash.\\r\\nFaster saves.\"}"));
+
+        Assert.Equal("Fixed a crash.\nFaster saves.", Assert.IsType<NotesState.Ready>(notes).Text);
+    }
+
+    [Fact]
+    public void Long_notes_are_cut_short()
+    {
+        var notes = ReleaseNotes.From(new HttpAnswer.Answered(200, null, "{\"body\":\"" + new string('a', ReleaseNotes.MaxLength + 500) + "\"}"));
+        var text = Assert.IsType<NotesState.Ready>(notes).Text;
+
+        Assert.True(text.Length <= ReleaseNotes.MaxLength + 4);
+        Assert.EndsWith("...", text);
+    }
+
+    [Theory]
+    [InlineData("{\"body\":null}")]
+    [InlineData("{\"body\":\"  \"}")]
+    [InlineData("{}")]
+    public void A_release_without_notes_says_so(string json)
+    {
+        Assert.IsType<NotesState.Empty>(ReleaseNotes.From(new HttpAnswer.Answered(200, null, json)));
+    }
+
+    [Theory]
+    [InlineData(403)]
+    [InlineData(429)]
+    public void GitHubs_limit_for_requests_without_an_account_reads_as_busy(int status)
+    {
+        Assert.IsType<NotesState.Busy>(ReleaseNotes.From(new HttpAnswer.Answered(status, null, "")));
+    }
+
+    [Fact]
+    public void Broken_answers_fail_instead_of_throwing()
+    {
+        Assert.IsType<NotesState.Failed>(ReleaseNotes.From(new HttpAnswer.Answered(200, null, "<html>")));
+        Assert.IsType<NotesState.Failed>(ReleaseNotes.From(new HttpAnswer.Answered(500, null, "")));
+        Assert.IsType<NotesState.Failed>(ReleaseNotes.From(new HttpAnswer.Unreachable("offline")));
+    }
+
+    [Fact]
+    public void The_tag_is_escaped_in_the_api_address()
+    {
+        Assert.Equal("https://api.github.com/repos/Ann/Mod/releases/tags/v1.0%20beta", ReleaseNotes.ApiUri(Release).AbsoluteUri);
+    }
+}
+
+public class UpdateBookTests
+{
+    private static readonly LatestRelease.Found Latest = new("Ann", "Mod", "v1.2.0", "https://github.com/Ann/Mod/releases/tag/v1.2.0");
+
+    private static UpdateBook Book(LatestRelease latest)
+    {
+        var book = new UpdateBook();
+
+        book.Record("Ann/Mod", latest);
+
+        return book;
+    }
+
+    [Fact]
+    public void An_older_installed_version_has_an_update_and_its_page()
+    {
+        var book = Book(Latest);
+
+        Assert.Equal("v1.2.0", Assert.IsType<UpdateState.Available>(book.StateOf("Ann/Mod", "1.1.0")).Tag);
+        Assert.Equal(Latest.PageUrl, book.UpdateFor("Ann/Mod", "1.1.0")?.PageUrl);
+    }
+
+    [Theory]
+    [InlineData("1.2.0")]
+    [InlineData("1.3.0")]
+    public void The_same_or_a_newer_installed_version_is_up_to_date_and_offers_nothing(string installed)
+    {
+        var book = Book(Latest);
+
+        Assert.IsType<UpdateState.UpToDate>(book.StateOf("Ann/Mod", installed));
+        Assert.Null(book.UpdateFor("Ann/Mod", installed));
+    }
+
+    [Fact]
+    public void Repository_names_match_ignoring_case_as_on_GitHub()
+    {
+        Assert.IsType<UpdateState.Available>(Book(Latest).StateOf("ann/mod", "1.0"));
+    }
+
+    [Fact]
+    public void A_mod_without_a_repository_or_never_checked_is_not_checked()
+    {
+        var book = Book(Latest);
+
+        Assert.IsType<UpdateState.NotChecked>(book.StateOf(null, "1.0"));
+        Assert.IsType<UpdateState.NotChecked>(book.StateOf("Ann/Other", "1.0"));
+    }
+
+    [Fact]
+    public void A_tag_that_is_not_a_version_cannot_be_compared()
+    {
+        var book = Book(Latest with { Tag = "nightly" });
+
+        Assert.Equal("nightly", Assert.IsType<UpdateState.Unreadable>(book.StateOf("Ann/Mod", "1.0")).Tag);
+        Assert.Null(book.UpdateFor("Ann/Mod", "1.0"));
+    }
+
+    [Fact]
+    public void Checking_no_releases_and_failures_carry_through()
+    {
+        Assert.IsType<UpdateState.Checking>(Book(new LatestRelease.Checking()).StateOf("Ann/Mod", "1.0"));
+        Assert.IsType<UpdateState.NoReleases>(Book(new LatestRelease.NoReleases()).StateOf("Ann/Mod", "1.0"));
+        Assert.Equal("offline", Assert.IsType<UpdateState.Failed>(Book(new LatestRelease.Failed("offline")).StateOf("Ann/Mod", "1.0")).Reason);
+    }
+
+    [Fact]
+    public void Notes_belong_to_one_release_and_clearing_forgets_everything()
+    {
+        var book = Book(Latest);
+
+        Assert.IsType<NotesState.NotAsked>(Assert.IsType<UpdateState.Available>(book.StateOf("Ann/Mod", "1.0")).Notes);
+
+        book.Record(Latest, new NotesState.Ready("Fixed things."));
+
+        Assert.Equal(new NotesState.Ready("Fixed things."), Assert.IsType<UpdateState.Available>(book.StateOf("Ann/Mod", "1.0")).Notes);
+        Assert.IsType<NotesState.NotAsked>(book.Notes(Latest with { Tag = "v1.3.0" }));
+
+        book.Clear();
+
+        Assert.IsType<UpdateState.NotChecked>(book.StateOf("Ann/Mod", "1.0"));
+        Assert.IsType<NotesState.NotAsked>(book.Notes(Latest));
+    }
+
+    [Fact]
+    public void The_repository_comes_from_the_mods_GitHub_info()
+    {
+        var info = ModInfoReader.Read(new[] { new KeyValuePair<string, string?>(ModInfoReader.GitHubKey, "Ann/Mod") }).Info;
+
+        Assert.Equal("Ann/Mod", info.GitHubRepository);
+        Assert.Null(ModInfo.None.GitHubRepository);
+    }
+}

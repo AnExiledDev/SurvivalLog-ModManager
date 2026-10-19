@@ -45,7 +45,7 @@ public abstract record ModState
     public sealed record Off : ModState;
 }
 
-public sealed record ModEntry(string Guid, string Name, string Version, string FileName, ModState State, ModInfo Info, ModSwitch Switch);
+public sealed record ModEntry(string Guid, string Name, string Version, string FileName, ModState State, ModInfo Info, ModSwitch Switch, UpdateState Update);
 
 /// <summary>Everything the Mods screen shows when it opens.</summary>
 public sealed record ModsView(IReadOnlyList<ModEntry> Mods, IReadOnlyList<string> Problems, bool IsChinese, string OpenKey);

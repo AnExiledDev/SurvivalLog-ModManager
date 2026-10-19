@@ -69,7 +69,16 @@ public class PageCommandTests
         Assert.Equal(kind, PageCommand.LinkName(expected));
     }
 
+    [Fact]
+    public void Notes_and_update_name_the_mod_only()
+    {
+        Assert.Equal(new PageCommand.Notes("g"), PageCommand.Parse("slmod|modmanager|notes|g"));
+        Assert.Equal(new PageCommand.OpenUpdate("g"), PageCommand.Parse("slmod|modmanager|update|g"));
+    }
+
     [Theory]
+    [InlineData("slmod|modmanager|update|g|https%3A%2F%2Fevil.example")]
+    [InlineData("slmod|modmanager|notes")]
     [InlineData("slmod|othermod|open")]
     [InlineData("slmod|modmanager|switch|g|yes")]
     [InlineData("slmod|modmanager|link|g|https%3A%2F%2Fevil.example")]
