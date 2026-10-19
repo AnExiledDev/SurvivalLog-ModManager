@@ -13,7 +13,7 @@ namespace ModManager.Adapters;
 /// <summary>
 /// Downloads a mod's update from its GitHub release and puts the files in place for the next game start. The running
 /// game keeps the DLL it loaded: Windows lets a loaded DLL be moved, so the old files are moved to a backup folder and
-/// the new ones moved in beside them. Any failure puts the old files back.
+/// the new ones moved in beside them. Any failure puts the old files back. A rollback works the same way backwards.
 /// </summary>
 internal sealed class UpdateInstaller
 {
@@ -22,27 +22,27 @@ internal sealed class UpdateInstaller
     private readonly HttpClient _client;
     private readonly ConcurrentQueue<Action> _finished = new();
     private readonly UpdateBook _book;
-    private readonly string _backups;
+    private readonly BackupShelf _shelf;
     private readonly Action<string> _log;
 
-    public UpdateInstaller(UpdateBook book, string backups, string userAgent, Action<string> log)
+    public UpdateInstaller(UpdateBook book, BackupShelf shelf, string userAgent, Action<string> log)
     {
         _book = book;
-        _backups = backups;
+        _shelf = shelf;
         _log = log;
         _client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = Timeout, MaxResponseContentBufferSize = ReleaseAssets.MaxDownloadBytes };
         _client.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
     }
 
-    /// <summary>Main thread. Does nothing while an install of the same mod runs, or after one finished.</summary>
+    /// <summary>Main thread. Does nothing while an install of the same mod runs, after one finished, or after a rollback.</summary>
     public void Start(ModEntry mod, LatestRelease.Found release, string dllPath, bool isSharedFolder)
     {
-        if (_book.InstallOf(mod.Guid) is InstallState.Installing or InstallState.Installed) return;
+        if (_book.InstallOf(mod.Guid) is InstallState.Installing or InstallState.Installed || _book.HasRolledBack(mod.Guid)) return;
 
         _book.Record(mod.Guid, new InstallState.Installing());
         _log("installing " + mod.Guid + " " + release.Tag + " over " + mod.Version);
 
-        var backup = Path.Combine(_backups, Safe(mod.Guid), Safe(mod.Version));
+        var backup = _shelf.FolderOf(mod.Guid, mod.Version);
 
         _ = Task.Run(async () =>
         {
@@ -50,7 +50,7 @@ internal sealed class UpdateInstaller
 
             try
             {
-                result = await Install(release, dllPath, isSharedFolder, backup).ConfigureAwait(false);
+                result = await Install(mod.Guid, release, dllPath, isSharedFolder, backup).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -79,7 +79,74 @@ internal sealed class UpdateInstaller
         return isChanged;
     }
 
-    private async Task<InstallState> Install(LatestRelease.Found release, string dllPath, bool isSharedFolder, string backup)
+    /// <summary>
+    /// Main thread; the files are small, so it runs at once. Puts back the backup of <paramref name="version"/> and
+    /// records how it went. Does nothing while an install of the mod runs.
+    /// </summary>
+    public void RollBack(ModEntry mod, string version, string dllPath)
+    {
+        if (_book.InstallOf(mod.Guid) is InstallState.Installing) return;
+
+        var diskVersion = _book.InstallOf(mod.Guid) is InstallState.Installed installed ? installed.Tag : mod.Version;
+        var backup = _shelf.FolderOf(mod.Guid, version);
+        var aside = _shelf.FolderOf(mod.Guid, diskVersion);
+        var (steps, problem) = RollbackPlan.For(Path.GetDirectoryName(dllPath) ?? ".", Path.GetFileName(dllPath), backup, _shelf.FilesIn(backup), _shelf.InstalledFiles(mod.Guid, diskVersion), aside);
+        var result = steps == null ? new RollbackState.Failed(version, problem ?? "there is nothing to roll back") : Restore(steps, version);
+
+        _book.Record(mod.Guid, result);
+
+        if (result is RollbackState.Done) _book.Record(mod.Guid, new InstallState.None());
+
+        _log(result is RollbackState.Failed failed ? "could not roll " + mod.Guid + " back to " + version + ": " + failed.Reason : "rolled " + mod.Guid + " back to " + version + "; it is used from the next start, the files it replaced are in " + aside);
+    }
+
+    /// <summary>The backup is copied in beside the targets first, so a full disk changes nothing.</summary>
+    private static RollbackState Restore(RollbackSteps steps, string version)
+    {
+        var written = new List<string>();
+        var setAside = new List<FileStep>();
+        var placed = new List<string>();
+
+        try
+        {
+            foreach (var copy in steps.CopyBack)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(copy.To) ?? ".");
+                File.Copy(copy.From, copy.To + ".rollback", true);
+                written.Add(copy.To + ".rollback");
+            }
+
+            foreach (var step in steps.SetAside.Where(step => File.Exists(step.From)))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(step.To) ?? ".");
+
+                if (File.Exists(step.To)) File.Delete(step.To);
+
+                File.Move(step.From, step.To);
+                setAside.Add(step);
+            }
+
+            foreach (var copy in steps.CopyBack)
+            {
+                File.Move(copy.To + ".rollback", copy.To);
+                placed.Add(copy.To);
+            }
+        }
+        catch (Exception ex)
+        {
+            foreach (var target in placed) TryDelete(target);
+
+            foreach (var step in setAside) TryRun(() => File.Move(step.To, step.From));
+
+            foreach (var temporary in written) TryDelete(temporary);
+
+            return new RollbackState.Failed(version, ex.Message);
+        }
+
+        return new RollbackState.Done(version);
+    }
+
+    private async Task<InstallState> Install(string guid, LatestRelease.Found release, string dllPath, bool isSharedFolder, string backup)
     {
         var dllName = Path.GetFileName(dllPath);
         var answer = await Get(ReleaseNotes.ApiUri(release)).ConfigureAwait(false);
@@ -100,7 +167,12 @@ internal sealed class UpdateInstaller
 
         if (files == null) return new InstallState.Failed(placeProblem ?? "nothing to install");
 
-        Replace(zip, files, Path.GetDirectoryName(dllPath) ?? ".", backup);
+        var modFolder = Path.GetDirectoryName(dllPath) ?? ".";
+
+        Replace(zip, files, modFolder, backup);
+
+        // Without the list a rollback still restores the replaced files; it only leaves files the update added.
+        TryRun(() => _shelf.RecordInstalled(guid, release.Tag, files.Select(file => Path.GetRelativePath(modFolder, file.Target))));
 
         return new InstallState.Installed(release.Tag);
     }
@@ -206,14 +278,6 @@ internal sealed class UpdateInstaller
         }
     }
 
-    /// <summary>A folder name made from a GUID or version, which could otherwise hold a backslash or be "..".</summary>
-    private static string Safe(string name)
-    {
-        var safe = string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
-
-        return safe.Trim('.').Length == 0 ? "_" : safe;
-    }
-
     private static void TryDelete(string path) => TryRun(() => File.Delete(path));
 
     private static void TryRun(Action action)
@@ -224,7 +288,7 @@ internal sealed class UpdateInstaller
         }
         catch
         {
-            // Restoring is best effort; the backup folder still holds the old files.
+            // Best effort: restoring after a failure, or writing the list of installed files.
         }
     }
 }

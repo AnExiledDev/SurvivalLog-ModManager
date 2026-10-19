@@ -56,15 +56,15 @@ internal sealed class UpdateChecks
         _book.Clear();
     }
 
-    /// <summary>Fetches a release's notes once per session; asking again while they load, or after, does nothing.</summary>
-    public void FetchNotes(LatestRelease.Found release)
+    /// <summary>Fetches the notes since a version once per session; asking again while they load, or after, does nothing.</summary>
+    public void FetchNotes(LatestRelease.Found release, string installedVersion)
     {
-        if (_book.Notes(release) is not NotesState.NotAsked) return;
+        if (_book.Notes(release, installedVersion) is not NotesState.NotAsked) return;
 
         var run = _run;
 
-        _book.Record(release, new NotesState.Loading());
-        _ = Notes(run, release);
+        _book.Record(release, installedVersion, new NotesState.Loading());
+        _ = Notes(run, release, installedVersion);
     }
 
     /// <summary>Main thread: records every answer that came in since the last call. True when anything changed.</summary>
@@ -92,13 +92,13 @@ internal sealed class UpdateChecks
         });
     }
 
-    private async Task Notes(int run, LatestRelease.Found release)
+    private async Task Notes(int run, LatestRelease.Found release, string installedVersion)
     {
-        var notes = ReleaseNotes.From(await Limited(() => Get(ReleaseNotes.ApiUri(release))).ConfigureAwait(false));
+        var notes = ReleaseNotes.From(await Limited(() => Get(ReleaseNotes.ListUri(release))).ConfigureAwait(false), installedVersion, release.Tag);
 
         Finish(run, () =>
         {
-            _book.Record(release, notes);
+            _book.Record(release, installedVersion, notes);
 
             var problem = notes switch
             {

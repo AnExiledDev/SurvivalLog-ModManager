@@ -90,7 +90,9 @@ public static class PageScript
         json.Append(",\"builtFor\":").Append(List(mod.Info.GameVersions, Str));
         json.Append(",\"otherGame\":").Append(Bool(mod.IsForOtherGame));
         json.Append(",\"relations\":").Append(List(mod.Relations, RelationJson));
+        json.Append(",\"patchOverlaps\":").Append(List(mod.PatchOverlaps, overlap => "{\"guid\":" + Str(overlap.Guid) + ",\"methods\":" + List(overlap.Methods, Str) + "}"));
         json.Append(",\"install\":").Append(InstallJson(mod.Install));
+        json.Append(",\"rollback\":").Append(RollbackJson(mod.Rollback));
         json.Append(",\"switch\":").Append(SwitchJson(mod.Switch));
         json.Append(",\"update\":").Append(UpdateJson(mod.Update));
         json.Append(",\"hotkeys\":").Append(List(mod.Info.Hotkeys, hotkey => "{\"keys\":" + Str(hotkey.Keys) + ",\"en\":" + Str(hotkey.Label.English) + ",\"zh\":" + Str(hotkey.Label.Chinese) + "}"));
@@ -227,11 +229,20 @@ public static class PageScript
     {
         NotesState.NotAsked => "{\"kind\":\"notAsked\"}",
         NotesState.Loading => "{\"kind\":\"loading\"}",
-        NotesState.Ready ready => "{\"kind\":\"text\",\"text\":" + Str(ready.Text) + "}",
+        NotesState.Ready ready => "{\"kind\":\"releases\",\"releases\":" + List(ready.Releases, note => "{\"tag\":" + Str(note.Tag) + ",\"text\":" + Str(note.Text) + "}") + "}",
         NotesState.Empty => "{\"kind\":\"empty\"}",
         NotesState.Busy => "{\"kind\":\"busy\"}",
         NotesState.Failed failed => "{\"kind\":\"failed\",\"reason\":" + Str(failed.Reason) + "}",
         _ => throw new ArgumentOutOfRangeException(nameof(notes), notes, null),
+    };
+
+    private static string RollbackJson(RollbackState rollback) => rollback switch
+    {
+        RollbackState.None => "{\"kind\":\"none\"}",
+        RollbackState.Available available => "{\"kind\":\"available\",\"version\":" + Str(available.Version) + "}",
+        RollbackState.Done done => "{\"kind\":\"done\",\"version\":" + Str(done.Version) + "}",
+        RollbackState.Failed failed => "{\"kind\":\"failed\",\"version\":" + Str(failed.Version) + ",\"reason\":" + Str(failed.Reason) + "}",
+        _ => throw new ArgumentOutOfRangeException(nameof(rollback), rollback, null),
     };
 
     private static string ModNoteJson(ModNote note) =>

@@ -107,7 +107,7 @@ public abstract record LatestRelease
     public sealed record Failed(string Reason) : LatestRelease;
 }
 
-/// <summary>The notes of one release, fetched only when the player looks at a mod that has an update.</summary>
+/// <summary>The notes of every release since the installed one, fetched only when the player looks at a mod that has an update.</summary>
 public abstract record NotesState
 {
     private NotesState()
@@ -118,9 +118,15 @@ public abstract record NotesState
 
     public sealed record Loading : NotesState;
 
-    public sealed record Ready(string Text) : NotesState;
+    /// <summary>The releases newer than the installed version that have notes, newest first.</summary>
+    public sealed record Ready(IReadOnlyList<ReleaseNote> Releases) : NotesState
+    {
+        public bool Equals(Ready? other) => other != null && Releases.SequenceEqual(other.Releases);
 
-    /// <summary>The release has no notes.</summary>
+        public override int GetHashCode() => Releases.Count;
+    }
+
+    /// <summary>None of the new releases has notes.</summary>
     public sealed record Empty : NotesState;
 
     /// <summary>GitHub's limit for requests without an account was reached; it resets within the hour.</summary>
@@ -245,45 +251,92 @@ public static class LatestReleaseFinder
     }
 }
 
-/// <summary>Release notes come from GitHub's API, which allows 60 requests an hour without an account.</summary>
+/// <summary>One release's tag and its notes as plain text.</summary>
+public sealed record ReleaseNote(string Tag, string Text);
+
+/// <summary>
+/// Release notes come from GitHub's API, which allows 60 requests an hour without an account. One request lists the
+/// recent releases, so a player several versions behind sees what every release since theirs changed.
+/// </summary>
 public static class ReleaseNotes
 {
     public const int MaxLength = 3000;
+    public const int MaxReleases = 10;
 
+    /// <summary>The address of one release, which lists its files.</summary>
     public static Uri ApiUri(LatestRelease.Found release) =>
         new("https://api.github.com/repos/" + release.Owner + "/" + release.Repository + "/releases/tags/" + Uri.EscapeDataString(release.Tag));
 
-    public static NotesState From(HttpAnswer answer) => answer switch
+    /// <summary>The address of the repository's recent releases.</summary>
+    public static Uri ListUri(LatestRelease.Found release) =>
+        new("https://api.github.com/repos/" + release.Owner + "/" + release.Repository + "/releases?per_page=30");
+
+    /// <param name="installedVersion">Releases up to this version are left out.</param>
+    /// <param name="latestTag">Releases after the latest one are left out.</param>
+    public static NotesState From(HttpAnswer answer, string installedVersion, string latestTag) => answer switch
     {
         HttpAnswer.Unreachable unreachable => new NotesState.Failed(unreachable.Reason),
-        HttpAnswer.Answered { Status: 200 } ok => Read(ok.Body),
+        HttpAnswer.Answered { Status: 200 } ok => Read(ok.Body, installedVersion, latestTag),
         HttpAnswer.Answered { Status: 403 or 429 } => new NotesState.Busy(),
         HttpAnswer.Answered answered => new NotesState.Failed("GitHub answered " + answered.Status),
         _ => throw new InvalidOperationException("unknown HTTP answer"),
     };
 
-    /// <summary>The release's own text, shown as plain text and cut short when long; the release page has all of it.</summary>
-    private static NotesState Read(string json)
+    /// <summary>Each release's own text, shown as plain text and cut short when long; the release page has all of it.</summary>
+    private static NotesState Read(string json, string installedVersion, string latestTag)
     {
-        string? body;
+        var installed = ReleaseVersion.Parse(installedVersion);
+        var latest = ReleaseVersion.Parse(latestTag);
+        List<(ReleaseVersion Version, ReleaseNote Note)> releases;
+
+        if (installed == null || latest == null) return new NotesState.Empty();
 
         try
         {
-            using var document = JsonDocument.Parse(json);
-
-            body = document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("body", out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+            releases = Published(json);
         }
         catch (JsonException ex)
         {
             return new NotesState.Failed("GitHub sent notes that could not be read: " + ex.Message);
         }
 
-        var text = (body ?? "").Replace("\r", "").Trim();
+        var notes = releases
+            .Where(release => release.Version.CompareTo(installed) > 0 && release.Version.CompareTo(latest) <= 0)
+            .OrderByDescending(release => release.Version)
+            .Select(release => release.Note)
+            .Take(MaxReleases)
+            .ToList();
 
-        if (text.Length == 0) return new NotesState.Empty();
-
-        return new NotesState.Ready(text.Length <= MaxLength ? text : text.Substring(0, MaxLength).TrimEnd() + "\n...");
+        return notes.Count == 0 ? new NotesState.Empty() : new NotesState.Ready(notes);
     }
+
+    /// <summary>Releases with a readable version and some notes. Drafts and prereleases are passed over.</summary>
+    private static List<(ReleaseVersion Version, ReleaseNote Note)> Published(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var found = new List<(ReleaseVersion, ReleaseNote)>();
+
+        if (document.RootElement.ValueKind != JsonValueKind.Array) throw new JsonException("the answer is not a list of releases");
+
+        foreach (var release in document.RootElement.EnumerateArray())
+        {
+            if (release.ValueKind != JsonValueKind.Object || IsTrue(release, "draft") || IsTrue(release, "prerelease")) continue;
+
+            var tag = StringOf(release, "tag_name");
+            var text = (StringOf(release, "body") ?? "").Replace("\r", "").Trim();
+
+            if (tag == null || ReleaseVersion.Parse(tag) is not { } version || text.Length == 0) continue;
+
+            found.Add((version, new ReleaseNote(tag, text.Length <= MaxLength ? text : text.Substring(0, MaxLength).TrimEnd() + "\n...")));
+        }
+
+        return found;
+    }
+
+    private static string? StringOf(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+    private static bool IsTrue(JsonElement element, string name) => element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.True;
 }
 
 /// <summary>
@@ -295,12 +348,17 @@ public sealed class UpdateBook
     private readonly Dictionary<string, LatestRelease> _latest = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, NotesState> _notes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, InstallState> _installs = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, RollbackState> _rollbacks = new(StringComparer.Ordinal);
 
     public void Record(string repository, LatestRelease latest) => _latest[repository] = latest;
 
-    public void Record(LatestRelease.Found release, NotesState notes) => _notes[NotesKey(release)] = notes;
+    /// <param name="installedVersion">Notes list the releases since this version, so two installs of one repository can differ.</param>
+    public void Record(LatestRelease.Found release, string installedVersion, NotesState notes) => _notes[NotesKey(release, installedVersion)] = notes;
 
     public void Record(string guid, InstallState install) => _installs[guid] = install;
+
+    /// <summary>Only a rollback that was tried is recorded; one that can be done is worked out from the backups.</summary>
+    public void Record(string guid, RollbackState rollback) => _rollbacks[guid] = rollback;
 
     /// <summary>Installs are kept: the files on disk stay changed whether or not checks run again.</summary>
     public void Clear()
@@ -314,9 +372,20 @@ public sealed class UpdateBook
 
     public InstallState InstallOf(string guid) => _installs.TryGetValue(guid, out var install) ? install : new InstallState.None();
 
+    /// <param name="backupVersions">The names of the mod's backup folders.</param>
+    public RollbackState RollbackOf(string guid, IReadOnlyList<string> backupVersions, string runningVersion)
+    {
+        if (_rollbacks.TryGetValue(guid, out var tried)) return tried;
+
+        return Rollback.Target(backupVersions, runningVersion, InstallOf(guid)) is { } version ? new RollbackState.Available(version) : new RollbackState.None();
+    }
+
+    /// <summary>After a rollback the mod's files are left alone until the next start, so nothing can install over them.</summary>
+    public bool HasRolledBack(string guid) => _rollbacks.TryGetValue(guid, out var tried) && tried is RollbackState.Done;
+
     public LatestRelease? Latest(string? repository) => repository != null && _latest.TryGetValue(repository, out var latest) ? latest : null;
 
-    public NotesState Notes(LatestRelease.Found release) => _notes.TryGetValue(NotesKey(release), out var notes) ? notes : new NotesState.NotAsked();
+    public NotesState Notes(LatestRelease.Found release, string installedVersion) => _notes.TryGetValue(NotesKey(release, installedVersion), out var notes) ? notes : new NotesState.NotAsked();
 
     public UpdateState StateOf(string? repository, string installedVersion)
     {
@@ -336,7 +405,7 @@ public sealed class UpdateBook
 
                 if (latest == null || installed == null) return new UpdateState.Unreadable(found.Tag);
 
-                return latest.CompareTo(installed) > 0 ? new UpdateState.Available(found.Tag, Notes(found)) : new UpdateState.UpToDate(found.Tag);
+                return latest.CompareTo(installed) > 0 ? new UpdateState.Available(found.Tag, Notes(found, installedVersion)) : new UpdateState.UpToDate(found.Tag);
             default:
                 throw new InvalidOperationException("unknown latest release");
         }
@@ -346,5 +415,5 @@ public sealed class UpdateBook
     public LatestRelease.Found? UpdateFor(string? repository, string installedVersion) =>
         StateOf(repository, installedVersion) is UpdateState.Available && Latest(repository) is LatestRelease.Found found ? found : null;
 
-    private static string NotesKey(LatestRelease.Found release) => release.Owner.ToLowerInvariant() + "/" + release.Repository.ToLowerInvariant() + "|" + release.Tag;
+    private static string NotesKey(LatestRelease.Found release, string installedVersion) => release.Owner.ToLowerInvariant() + "/" + release.Repository.ToLowerInvariant() + "|" + release.Tag + "|" + installedVersion;
 }

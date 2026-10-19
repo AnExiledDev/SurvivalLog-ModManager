@@ -15,7 +15,7 @@ namespace ModManager;
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "com.dev.survivallog.modmanager";
-    public const string Version = "0.5.0";
+    public const string Version = "0.6.0";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
     private const string ToolkitVersion = ">=0.4.0";
@@ -54,8 +54,9 @@ public sealed class Plugin : BasePlugin
         var userAgent = "SurvivalLog-ModManager/" + Version;
         var updates = new UpdateBook();
         var checks = new UpdateChecks(updates, userAgent, log.Write);
-        var installer = new UpdateInstaller(updates, Path.Combine(Paths.BepInExRootPath, "mod-manager", "backups"), userAgent, log.Write);
-        var catalog = new PluginCatalog(folders, updates, Guid, ReadGameVersion(log.Write), log.Write);
+        var shelf = new BackupShelf(Path.Combine(Paths.BepInExRootPath, "mod-manager", "backups"));
+        var installer = new UpdateInstaller(updates, shelf, userAgent, log.Write);
+        var catalog = new PluginCatalog(folders, updates, shelf.Versions, Guid, ReadGameVersion(log.Write), log.Write);
         var session = new ModsSession(new ModsPage(log.Write), catalog, updates, checks, installer, () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
 
         Ticker.Session = session;

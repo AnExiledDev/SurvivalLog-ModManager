@@ -140,31 +140,45 @@ public class ReleaseNotesTests
 {
     private static readonly LatestRelease.Found Release = new("Ann", "Mod", "v1.0 beta", "https://github.com/Ann/Mod/releases/tag/v1.0%20beta");
 
-    [Fact]
-    public void The_notes_are_the_release_body_as_plain_text()
-    {
-        var notes = ReleaseNotes.From(new HttpAnswer.Answered(200, null, "{\"tag_name\":\"v1\",\"body\":\"Fixed a crash.\\r\\nFaster saves.\"}"));
+    private static string ReleaseJson(string tag, string? body, bool isDraft = false, bool isPrerelease = false) =>
+        "{\"tag_name\":\"" + tag + "\",\"draft\":" + (isDraft ? "true" : "false") + ",\"prerelease\":" + (isPrerelease ? "true" : "false") + ",\"body\":" + (body == null ? "null" : "\"" + body + "\"") + "}";
 
-        Assert.Equal("Fixed a crash.\nFaster saves.", Assert.IsType<NotesState.Ready>(notes).Text);
+    private static NotesState Notes(string installed, string latest, params string[] releases) =>
+        ReleaseNotes.From(new HttpAnswer.Answered(200, null, "[" + string.Join(",", releases) + "]"), installed, latest);
+
+    [Fact]
+    public void The_notes_are_every_release_since_the_installed_one_newest_first()
+    {
+        var notes = Notes("1.0.0", "v1.3.0", ReleaseJson("v1.3.0", "Faster saves."), ReleaseJson("v1.0.0", "First."), ReleaseJson("v1.2.0", "Fixed a crash.\\r\\nNew map."), ReleaseJson("v0.9.0", "Old."));
+
+        Assert.Equal(new[] { new ReleaseNote("v1.3.0", "Faster saves."), new ReleaseNote("v1.2.0", "Fixed a crash.\nNew map.") }, Assert.IsType<NotesState.Ready>(notes).Releases);
     }
 
     [Fact]
-    public void Long_notes_are_cut_short()
+    public void Drafts_prereleases_releases_after_the_latest_and_empty_notes_are_left_out()
     {
-        var notes = ReleaseNotes.From(new HttpAnswer.Answered(200, null, "{\"body\":\"" + new string('a', ReleaseNotes.MaxLength + 500) + "\"}"));
-        var text = Assert.IsType<NotesState.Ready>(notes).Text;
+        var notes = Notes("1.0.0", "v1.3.0", ReleaseJson("v1.4.0", "Not out yet."), ReleaseJson("v1.3.5", "Draft.", isDraft: true), ReleaseJson("v1.3.0", "Out."), ReleaseJson("v1.2.0", "Beta.", isPrerelease: true), ReleaseJson("v1.1.0", "  "), ReleaseJson("v1.0.5", null), ReleaseJson("nightly", "No version."));
 
-        Assert.True(text.Length <= ReleaseNotes.MaxLength + 4);
-        Assert.EndsWith("...", text);
+        Assert.Equal(new[] { new ReleaseNote("v1.3.0", "Out.") }, Assert.IsType<NotesState.Ready>(notes).Releases);
     }
 
-    [Theory]
-    [InlineData("{\"body\":null}")]
-    [InlineData("{\"body\":\"  \"}")]
-    [InlineData("{}")]
-    public void A_release_without_notes_says_so(string json)
+    [Fact]
+    public void Long_notes_are_cut_short_and_a_long_history_keeps_the_newest_releases()
     {
-        Assert.IsType<NotesState.Empty>(ReleaseNotes.From(new HttpAnswer.Answered(200, null, json)));
+        var releases = Enumerable.Range(1, ReleaseNotes.MaxReleases + 5).Select(minor => ReleaseJson("v1." + minor + ".0", new string('a', ReleaseNotes.MaxLength + 500))).ToArray();
+        var notes = Assert.IsType<NotesState.Ready>(Notes("1.0.0", "v1.99.0", releases)).Releases;
+
+        Assert.Equal(ReleaseNotes.MaxReleases, notes.Count);
+        Assert.Equal("v1." + (ReleaseNotes.MaxReleases + 5) + ".0", notes[0].Tag);
+        Assert.True(notes[0].Text.Length <= ReleaseNotes.MaxLength + 4);
+        Assert.EndsWith("...", notes[0].Text);
+    }
+
+    [Fact]
+    public void Releases_without_notes_say_so()
+    {
+        Assert.IsType<NotesState.Empty>(Notes("1.0.0", "v1.1.0", ReleaseJson("v1.1.0", " ")));
+        Assert.IsType<NotesState.Empty>(Notes("1.0.0", "v1.1.0"));
     }
 
     [Theory]
@@ -172,15 +186,22 @@ public class ReleaseNotesTests
     [InlineData(429)]
     public void GitHubs_limit_for_requests_without_an_account_reads_as_busy(int status)
     {
-        Assert.IsType<NotesState.Busy>(ReleaseNotes.From(new HttpAnswer.Answered(status, null, "")));
+        Assert.IsType<NotesState.Busy>(ReleaseNotes.From(new HttpAnswer.Answered(status, null, ""), "1.0", "v1.1"));
     }
 
     [Fact]
     public void Broken_answers_fail_instead_of_throwing()
     {
-        Assert.IsType<NotesState.Failed>(ReleaseNotes.From(new HttpAnswer.Answered(200, null, "<html>")));
-        Assert.IsType<NotesState.Failed>(ReleaseNotes.From(new HttpAnswer.Answered(500, null, "")));
-        Assert.IsType<NotesState.Failed>(ReleaseNotes.From(new HttpAnswer.Unreachable("offline")));
+        Assert.IsType<NotesState.Failed>(ReleaseNotes.From(new HttpAnswer.Answered(200, null, "<html>"), "1.0", "v1.1"));
+        Assert.IsType<NotesState.Failed>(ReleaseNotes.From(new HttpAnswer.Answered(200, null, "{\"body\":\"one release\"}"), "1.0", "v1.1"));
+        Assert.IsType<NotesState.Failed>(ReleaseNotes.From(new HttpAnswer.Answered(500, null, ""), "1.0", "v1.1"));
+        Assert.IsType<NotesState.Failed>(ReleaseNotes.From(new HttpAnswer.Unreachable("offline"), "1.0", "v1.1"));
+    }
+
+    [Fact]
+    public void The_notes_come_from_the_list_of_recent_releases()
+    {
+        Assert.Equal("https://api.github.com/repos/Ann/Mod/releases?per_page=30", ReleaseNotes.ListUri(Release).AbsoluteUri);
     }
 
     [Fact]
@@ -256,21 +277,23 @@ public class UpdateBookTests
     }
 
     [Fact]
-    public void Notes_belong_to_one_release_and_clearing_forgets_everything()
+    public void Notes_belong_to_one_release_and_installed_version_and_clearing_forgets_everything()
     {
         var book = Book(Latest);
+        var ready = new NotesState.Ready(new[] { new ReleaseNote("v1.2.0", "Fixed things.") });
 
         Assert.IsType<NotesState.NotAsked>(Assert.IsType<UpdateState.Available>(book.StateOf("Ann/Mod", "1.0")).Notes);
 
-        book.Record(Latest, new NotesState.Ready("Fixed things."));
+        book.Record(Latest, "1.0", ready);
 
-        Assert.Equal(new NotesState.Ready("Fixed things."), Assert.IsType<UpdateState.Available>(book.StateOf("Ann/Mod", "1.0")).Notes);
-        Assert.IsType<NotesState.NotAsked>(book.Notes(Latest with { Tag = "v1.3.0" }));
+        Assert.Equal(ready, Assert.IsType<UpdateState.Available>(book.StateOf("Ann/Mod", "1.0")).Notes);
+        Assert.IsType<NotesState.NotAsked>(Assert.IsType<UpdateState.Available>(book.StateOf("Ann/Mod", "1.1")).Notes);
+        Assert.IsType<NotesState.NotAsked>(book.Notes(Latest with { Tag = "v1.3.0" }, "1.0"));
 
         book.Clear();
 
         Assert.IsType<UpdateState.NotChecked>(book.StateOf("Ann/Mod", "1.0"));
-        Assert.IsType<NotesState.NotAsked>(book.Notes(Latest));
+        Assert.IsType<NotesState.NotAsked>(book.Notes(Latest, "1.0"));
     }
 
     [Fact]

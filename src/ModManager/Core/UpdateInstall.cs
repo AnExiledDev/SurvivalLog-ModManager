@@ -157,7 +157,7 @@ public static class ZipPlan
     private static bool IsNamedAfter(string relative, string baseName) =>
         !relative.Contains('/') && string.Equals(Path.GetFileNameWithoutExtension(relative), baseName, StringComparison.OrdinalIgnoreCase) && SameNameExtensions.Contains(Path.GetExtension(relative).ToLowerInvariant());
 
-    private static bool IsBelow(string folder, string target)
+    internal static bool IsBelow(string folder, string target)
     {
         var relative = Path.GetRelativePath(folder, target);
 

@@ -149,7 +149,14 @@ internal sealed class ModsSession
                 Open(UpdateFor(openUpdate.Guid)?.PageUrl);
                 break;
             case PageCommand.Install install:
-                Install(install.Guid);
+                StartInstall(install.Guid);
+                RefreshOpen();
+                break;
+            case PageCommand.InstallAll:
+                InstallAll();
+                break;
+            case PageCommand.RollBack rollBack:
+                RollBack(rollBack.Guid);
                 break;
             case PageCommand.TurnOnNeeds needs:
                 TurnOnNeeds(needs.Guid);
@@ -234,17 +241,46 @@ internal sealed class ModsSession
         }
     }
 
-    private void Install(string guid)
+    private void StartInstall(string guid)
     {
         var mod = _catalog.Mod(guid);
         var release = UpdateFor(guid);
         var (dllPath, problem) = _catalog.InstallPathOf(guid);
 
-        if (mod == null || release == null) return;
+        if (mod == null || release == null || _updates.HasRolledBack(guid)) return;
 
         if (dllPath == null) _updates.Record(guid, new InstallState.Failed(problem ?? "it cannot be updated here"));
         else _installer.Start(mod, release, dllPath, _catalog.IsStraightInPlugins(dllPath));
+    }
 
+    /// <summary>Every update not installed yet, failed ones again; the installs run side by side.</summary>
+    private void InstallAll()
+    {
+        var waiting = _catalog.Mods().Where(mod => mod.Update is UpdateState.Available && mod.Install is InstallState.None or InstallState.Failed && mod.Rollback is not RollbackState.Done).ToList();
+
+        _log("installing all " + waiting.Count + " updates");
+
+        foreach (var mod in waiting) StartInstall(mod.Guid);
+
+        RefreshOpen();
+    }
+
+    private void RollBack(string guid)
+    {
+        var mod = _catalog.Mod(guid);
+        var version = mod == null ? null : Rollback.VersionToTry(mod.Rollback);
+        var (dllPath, problem) = _catalog.InstallPathOf(guid);
+
+        if (mod == null || version == null) return;
+
+        if (dllPath == null) _updates.Record(guid, new RollbackState.Failed(version, problem ?? "it cannot be rolled back here"));
+        else _installer.RollBack(mod, version, dllPath);
+
+        RefreshOpen();
+    }
+
+    private void RefreshOpen()
+    {
         if (_isOpen) _page.Run(PageScript.Refresh(View()));
     }
 
@@ -288,11 +324,10 @@ internal sealed class ModsSession
 
     private void FetchNotes(string guid)
     {
-        if (UpdateFor(guid) is not { } release) return;
+        if (_catalog.Mod(guid) is not { } mod || UpdateFor(guid) is not { } release) return;
 
-        _checks.FetchNotes(release);
-
-        if (_isOpen) _page.Run(PageScript.Refresh(View()));
+        _checks.FetchNotes(release, mod.Version);
+        RefreshOpen();
     }
 
     private void Toggle()

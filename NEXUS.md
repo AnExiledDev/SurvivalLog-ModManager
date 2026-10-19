@@ -13,7 +13,8 @@ Mod Manager adds a Mods screen to Survival Log. It lists every BepInEx mod you h
 [*][b]Search, reset, clashes[/b]: find any setting across all mods, see which ones differ from the default and put them back, and spot hotkeys two mods share.[/*]
 [*][b]Copy mod list[/b]: one button copies every mod with its version and state, ready to paste into a bug report.[/*]
 [*][b]Turn mods on or off[/b]: a switch on each mod's page, applied at the next start. It warns about mods that need the one you turn off, and turns on what a mod needs with one button.[/*]
-[*][b]Update checks and installs[/b]: at each start it asks GitHub which mods have a newer release and shows one message saying how many. INSTALL UPDATE downloads the new version and puts it in place for the next start, keeping the old files.[/*]
+[*][b]Update checks and installs[/b]: at each start it asks GitHub which mods have a newer release and shows one message saying how many. INSTALL UPDATE downloads the new version and puts it in place for the next start, keeping the old files. INSTALL ALL UPDATES does every mod at once, the page shows the notes of every release since yours, and ROLL BACK puts the old version back if the new one gives you trouble.[/*]
+[*][b]Mods that change the same game code[/b]: each mod's page lists the other mods that patch the same parts of the game, so you know where to look when two mods misbehave together.[/*]
 [*][b]Game version warning[/b]: a mod made for another game version is marked.[/*]
 [/list]
 
@@ -75,7 +76,8 @@ Mod Manager 为 Survival Log 加入一个模组界面。它列出你安装的每
 [*][b]搜索、重置、冲突[/b]：在所有模组中搜索任意设置，查看哪些与默认值不同并一键恢复，还能发现两个模组共用的热键。[/*]
 [*][b]复制模组列表[/b]：一个按钮即可复制所有模组及其版本和状态，方便粘贴到问题反馈中。[/*]
 [*][b]开启或关闭模组[/b]：每个模组页面上都有开关，下次启动时生效。关闭模组时会提醒哪些模组需要它；一个按钮就能开启某个模组需要的模组。[/*]
-[*][b]检查并安装更新[/b]：每次启动时向 GitHub 查询哪些模组有新版本，并用一条消息告诉你有几个。「安装更新」会下载新版本，下次启动时生效，旧文件会保留。[/*]
+[*][b]检查并安装更新[/b]：每次启动时向 GitHub 查询哪些模组有新版本，并用一条消息告诉你有几个。「安装更新」会下载新版本，下次启动时生效，旧文件会保留。「安装全部更新」可一次更新所有模组，页面会显示你的版本之后每次发布的更新说明；如果新版本有问题，「退回」可以换回旧版本。[/*]
+[*][b]修改相同游戏代码的模组[/b]：每个模组的页面会列出修改了游戏相同部分的其他模组，两个模组一起出问题时可以从这里查起。[/*]
 [*][b]游戏版本提醒[/b]：为其他游戏版本制作的模组会被标记。[/*]
 [/list]
 

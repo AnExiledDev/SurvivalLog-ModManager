@@ -67,6 +67,12 @@ public sealed record ModEntry(string Guid, string Name, string Version, string F
 
     public InstallState Install { get; init; } = new InstallState.None();
 
+    /// <summary>Whether the mod can go back to the files its last update replaced. Only loaded mods offer it.</summary>
+    public RollbackState Rollback { get; init; } = new RollbackState.None();
+
+    /// <summary>The other mods that patch some of the same game methods.</summary>
+    public IReadOnlyList<PatchOverlap> PatchOverlaps { get; init; } = Array.Empty<PatchOverlap>();
+
     /// <summary>The mod names the game versions it was made for, and the running game is none of them.</summary>
     public bool IsForOtherGame { get; init; }
 

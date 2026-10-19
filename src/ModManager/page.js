@@ -42,7 +42,7 @@
       updateTitle: tag => 'Version ' + tag + ' is out.', updateBody: version => 'You have ' + version + '.',
       updChecking: 'checking for updates', updCurrent: 'up to date', updNoReleases: 'no releases on GitHub yet',
       updFailed: 'could not check for updates', updUnreadable: tag => 'latest release ' + tag,
-      whatsNew: "WHAT'S NEW", notesLoading: 'Loading the release notes.', notesEmpty: 'This release has no notes.',
+      whatsNew: "WHAT'S NEW", notesLoading: 'Loading the release notes.', notesEmpty: 'The releases since yours have no notes.',
       notesBusy: 'GitHub is busy for now (it limits how often anyone without an account can ask). The release page has the notes.',
       notesFailed: 'Could not load the release notes. The release page has them.',
       footerUpdates: n => (n === 1 ? '1 mod has' : n + ' mods have') + ' an update.',
@@ -52,12 +52,20 @@
       otherGameBody: (built, game) => 'It was made for ' + built + (game ? ' and this game is ' + game : '') + '. It may not work as expected.',
       relNeeds: 'NEEDS', relWorksWith: 'WORKS WITH (OPTIONAL)', relNot: 'DOES NOT WORK WITH',
       relStatus: { missing: 'not installed', on: 'on', off: 'off' },
+      samePatches: 'CHANGES THE SAME GAME CODE AS',
+      samePatchesNote: 'Mods that change the same game code usually work together. If something goes wrong while both are on, try turning one off.',
+      moreMethods: n => 'and ' + n + ' more',
       needsProblem: list => 'It needs these, which are off or not installed, so it will not start: ' + list + '.',
       clashProblem: list => 'It does not work with these, which are on, so it will not start: ' + list + '.',
       turnOnNeeds: 'TURN ON WHAT IT NEEDS',
       installUpdate: 'INSTALL UPDATE', tryAgain: 'TRY AGAIN', installing: 'Installing the update.',
       installed: tag => 'Version ' + tag + ' is installed. Restart the game to use it.',
       installFailed: reason => 'Could not install the update: ' + reason + '.',
+      installAll: n => 'INSTALL ALL UPDATES (' + n + ')',
+      rollbackTitle: 'An earlier version is kept.', rollbackBody: version => 'The last update replaced ' + version + '. If this version gives you trouble, you can go back to it.',
+      rollbackButton: version => 'ROLL BACK TO ' + version,
+      rolledBack: version => 'Rolled back to ' + version + '. Restart the game to use it.',
+      rollbackFailed: reason => 'Could not roll back: ' + reason + '.',
       advanced: 'Advanced', hotkeys: 'HOTKEYS', linkChangelog: 'CHANGELOG', add: '+ ADD', remove: 'Remove',
       findItem: 'FIND AN ITEM', noItemMatches: 'No item matches.', moreItems: n => n + ' more, type to narrow it down',
       copyList: 'COPY MOD LIST', copied: 'COPIED', copyFailed: 'COULD NOT COPY', copyHint: 'Copies every mod with its version and state, to paste into a bug report.'
@@ -93,7 +101,7 @@
       updateTitle: tag => '新版本 ' + tag + ' 已发布。', updateBody: version => '你的版本是 ' + version + '。',
       updChecking: '正在检查更新', updCurrent: '已是最新', updNoReleases: 'GitHub 上还没有发布版本',
       updFailed: '无法检查更新', updUnreadable: tag => '最新发布 ' + tag,
-      whatsNew: '更新内容', notesLoading: '正在加载更新说明。', notesEmpty: '这个版本没有更新说明。',
+      whatsNew: '更新内容', notesLoading: '正在加载更新说明。', notesEmpty: '你的版本之后的发布都没有更新说明。',
       notesBusy: 'GitHub 暂时繁忙（它限制了未登录时的查询次数）。发布页面上有更新说明。',
       notesFailed: '无法加载更新说明。发布页面上有。',
       footerUpdates: n => n + ' 个模组有更新。',
@@ -103,12 +111,20 @@
       otherGameBody: (built, game) => '它是为 ' + built + ' 制作的' + (game ? '，当前游戏是 ' + game : '') + '。它可能无法正常工作。',
       relNeeds: '需要', relWorksWith: '可配合（可选）', relNot: '不兼容',
       relStatus: { missing: '未安装', on: '已开启', off: '已关闭' },
+      samePatches: '修改了相同游戏代码的模组',
+      samePatchesNote: '修改相同游戏代码的模组通常可以一起使用。如果两者都开启时出现问题，试着关闭其中一个。',
+      moreMethods: n => '另外 ' + n + ' 处',
       needsProblem: list => '它需要的以下模组已关闭或未安装，所以它不会启动：' + list + '。',
       clashProblem: list => '它与以下已开启的模组不兼容，所以它不会启动：' + list + '。',
       turnOnNeeds: '开启它需要的模组',
       installUpdate: '安装更新', tryAgain: '重试', installing: '正在安装更新。',
       installed: tag => '版本 ' + tag + ' 已安装。重启游戏后生效。',
       installFailed: reason => '无法安装更新：' + reason + '。',
+      installAll: n => '安装全部更新（' + n + '）',
+      rollbackTitle: '保留了一个旧版本。', rollbackBody: version => '上次更新替换了 ' + version + '。如果这个版本有问题，可以退回到它。',
+      rollbackButton: version => '退回到 ' + version,
+      rolledBack: version => '已退回到 ' + version + '。重启游戏后生效。',
+      rollbackFailed: reason => '无法退回：' + reason + '。',
       advanced: '高级', hotkeys: '快捷键', linkChangelog: '更新日志', add: '+ 添加', remove: '移除',
       findItem: '搜索物品', noItemMatches: '没有匹配的物品。', moreItems: n => '还有 ' + n + ' 个，输入文字缩小范围',
       copyList: '复制模组列表', copied: '已复制', copyFailed: '无法复制', copyHint: '复制所有模组及其版本和状态，可粘贴到问题反馈中。'
@@ -170,6 +186,7 @@
   const isChanged = s => s.current !== s.default;
   const isChangedThisSession = s => s.current !== s.atStart;
   const hasUpdate = m => m.update.kind === 'available';
+  const canInstall = m => hasUpdate(m) && (m.install.kind === 'none' || m.install.kind === 'failed') && m.rollback.kind !== 'done';
   const tagText = tag => /^[vV]\d/.test(tag) ? tag.slice(1) : tag;
   const settingId = (mod, s) => mod.guid + '\n' + s.section + '\n' + s.key;
   const mods = () => (state.view ? state.view.mods : []);
@@ -412,6 +429,9 @@
 #slmm .upd-act { margin-top: 14px; display: flex; gap: 10px; }
 #slmm .upd-line.ok { color: var(--teal); }
 #slmm .upd-line.bad { color: #c98a8a; }
+#slmm .upd-tag { font-family: var(--mono); font-size: .8rem; color: #ccc; margin: 10px 0 2px; }
+#slmm .upd-h + .upd-tag { margin-top: 0; }
+#slmm .all-btn { display: block; margin: 12px 18px 2px; text-align: center; border-color: rgba(143,199,191,0.55); color: var(--teal); }
 #slmm .rels { padding: 16px 40px 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; align-items: baseline; }
 #slmm .rel-h { font-family: var(--mono); font-size: .75rem; letter-spacing: 2px; color: #777; white-space: nowrap; }
 #slmm .rel-items { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -419,6 +439,9 @@
 #slmm .rel[data-mod] { cursor: pointer; }
 #slmm .rel[data-mod]:hover { border-color: var(--amber); color: #fff; }
 #slmm .rel i { font-style: normal; font-family: var(--mono); font-size: .72rem; color: #777; margin-left: 6px; }
+#slmm .patch { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; width: 100%; }
+#slmm .patch-m { font-family: var(--mono); font-size: .75rem; color: #888; }
+#slmm .patch-note { font-size: .82rem; color: #777; width: 100%; }
 #slmm .rel.bad { border-color: rgba(255,90,90,0.5); color: #e0a0a0; }
 #slmm .rel.bad i { color: var(--red); }
 #slmm .notice .acts { margin-top: 10px; display: flex; gap: 10px; }
@@ -598,6 +621,10 @@
 
     if (!html) html = '<div class="empty"><div class="big">' + esc(word('nothing')) + '</div>' + esc(word('noModMatches')) + '</div>';
 
+    const installable = mods().filter(canInstall).length;
+
+    if (state.filter === 'updates' && !state.query && installable) html = '<div class="key-btn all-btn" data-act="installAll">' + esc(word('installAll')(installable)) + '</div>' + html;
+
     if (problems.length) html += '<div class="grp">' + esc(word('problems')) + ' &middot; ' + problems.length + '</div>' + problems.map(p => '<div class="problem">' + esc(p) + '</div>').join('');
 
     list.innerHTML = html;
@@ -611,7 +638,7 @@
       (m.state === 'off' ? '<span class="pip offp">' + esc(word('statusOff')) + '</span>' : '') +
       (isPending(m) ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : '') +
       (m.otherGame ? '<span class="pip warnp">' + esc(word('pipOtherGame')) + '</span>' : '') +
-      (m.install.kind === 'installed' ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : hasUpdate(m) ? '<span class="pip upd">' + esc(word('pipUpdate')) + '</span>' : '');
+      (m.install.kind === 'installed' || m.rollback.kind === 'done' ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : hasUpdate(m) ? '<span class="pip upd">' + esc(word('pipUpdate')) + '</span>' : '');
 
     return '<div class="mod' + (isSelected ? ' sel' : '') + (m.loaded ? '' : ' off') + '" data-mod="' + esc(m.guid) + '" style="animation-delay:' + delay + 'ms">' +
       badge(m, 'mono') +
@@ -638,7 +665,7 @@
 
     if (names.indexOf(state.tab) < 0) state.tab = '';
 
-    pane.innerHTML = hero(m) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + tabs(m, names) + modNotices(m) + paneBody(m, names);
+    pane.innerHTML = hero(m) + meta(m) + about(m) + links(m) + relations(m) + samePatches(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m) + tabs(m, names) + modNotices(m) + paneBody(m, names);
     askForNotes(m);
   }
 
@@ -718,7 +745,7 @@
     if (!hasUpdate(m)) return '';
 
     return '<div class="notice upd"><span class="ico">&#x2191;</span><div class="upd-main"><b>' + esc(word('updateTitle')(tagText(m.update.tag))) + '</b> ' + esc(word('updateBody')(m.version)) +
-      releaseNotes(m.update.notes) + installLine(m.install) + '<div class="upd-act">' + installButton(m.install) + '<div class="key-btn" data-act="update">' + esc(word('getUpdate')) + ' &#x2197;</div></div></div></div>';
+      releaseNotes(m.update.notes) + installLine(m.install) + '<div class="upd-act">' + (m.rollback.kind === 'done' ? '' : installButton(m.install)) + '<div class="key-btn" data-act="update">' + esc(word('getUpdate')) + ' &#x2197;</div></div></div></div>';
   }
 
   function installLine(install) {
@@ -734,6 +761,18 @@
     switch (install.kind) {
       case 'none': return '<div class="key-btn" data-act="install">' + esc(word('installUpdate')) + '</div>';
       case 'failed': return '<div class="key-btn" data-act="install">' + esc(word('tryAgain')) + '</div>';
+      default: return '';
+    }
+  }
+
+  // Going back to the files the last update replaced. Once done, the line stays until the next start.
+  function rollbackNotice(m) {
+    const button = text => '<div class="acts"><div class="key-btn" data-act="rollback">' + esc(text) + '</div></div>';
+
+    switch (m.rollback.kind) {
+      case 'available': return '<div class="notice"><span class="ico">&#x21BA;</span><div><b>' + esc(word('rollbackTitle')) + '</b> ' + esc(word('rollbackBody')(m.rollback.version)) + button(word('rollbackButton')(m.rollback.version)) + '</div></div>';
+      case 'done': return '<div class="notice ok"><span class="ico">&#x21BA;</span><div>' + esc(word('rolledBack')(m.rollback.version)) + '</div></div>';
+      case 'failed': return '<div class="notice warn"><span class="ico">!</span><div>' + esc(word('rollbackFailed')(m.rollback.reason)) + button(word('tryAgain')) + '</div></div>';
       default: return '';
     }
   }
@@ -760,6 +799,18 @@
     }
 
     return '<div class="rels">' + html + '</div>';
+  }
+
+  // Other mods whose Harmony patches change some of the same game methods; a place to look when two mods misbehave together.
+  function samePatches(m) {
+    if (!m.patchOverlaps || !m.patchOverlaps.length) return '';
+
+    const shown = 6;
+    const methods = o => o.methods.slice(0, shown).join(', ') + (o.methods.length > shown ? ', ' + word('moreMethods')(o.methods.length - shown) : '');
+    const name = o => modByGuid(o.guid) ? nameOf(modByGuid(o.guid)) : o.guid;
+    const rows = m.patchOverlaps.map(o => '<div class="patch"><span class="rel" data-mod="' + esc(o.guid) + '">' + esc(name(o)) + '</span><span class="patch-m">' + esc(methods(o)) + '</span></div>').join('');
+
+    return '<div class="rels"><div class="rel-h">' + esc(word('samePatches')) + '</div><div class="rel-items">' + rows + '<div class="patch-note">' + esc(word('samePatchesNote')) + '</div></div></div>';
   }
 
   // Keys the mod listens for that are not settings. A clash with any other mod's key is marked like a hotkey setting's.
@@ -802,12 +853,19 @@
     const line = (text, title) => '<div class="upd-line"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(text) + '</div>';
 
     switch (notes.kind) {
-      case 'text': return '<div class="upd-notes"><div class="upd-h">' + esc(word('whatsNew')) + '</div>' + esc(notes.text) + '</div>';
+      case 'releases': return '<div class="upd-notes"><div class="upd-h">' + esc(word('whatsNew')) + '</div>' + releaseTexts(notes.releases) + '</div>';
       case 'empty': return line(word('notesEmpty'), '');
       case 'busy': return line(word('notesBusy'), '');
       case 'failed': return line(word('notesFailed'), notes.reason);
       default: return line(word('notesLoading'), '');
     }
+  }
+
+  // One release shows its text alone; several are each headed by their version, newest first.
+  function releaseTexts(releases) {
+    if (releases.length === 1) return esc(releases[0].text);
+
+    return releases.map(r => '<div class="upd-tag">' + esc(tagText(r.tag)) + '</div>' + esc(r.text)).join('');
   }
 
   function about(m) {
@@ -1298,6 +1356,8 @@
     else if (actName === 'link') send('link', [state.selected, act.dataset.kind]);
     else if (actName === 'update') send('update', [state.selected]);
     else if (actName === 'install') send('install', [state.selected]);
+    else if (actName === 'installAll') send('installAll');
+    else if (actName === 'rollback') send('rollback', [state.selected]);
     else if (actName === 'needs') send('needs', [state.selected]);
     else if (actName === 'copyList') send('copyList');
     else if (actName === 'resetMod') resetMod();

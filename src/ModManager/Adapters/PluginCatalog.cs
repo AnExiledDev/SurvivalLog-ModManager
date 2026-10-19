@@ -25,6 +25,7 @@ internal sealed class PluginCatalog
     private readonly StartValues _startValues = new();
     private readonly PluginFolders _folders;
     private readonly UpdateBook _updates;
+    private readonly Func<string, IReadOnlyList<string>> _backupVersions;
     private readonly string _selfGuid;
     private readonly Action<string> _log;
     private readonly HashSet<string> _reportedFailures = new();
@@ -37,10 +38,12 @@ internal sealed class PluginCatalog
     private IReadOnlyDictionary<string, string>? _icons;
     private IReadOnlyDictionary<string, string>? _banners;
 
-    public PluginCatalog(PluginFolders folders, UpdateBook updates, string selfGuid, string? gameVersion, Action<string> log)
+    /// <param name="backupVersions">The names of a mod's backup folders, by GUID.</param>
+    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, string selfGuid, string? gameVersion, Action<string> log)
     {
         _folders = folders;
         _updates = updates;
+        _backupVersions = backupVersions;
         _selfGuid = selfGuid;
         GameVersion = gameVersion;
         _log = log;
@@ -53,8 +56,27 @@ internal sealed class PluginCatalog
     {
         var nodes = Nodes();
         var mods = Plugins().Select(plugin => Entry(plugin, nodes)).Concat(OffAtStart().Select(OffEntry)).ToList();
+        var overlaps = PatchOverlaps.Find(SharedPatches());
 
-        return ModList.SortByName(mods.Select(mod => mod with { Relations = RelationResolver.Resolve(DeclaredOf(mod.Guid), mods) }));
+        return ModList.SortByName(mods.Select(mod => mod with
+        {
+            Relations = RelationResolver.Resolve(DeclaredOf(mod.Guid), mods),
+            PatchOverlaps = overlaps.TryGetValue(mod.Guid, out var shared) ? shared : Array.Empty<PatchOverlap>(),
+        }));
+    }
+
+    /// <summary>Read fresh each time: a mod may patch late, or unpatch when it reloads.</summary>
+    private IReadOnlyList<PatchedMethod> SharedPatches()
+    {
+        var loaded = Plugins().Where(plugin => plugin.Instance != null).ToList();
+        var pluginOf = new Dictionary<Assembly, string>();
+
+        foreach (var plugin in loaded)
+        {
+            pluginOf.TryAdd(plugin.Instance.GetType().Assembly, plugin.Metadata.GUID);
+        }
+
+        return HarmonyPatches.Shared(pluginOf, loaded.Select(plugin => plugin.Metadata.GUID).ToHashSet(), message => ReportOnce("patches", message));
     }
 
     /// <summary>The icons of every mod that embeds a usable one, read once: DLLs do not change their pictures while the game runs.</summary>
@@ -197,6 +219,7 @@ internal sealed class PluginCatalog
     private ModEntry Finish(ModEntry mod) => mod with
     {
         Install = _updates.InstallOf(mod.Guid),
+        Rollback = mod.State is ModState.Loaded ? _updates.RollbackOf(mod.Guid, _backupVersions(mod.Guid), mod.Version) : new RollbackState.None(),
         IsForOtherGame = !Core.GameVersion.IsMadeFor(mod.Info.GameVersions, GameVersion),
     };
 

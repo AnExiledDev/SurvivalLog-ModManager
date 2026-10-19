@@ -100,12 +100,17 @@ public class PageCommandTests
     {
         Assert.Equal(new PageCommand.Install("com.x"), PageCommand.Parse("slmod|modmanager|install|com.x"));
         Assert.Equal(new PageCommand.TurnOnNeeds("com.x"), PageCommand.Parse("slmod|modmanager|needs|com.x"));
+        Assert.Equal(new PageCommand.RollBack("com.x"), PageCommand.Parse("slmod|modmanager|rollback|com.x"));
+        Assert.IsType<PageCommand.InstallAll>(PageCommand.Parse("slmod|modmanager|installAll"));
     }
 
     [Theory]
     [InlineData("slmod|modmanager|install")]
     [InlineData("slmod|modmanager|install|g|https%3A%2F%2Fevil.example")]
     [InlineData("slmod|modmanager|needs")]
+    [InlineData("slmod|modmanager|rollback")]
+    [InlineData("slmod|modmanager|rollback|g|1.0")]
+    [InlineData("slmod|modmanager|installAll|g")]
     public void Install_or_needs_without_exactly_one_mod_is_unknown(string message)
     {
         Assert.IsType<PageCommand.Unknown>(PageCommand.Parse(message));

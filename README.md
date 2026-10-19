@@ -23,7 +23,10 @@ Open it with F10, or with the Mods button in the Esc menu or on the title screen
 - **Game version check**: a mod can name the game version it was made for. When the game is a different version, the mod gets a VERSION mark in the list and a warning on its page.
 - **Mod info and links**: a mod can give its name, a short description, its author, a category, and links to its Nexus Mods page, GitHub repository, website and a page for reporting problems. The link buttons open them in your browser.
 - **Update checks**: each time the game starts, the Mod Manager asks GitHub whether mods that name a GitHub repository have a newer release. Mods with an update get an UPDATE mark in the list and an "Updates" filter, and one message says how many mods have updates (click it to see them). A mod's page shows the new version, the release notes, an INSTALL UPDATE button and a GET UPDATE button that opens the release page in your browser.
-- **Install updates**: INSTALL UPDATE downloads the release's zip from GitHub and puts the new files in place for the next game start. The running game keeps the version it loaded. The old files are kept in `BepInEx\mod-manager\backups`, and a failed install puts them back.
+- **Install updates**: INSTALL UPDATE downloads the release's zip from GitHub and puts the new files in place for the next game start. The running game keeps the version it loaded. The old files are kept in `BepInEx\mod-manager\backups`, and a failed install puts them back. INSTALL ALL UPDATES at the top of the "Updates" filter installs every update at once.
+- **Release notes since your version**: a mod's page shows the notes of every release since the version you have, newest first, not only the latest one.
+- **Roll back**: when an update replaced an older version, ROLL BACK TO (version) on the mod's page puts the old files back for the next game start. The newer files are kept in the backups folder too.
+- **Mods that change the same game code**: a mod's page lists the other mods that patch the same parts of the game, and which parts. They usually work together; the list is where to look when two mods misbehave while both are on.
 
 The Mod Manager adds nothing to your save and does not edit game files. It writes the .cfg files of the mods whose settings you change, moves the DLLs of mods you turn on or off, and replaces the files of mods you update. Its only network use is GitHub: the update check, which asks for the latest release of each mod that names a repository, and the download when you click INSTALL UPDATE.
 
@@ -35,6 +38,8 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 - A mod whose DLL is outside `BepInEx\plugins` cannot be turned on, off or updated here.
 - Update checks only cover mods that name a GitHub repository. INSTALL UPDATE needs the release to carry a .zip that holds the mod's DLL; otherwise use GET UPDATE and install it yourself.
 - An installed update is used from the next game start. Turning the mod off in the same session is refused until then.
+- A rollback is used from the next game start too, and one rollback per mod per session is allowed. A rollback only offers versions the Mod Manager backed up when it installed an update.
+- The same-game-code list only sees patches made with Harmony, which is what BepInEx mods use.
 - GitHub allows 60 requests an hour without an account. Past that, release notes and installs say to try again within the hour; the update itself is still shown.
 
 ## Requirements
@@ -201,7 +206,7 @@ Hard dependencies are listed as NEEDS, and TURN ON WHAT IT NEEDS turns them on. 
 With `ModManager.GitHub` set (or a GitHub `RepositoryUrl`), the screen checks the repository's latest GitHub release at each game start:
 
 - The release tag is the version, compared with your BepInPlugin version: `v1.2.0` or `1.2.0` against `1.1.0`. A tag that is not a version is shown as unreadable and never counts as an update.
-- The release notes are the release's body text.
+- The release notes are each release's body text. The page shows every release newer than the installed version up to the latest, so write each release's notes for that release alone. Drafts and prereleases are skipped.
 - For INSTALL UPDATE, attach a `.zip` to the release that holds your DLL. With one zip it is used whatever its name; with several, the one whose name holds your DLL's name (`BetterMap` for `BetterMap.dll`). Up to 50 MB.
 - The folder holding your DLL in the zip maps onto the folder holding your DLL on disk. A zip laid out like the install (`BepInEx/plugins/BetterMap.dll`) works, and so does one with the DLL at its root. Files beside your DLL in the zip (other DLLs, a `lang` folder) are installed beside it.
 - When your DLL sits straight in `BepInEx\plugins`, a folder every mod shares, only your DLL and its `.pdb` and `.xml` are written. Put your mod in its own folder (`BepInEx\plugins\BetterMap\`) if it ships more files.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- INSTALL ALL UPDATES at the top of the "Updates" filter installs every available update at once.
+- ROLL BACK TO (version): after an update, put the files it replaced back for the next start.
+- A mod's page shows the release notes of every release since your version, not only the latest.
+- A mod's page lists the other mods that change the same game code, and which parts.
+
 ## 0.5.0
 
 - Item pickers: settings that hold game items, lists of items, items with amounts, or item categories can ask for a picker with names and icons in the game's language, instead of a box for id numbers.

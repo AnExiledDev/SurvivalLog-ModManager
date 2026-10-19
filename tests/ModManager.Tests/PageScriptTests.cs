@@ -141,17 +141,44 @@ public class PageScriptTests
     [Fact]
     public void An_update_sends_its_tag_and_notes_but_never_the_release_address()
     {
-        var mod = Loaded() with { Update = new UpdateState.Available("v1.2.0", new NotesState.Ready("Fixed things.")) };
+        var notes = new NotesState.Ready(new[] { new ReleaseNote("v1.2.0", "Fixed things."), new ReleaseNote("v1.1.0", "New map.") });
+        var mod = Loaded() with { Update = new UpdateState.Available("v1.2.0", notes) };
 
         var text = PageScript.ModJson(mod);
         using var json = JsonDocument.Parse(text);
         var update = json.RootElement.GetProperty("update");
+        var releases = update.GetProperty("notes").GetProperty("releases");
 
         Assert.Equal("available", update.GetProperty("kind").GetString());
         Assert.Equal("v1.2.0", update.GetProperty("tag").GetString());
-        Assert.Equal("text", update.GetProperty("notes").GetProperty("kind").GetString());
-        Assert.Equal("Fixed things.", update.GetProperty("notes").GetProperty("text").GetString());
+        Assert.Equal("releases", update.GetProperty("notes").GetProperty("kind").GetString());
+        Assert.Equal(2, releases.GetArrayLength());
+        Assert.Equal("v1.1.0", releases[1].GetProperty("tag").GetString());
+        Assert.Equal("New map.", releases[1].GetProperty("text").GetString());
         Assert.DoesNotContain("github.com", text);
+    }
+
+    [Fact]
+    public void Shared_patches_send_the_other_mod_and_the_methods()
+    {
+        using var json = JsonDocument.Parse(PageScript.ModJson(Loaded() with { PatchOverlaps = new[] { new PatchOverlap("com.b", new[] { "Bag.Add", "Player.TakeDamage" }) } }));
+        var overlap = json.RootElement.GetProperty("patchOverlaps")[0];
+
+        Assert.Equal("com.b", overlap.GetProperty("guid").GetString());
+        Assert.Equal("Player.TakeDamage", overlap.GetProperty("methods")[1].GetString());
+    }
+
+    [Fact]
+    public void A_rollback_sends_the_version_it_goes_back_to_and_why_it_failed()
+    {
+        using var available = JsonDocument.Parse(PageScript.ModJson(Loaded() with { Rollback = new RollbackState.Available("1.0.0") }));
+        using var failed = JsonDocument.Parse(PageScript.ModJson(Loaded() with { Rollback = new RollbackState.Failed("1.0.0", "the file is in use") }));
+        using var none = JsonDocument.Parse(PageScript.ModJson(Loaded()));
+
+        Assert.Equal("available", available.RootElement.GetProperty("rollback").GetProperty("kind").GetString());
+        Assert.Equal("1.0.0", available.RootElement.GetProperty("rollback").GetProperty("version").GetString());
+        Assert.Equal("the file is in use", failed.RootElement.GetProperty("rollback").GetProperty("reason").GetString());
+        Assert.Equal("none", none.RootElement.GetProperty("rollback").GetProperty("kind").GetString());
     }
 
     [Theory]
