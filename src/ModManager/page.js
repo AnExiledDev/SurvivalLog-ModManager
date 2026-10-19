@@ -59,7 +59,8 @@
       errorsIntro: 'Warnings and errors this mod logged this session, newest first. They help the mod author find the cause: COPY MOD LIST at the bottom puts them in a bug report.',
       seenTimes: n => n === 1 ? 'once' : n + ' times', loggedBy: source => 'logged by ' + source,
       clashLine: method => 'It went through ' + method + ', which these mods also patch:',
-      otherErrors: 'BepInEx and game errors', moreErrors: n => '+' + n + ' more in COPY MOD LIST',
+      otherErrors: 'BepInEx and game errors', pageErrors: 'ERRORS',
+      otherErrorsIntro: 'Warnings and errors this session that no mod could be matched to: from BepInEx, the game itself, or a mod that logged without its name. COPY MOD LIST at the bottom puts them in a bug report.',
       changelogNote: 'The published changelog. It can be ahead of the version you have.',
       changelogLoading: 'Loading the changelog.', changelogEmpty: 'The changelog is empty.',
       changelogFailed: 'Could not load the changelog. The CHANGELOG link above opens it in your browser.',
@@ -136,7 +137,8 @@
       errorsIntro: '本模组在这次游戏中记录的警告和错误，最新的在前。它们能帮模组作者找到原因：底部的「复制模组列表」会把它们放进问题反馈。',
       seenTimes: n => n === 1 ? '1 次' : n + ' 次', loggedBy: source => '来源：' + source,
       clashLine: method => '它经过了 ' + method + '，以下模组也修改了这段代码：',
-      otherErrors: 'BepInEx 和游戏的错误', moreErrors: n => '另有 ' + n + ' 条，见「复制模组列表」',
+      otherErrors: 'BepInEx 和游戏的错误', pageErrors: '错误',
+      otherErrorsIntro: '这次游戏中无法对应到某个模组的警告和错误：来自 BepInEx、游戏本身，或没有写明名字的模组。底部的「复制模组列表」会把它们放进问题反馈。',
       changelogNote: '这是已发布的更新日志，可能比你安装的版本更新。',
       changelogLoading: '正在加载更新日志。', changelogEmpty: '更新日志是空的。',
       changelogFailed: '无法加载更新日志。上方的「更新日志」链接可以在浏览器中打开它。',
@@ -169,6 +171,7 @@
 
   const state = {
     view: null,
+    page: 'mods',
     selected: null,
     filter: 'all',
     query: '',
@@ -309,6 +312,16 @@
 
 #slmm .hd { display: flex; align-items: center; gap: 22px; padding: 0 30px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.1); }
 #slmm .hd-title { font-family: var(--display); font-size: 2.3rem; color: #fff; letter-spacing: 3px; line-height: 1; }
+#slmm .hd-tabs { display: flex; align-items: center; gap: 28px; }
+#slmm .hd-tabs .hd-title { cursor: pointer; transition: color .2s; display: flex; align-items: center; gap: 10px; }
+#slmm .hd-tabs .hd-title:not(.on) { color: #555; }
+#slmm .hd-tabs .hd-title:not(.on):hover { color: #999; }
+#slmm .hd-err i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: var(--red); border-radius: 3px; padding: 2px 7px; }
+#slmm .hd-err.warn i { background: #e8813a; }
+#slmm .win.page-errors .bd { grid-template-columns: 1fr; }
+#slmm .win.page-errors .rail { display: none; }
+#slmm .errs-page { padding: 26px 40px 40px; }
+#slmm .errs-page .sec-t { margin-bottom: 8px; }
 #slmm .hd-deco { font-family: var(--mono); font-size: .85rem; color: var(--amber); opacity: .75; letter-spacing: 1px; display: flex; gap: 14px; }
 #slmm .hd-deco b { color: #fff; font-weight: 400; opacity: .8; }
 #slmm .hd-sp { flex: 1; }
@@ -590,7 +603,7 @@
 <div class="stage"><div class="win">
   <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
   <div class="hd">
-    <div class="hd-title">MODS</div>
+    <div class="hd-tabs"><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-err" data-page="errors"><span data-word="pageErrors"></span><i data-count="otherErrors"></i></div></div>
     <div class="hd-deco"><span>// MOD MANAGER</span><span><b data-count="loaded">0</b> <span data-word="loaded"></span></span><span><b data-count="settings">0</b> <span data-word="settings"></span></span></div>
     <div class="hd-sp"></div>
     <div class="seg"><span data-lang="en">EN</span><span data-lang="zh">中文</span></div>
@@ -728,6 +741,16 @@
 
     if (!updates && state.filter === 'updates' || !withErrors && state.filter === 'errors') state.filter = 'all';
 
+    const others = otherErrors();
+
+    if (!others.length) state.page = 'mods';
+
+    $('.win').classList.toggle('page-errors', state.page === 'errors');
+    root.querySelectorAll('[data-page]').forEach(el => el.classList.toggle('on', el.dataset.page === state.page));
+    $('[data-page="errors"]').style.display = others.length ? '' : 'none';
+    $('[data-page="errors"]').classList.toggle('warn', !others.some(e => e.level === 'error'));
+    setCount('otherErrors', others.length);
+
     root.querySelectorAll('[data-word]').forEach(el => { el.textContent = word(el.dataset.word); });
     root.querySelectorAll('[data-lang]').forEach(el => el.classList.toggle('on', el.dataset.lang === state.lang));
     root.querySelectorAll('[data-filter]').forEach(el => el.classList.toggle('on', el.dataset.filter === state.filter));
@@ -796,22 +819,19 @@
 
     if (problems.length) html += '<div class="grp">' + esc(word('problems')) + ' &middot; ' + problems.length + '</div>' + problems.map(p => '<div class="problem">' + esc(p) + '</div>').join('');
 
-    html += otherErrorsList();
     morph(list, html);
   }
 
-  // Errors no mod could be found for, under the list: one line each, the whole text on hover.
-  function otherErrorsList() {
-    const others = state.view ? state.view.otherErrors : [];
-    const shown = 20;
+  function otherErrors() {
+    return state.view ? state.view.otherErrors : [];
+  }
 
-    if (!others.length) return '';
+  // The ERRORS page beside MODS: every error no mod could be found for, in full.
+  function otherErrorsPage() {
+    const others = otherErrors();
 
-    const line = e => '<div class="problem' + (e.level === 'warning' ? ' wrn' : '') + '" title="' + esc(e.message + (e.stack.length ? '\n' + e.stack.join('\n') : '')) + '">' +
-      esc(e.source + ': ' + e.message.split('\n')[0] + (e.count > 1 ? ' (x' + e.count + ')' : '')) + '</div>';
-
-    return '<div class="grp">' + esc(word('otherErrors')) + ' &middot; ' + others.length + '</div>' + others.slice(0, shown).map(line).join('') +
-      (others.length > shown ? '<div class="problem wrn">' + esc(word('moreErrors')(others.length - shown)) + '</div>' : '');
+    return '<div class="errs-page"><div class="sec-t">' + esc(word('otherErrors')) + ' &middot; ' + others.length + '</div>' +
+      '<div class="cf-intro">' + esc(word('otherErrorsIntro')) + '</div>' + others.map(errorBlock).join('') + '</div>';
   }
 
   function hasErrors(m) {
@@ -836,6 +856,12 @@
   }
 
   function renderPane() {
+    if (state.page === 'errors') {
+      morph(pane, otherErrorsPage());
+
+      return;
+    }
+
     if (state.query) {
       renderSearch();
 
@@ -1060,12 +1086,15 @@
 
   // The Errors tab: what this mod logged this session, and any game method it went through that another mod patches too.
   function errorsBody(m) {
+    return '<div class="cf"><div class="cf-intro">' + esc(word('errorsIntro')) + '</div>' + m.errors.map(errorBlock).join('') + '</div>';
+  }
+
+  function errorBlock(e) {
     const clash = c => '<div class="er-clash">' + esc(word('clashLine')(c.method)) + c.guids.map(g => '<span class="rel" data-mod="' + esc(g) + '">' + esc(otherName({ guid: g })) + '</span>').join('') + '</div>';
-    const block = e => '<div class="er ' + e.level + '"><div class="er-head"><span class="er-lv">' + esc(word('level')[e.level]) + '</span><span class="cf-count">' + esc(word('seenTimes')(e.count)) + ' &middot; ' + esc(word('loggedBy')(e.source)) + '</span></div>' +
+
+    return '<div class="er ' + e.level + '"><div class="er-head"><span class="er-lv">' + esc(word('level')[e.level]) + '</span><span class="cf-count">' + esc(word('seenTimes')(e.count)) + ' &middot; ' + esc(word('loggedBy')(e.source)) + '</span></div>' +
       '<div class="er-msg">' + esc(e.message) + '</div>' + e.clashes.map(clash).join('') +
       (e.stack.length ? '<div class="er-stack">' + esc(e.stack.join('\n')) + '</div>' : '') + '</div>';
-
-    return '<div class="cf"><div class="cf-intro">' + esc(word('errorsIntro')) + '</div>' + m.errors.map(block).join('') + '</div>';
   }
 
   function changelogBody(m) {
@@ -1622,6 +1651,16 @@
       return;
     }
 
+    const page = target.closest('[data-page]');
+
+    if (page) {
+      state.page = page.dataset.page;
+      render();
+      pane.scrollTop = 0;
+
+      return;
+    }
+
     const modLink = target.closest('[data-mod]');
 
     if (modLink) {
@@ -1701,6 +1740,7 @@
     if (guid !== state.selected) state.modNote = null;
 
     state.selected = guid;
+    state.page = 'mods';
     state.query = '';
     state.tab = '';
     state.side = '';
