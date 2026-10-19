@@ -6,6 +6,7 @@
 - ROLL BACK TO (version): after an update, put the files it replaced back for the next start.
 - A mod's page shows the release notes of every release since your version, not only the latest.
 - A mod's page has a CONFLICTS tab listing the other mods that change the same game code, which parts, and what each mod does there. Each is marked LIKELY TO CLASH (both rewrite the game code), MAY CLASH (one can skip or rewrite it) or PROBABLY HARMLESS, riskiest first.
+- Errors and warnings logged this session are listed under the mod they came from: an ERRORS tab on the mod's page (with the message, the stack, and how many times it happened), an ERROR or WARNING mark in the list, and an "Errors" filter. When an error went through game code that another mod also changes, the tab names that mod, which is evidence of a real clash. Errors that belong to no mod are listed under the mod list. COPY MOD LIST includes them all.
 - A mod that links its changelog gets a CHANGELOG tab next to CONFLICTS, which shows the changelog on the mod's page.
 - A mod's page shows the version range of each mod it needs, and marks an installed version outside that range as wrong version.
 - A mod's page lists the mods that need it (NEEDED BY) and the ones that can use it (USED BY (OPTIONAL)). A mod that needs it turns red while it is off.

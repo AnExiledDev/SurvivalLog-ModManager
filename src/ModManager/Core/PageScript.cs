@@ -65,6 +65,7 @@ public static class PageScript
         json.Append(",\"game\":").Append(view.GameVersion == null ? "null" : Str(view.GameVersion));
         json.Append(",\"mods\":").Append(List(view.Mods, ModJson));
         json.Append(",\"problems\":").Append(List(view.Problems, Str));
+        json.Append(",\"otherErrors\":").Append(List(view.OtherErrors, ErrorJson));
 
         return json.Append('}').ToString();
     }
@@ -92,6 +93,7 @@ public static class PageScript
         json.Append(",\"relations\":").Append(List(mod.Relations, RelationJson));
         json.Append(",\"dependents\":").Append(List(mod.Dependents, RelationJson));
         json.Append(",\"patchOverlaps\":").Append(List(mod.PatchOverlaps, OverlapJson));
+        json.Append(",\"errors\":").Append(List(mod.Errors, ErrorJson));
         json.Append(",\"install\":").Append(InstallJson(mod.Install));
         json.Append(",\"rollback\":").Append(RollbackJson(mod.Rollback));
         json.Append(",\"changelog\":").Append(ChangelogJson(mod.Changelog));
@@ -173,6 +175,14 @@ public static class PageScript
     private static string OverlapJson(PatchOverlap overlap) =>
         "{\"guid\":" + Str(overlap.Guid) + ",\"risk\":" + Str(RiskName(overlap.Risk)) + ",\"methods\":" + List(overlap.Methods, method =>
             "{\"name\":" + Str(method.Method) + ",\"risk\":" + Str(RiskName(method.Risk)) + ",\"mine\":" + List(method.Mine, effect => Str(EffectName(effect))) + ",\"theirs\":" + List(method.Theirs, effect => Str(EffectName(effect))) + "}") + "}";
+
+    private static string ErrorJson(ModProblem error) =>
+        "{\"level\":" + Str(error.Problem.Level == ProblemLevel.Error ? "error" : "warning") +
+        ",\"source\":" + Str(error.Problem.Source) +
+        ",\"message\":" + Str(error.Problem.Message) +
+        ",\"stack\":" + List(error.Problem.Stack, Str) +
+        ",\"count\":" + Num(error.Problem.Count) +
+        ",\"clashes\":" + List(error.Clashes, clash => "{\"method\":" + Str(clash.Method) + ",\"guids\":" + List(clash.Guids, Str) + "}") + "}";
 
     private static string RiskName(PatchRisk risk) => risk switch
     {

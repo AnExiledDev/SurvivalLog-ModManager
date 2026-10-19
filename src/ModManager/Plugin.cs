@@ -46,8 +46,12 @@ public sealed class Plugin : BasePlugin
     private void Start(ConfigEntry<KeyCode> openKey, ConfigEntry<bool> checkForUpdates, ConfigEntry<bool> showToast)
     {
         var log = new ToolkitLog(Log, Path.Combine(Paths.BepInExRootPath, "mod-manager.log"));
+        var startLine = $"===== Mod Manager {Version} started";
+        var watch = new LogWatch(Paths.BepInExRootPath, startLine, log.Write);
 
-        log.Write($"===== Mod Manager {Version} started, open key {openKey.Value}");
+        // Listening before the start line is logged: everything above it in LogOutput.log is read from the file instead.
+        BepInEx.Logging.Logger.Listeners.Add(watch);
+        log.Write($"{startLine}, open key {openKey.Value}");
         Ticker.Log = log.Write;
         var folders = new PluginFolders(Paths.PluginPath, new[] { Path.Combine(Paths.BepInExRootPath, "disabled-plugins"), Path.Combine(Paths.BepInExRootPath, "plugins-disabled") });
 
@@ -56,8 +60,8 @@ public sealed class Plugin : BasePlugin
         var checks = new UpdateChecks(updates, userAgent, log.Write);
         var shelf = new BackupShelf(Path.Combine(Paths.BepInExRootPath, "mod-manager", "backups"));
         var installer = new UpdateInstaller(updates, shelf, userAgent, log.Write);
-        var catalog = new PluginCatalog(folders, updates, shelf.Versions, Guid, ReadGameVersion(log.Write), log.Write);
-        var session = new ModsSession(new ModsPage(log.Write), catalog, updates, checks, installer, () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
+        var catalog = new PluginCatalog(folders, updates, shelf.Versions, watch.Book, Guid, ReadGameVersion(log.Write), log.Write);
+        var session = new ModsSession(new ModsPage(log.Write), catalog, updates, checks, installer, watch, () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
 
         Ticker.Session = session;
         checkForUpdates.SettingChanged += (_, _) => session.CheckForUpdates(checkForUpdates.Value);

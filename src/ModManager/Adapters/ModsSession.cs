@@ -25,11 +25,16 @@ internal sealed class ModsSession
     /// <summary>Frames after the page gives the keyboard back in which Esc and the open key are ignored, so the Esc that left a text field does not also close the screen.</summary>
     private const int FramesAfterTyping = 2;
 
+    /// <summary>Seconds between looks at new log errors, and between redraws of an open screen for them.</summary>
+    private const float ErrorLookSeconds = 1f;
+    private const float ErrorRedrawSeconds = 2f;
+
     private readonly ModsPage _page;
     private readonly PluginCatalog _catalog;
     private readonly UpdateBook _updates;
     private readonly UpdateChecks _checks;
     private readonly UpdateInstaller _installer;
+    private readonly LogWatch _watch;
     private readonly PageMailbox _mailbox;
     private readonly WebKeyboard _keyboard = new();
     private readonly KeyCapture _capture = new();
@@ -42,17 +47,23 @@ internal sealed class ModsSession
     private bool _hasStarted;
     private bool _hasToldUpdates;
     private int _typingEndedAtFrame = -100;
+    private float _errorsLookedAt = float.MinValue;
+    private float _errorsDrawnAt = float.MinValue;
+
+    /// <summary>The error book's version the open screen last showed.</summary>
+    private int _errorsShown;
 
     /// <summary>The language the item table was sent in to the page that is there now; null when it has not been sent.</summary>
     private bool? _itemsSentIn;
 
-    public ModsSession(ModsPage page, PluginCatalog catalog, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
+    public ModsSession(ModsPage page, PluginCatalog catalog, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
         _updates = updates;
         _checks = checks;
         _installer = installer;
+        _watch = watch;
         _mailbox = PageInbox.Listen(PageCommand.Prefix);
         _openKey = openKey;
         _isCheckingForUpdates = isCheckingForUpdates;
@@ -81,6 +92,7 @@ internal sealed class ModsSession
         if (hasChecked) TellUpdatesOnce();
 
         if ((hasChecked || hasInstalled) && _isOpen) _page.Run(PageScript.Refresh(View()));
+        else RedrawForNewErrors(now);
 
         if (_capture.Target != null)
         {
@@ -349,7 +361,34 @@ internal sealed class ModsSession
         else Open();
     }
 
-    private ModsView View() => new(_catalog.Mods(), _catalog.Problems(), GameLanguage.IsChinese(), _openKey().ToString()) { GameVersion = _catalog.GameVersion };
+    /// <summary>An open screen shows errors as they are logged, redrawn at most every two seconds through an error storm.</summary>
+    private void RedrawForNewErrors(float now)
+    {
+        if (now - _errorsLookedAt < ErrorLookSeconds) return;
+
+        _errorsLookedAt = now;
+        _watch.Collect();
+
+        if (!_isOpen || _watch.Book.Version == _errorsShown || now - _errorsDrawnAt < ErrorRedrawSeconds) return;
+
+        _errorsDrawnAt = now;
+        _page.Run(PageScript.Refresh(View()));
+    }
+
+    private ModsView View()
+    {
+        _watch.Collect();
+        _errorsShown = _watch.Book.Version;
+
+        var (mods, otherErrors, errorsNotKept) = _catalog.Listing();
+
+        return new(mods, _catalog.Problems(), GameLanguage.IsChinese(), _openKey().ToString())
+        {
+            GameVersion = _catalog.GameVersion,
+            OtherErrors = otherErrors,
+            ErrorsNotKept = errorsNotKept,
+        };
+    }
 
     private void Open() => OpenScreen(null);
 

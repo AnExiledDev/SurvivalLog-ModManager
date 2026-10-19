@@ -55,6 +55,11 @@
       relStopsThem: 'Needs this mod, so it will not start while this one is off',
       relStatus: { missing: 'not installed', on: 'on', off: 'off', wrongVersion: 'wrong version' },
       tabSettings: 'Settings', tabConflicts: 'Conflicts', tabChangelog: 'Changelog', thisMod: 'This mod',
+      tabErrors: 'Errors', errors: 'Errors', pipError: 'ERROR', pipWarning: 'WARNING', level: { error: 'ERROR', warning: 'WARNING' },
+      errorsIntro: 'Warnings and errors this mod logged this session, newest first. They help the mod author find the cause: COPY MOD LIST at the bottom puts them in a bug report.',
+      seenTimes: n => n === 1 ? 'once' : n + ' times', loggedBy: source => 'logged by ' + source,
+      clashLine: method => 'It went through ' + method + ', which these mods also patch:',
+      otherErrors: 'BepInEx and game errors', moreErrors: n => '+' + n + ' more in COPY MOD LIST',
       changelogNote: 'The published changelog. It can be ahead of the version you have.',
       changelogLoading: 'Loading the changelog.', changelogEmpty: 'The changelog is empty.',
       changelogFailed: 'Could not load the changelog. The CHANGELOG link above opens it in your browser.',
@@ -81,7 +86,7 @@
       rollbackFailed: reason => 'Could not roll back: ' + reason + '.',
       advanced: 'Advanced', hotkeys: 'HOTKEYS', linkChangelog: 'CHANGELOG', add: '+ ADD', remove: 'Remove',
       findItem: 'FIND AN ITEM', noItemMatches: 'No item matches.', moreItems: n => n + ' more, type to narrow it down',
-      copyList: 'COPY MOD LIST', copied: 'COPIED', copyFailed: 'COULD NOT COPY', copyHint: 'Copies every mod with its version and state, to paste into a bug report.'
+      copyList: 'COPY MOD LIST', copied: 'COPIED', copyFailed: 'COULD NOT COPY', copyHint: 'Copies every mod with its version and state, and the errors this session, to paste into a bug report.'
     },
     zh: {
       loaded: '已加载', settings: '项设置', toggle: '切换', close: '关闭', search: '搜索所有设置',
@@ -127,6 +132,11 @@
       relStopsThem: '它需要本模组，本模组关闭时它不会启动',
       relStatus: { missing: '未安装', on: '已开启', off: '已关闭', wrongVersion: '版本不符' },
       tabSettings: '设置', tabConflicts: '冲突', tabChangelog: '更新日志', thisMod: '本模组',
+      tabErrors: '错误', errors: '错误', pipError: '错误', pipWarning: '警告', level: { error: '错误', warning: '警告' },
+      errorsIntro: '本模组在这次游戏中记录的警告和错误，最新的在前。它们能帮模组作者找到原因：底部的「复制模组列表」会把它们放进问题反馈。',
+      seenTimes: n => n === 1 ? '1 次' : n + ' 次', loggedBy: source => '来源：' + source,
+      clashLine: method => '它经过了 ' + method + '，以下模组也修改了这段代码：',
+      otherErrors: 'BepInEx 和游戏的错误', moreErrors: n => '另有 ' + n + ' 条，见「复制模组列表」',
       changelogNote: '这是已发布的更新日志，可能比你安装的版本更新。',
       changelogLoading: '正在加载更新日志。', changelogEmpty: '更新日志是空的。',
       changelogFailed: '无法加载更新日志。上方的「更新日志」链接可以在浏览器中打开它。',
@@ -153,7 +163,7 @@
       rollbackFailed: reason => '无法退回：' + reason + '。',
       advanced: '高级', hotkeys: '快捷键', linkChangelog: '更新日志', add: '+ 添加', remove: '移除',
       findItem: '搜索物品', noItemMatches: '没有匹配的物品。', moreItems: n => '还有 ' + n + ' 个，输入文字缩小范围',
-      copyList: '复制模组列表', copied: '已复制', copyFailed: '无法复制', copyHint: '复制所有模组及其版本和状态，可粘贴到问题反馈中。'
+      copyList: '复制模组列表', copied: '已复制', copyFailed: '无法复制', copyHint: '复制所有模组及其版本和状态，以及这次游戏的错误，可粘贴到问题反馈中。'
     }
   };
 
@@ -342,12 +352,15 @@
 #slmm .pip.offp { color: #999; border: 1px dashed #666; }
 #slmm .pip.upd { color: #111; background: var(--teal); border: 1px solid var(--teal); }
 #slmm .pip.warnp { color: var(--red); border: 1px solid rgba(255,90,90,0.5); }
+#slmm .pip.errp { color: #111; background: var(--red); border: 1px solid var(--red); }
+#slmm .pip.wrnp { color: #e8813a; border: 1px solid rgba(232,129,58,0.5); }
 #slmm .has-icon { padding: 0; overflow: hidden; background: #000; }
 #slmm .has-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
 #slmm .grp.tog { cursor: pointer; }
 #slmm .grp.tog:hover { opacity: 1; }
 #slmm .grp .arrow { font-size: .7rem; letter-spacing: 0; }
 #slmm .problem { font-family: var(--mono); font-size: .75rem; color: #c98a8a; line-height: 1.5; padding: 4px 18px 6px; white-space: pre-wrap; word-break: break-word; }
+#slmm .problem.wrn { color: #c9a07a; }
 
 #slmm .pane { overflow-y: auto; min-height: 0; position: relative; }
 #slmm .pane > * { animation: slmm-pin .3s both; }
@@ -509,6 +522,14 @@
 #slmm .cf-eff { font-size: .82rem; color: #888; }
 #slmm .cf-eff b { font-weight: 600; color: #aaa; }
 #slmm .cf-more { font-family: var(--mono); font-size: .72rem; color: #666; padding: 3px 0 0 20px; }
+#slmm .er { border-left: 2px solid #e8813a; padding: 8px 0 8px 14px; margin: 12px 0; max-width: 900px; }
+#slmm .er.error { border-left-color: var(--red); }
+#slmm .er-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+#slmm .er-lv { font-family: var(--mono); font-size: .72rem; letter-spacing: 1.5px; color: #e8813a; }
+#slmm .er.error .er-lv { color: var(--red); }
+#slmm .er-msg { font-family: var(--mono); font-size: .8rem; color: #ddd; white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+#slmm .er-clash { font-size: .85rem; color: #e0a0a0; margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#slmm .er-stack { font-family: var(--mono); font-size: .72rem; color: #777; white-space: pre-wrap; word-break: break-word; margin-top: 6px; line-height: 1.4; }
 #slmm .rel.bad { border-color: rgba(255,90,90,0.5); color: #e0a0a0; }
 #slmm .rel.bad i { color: var(--red); }
 #slmm .notice .acts { margin-top: 10px; display: flex; gap: 10px; }
@@ -586,6 +607,7 @@
         <div class="chip on" data-filter="all"><span data-word="all"></span> <i data-count="all"></i></div>
         <div class="chip" data-filter="changed"><span data-word="changed"></span> <i data-count="changed"></i></div>
         <div class="chip" data-filter="updates"><span data-word="updates"></span> <i data-count="updates"></i></div>
+        <div class="chip" data-filter="errors"><span data-word="errors"></span> <i data-count="errors"></i></div>
       </div>
       <div class="list"></div>
     </div>
@@ -702,7 +724,9 @@
     const openKey = state.view ? state.view.openKey : '';
     const updates = all.filter(hasUpdate).length;
 
-    if (!updates && state.filter === 'updates') state.filter = 'all';
+    const withErrors = all.filter(hasErrors).length;
+
+    if (!updates && state.filter === 'updates' || !withErrors && state.filter === 'errors') state.filter = 'all';
 
     root.querySelectorAll('[data-word]').forEach(el => { el.textContent = word(el.dataset.word); });
     root.querySelectorAll('[data-lang]').forEach(el => el.classList.toggle('on', el.dataset.lang === state.lang));
@@ -713,8 +737,10 @@
     setCount('all', all.length);
     setCount('changed', all.filter(m => m.settings.some(isChanged)).length);
     setCount('updates', updates);
+    setCount('errors', withErrors);
     setCount('openKey', openKey);
     $('[data-filter="updates"]').style.display = updates ? '' : 'none';
+    $('[data-filter="errors"]').style.display = withErrors ? '' : 'none';
     $('[data-part="openKey"]').style.display = openKey && openKey !== 'None' ? '' : 'none';
   }
 
@@ -728,6 +754,7 @@
 
     if (state.filter === 'changed') shown = shown.filter(m => m.settings.some(isChanged));
     else if (state.filter === 'updates') shown = shown.filter(hasUpdate);
+    else if (state.filter === 'errors') shown = shown.filter(hasErrors);
 
     if (q) shown = shown.filter(m => [m.name, m.nameZh, m.plugin, m.guid].some(text => text.toLowerCase().indexOf(q) >= 0) || m.settings.some(s => matchesQuery(m, s, q)));
 
@@ -769,7 +796,26 @@
 
     if (problems.length) html += '<div class="grp">' + esc(word('problems')) + ' &middot; ' + problems.length + '</div>' + problems.map(p => '<div class="problem">' + esc(p) + '</div>').join('');
 
+    html += otherErrorsList();
     morph(list, html);
+  }
+
+  // Errors no mod could be found for, under the list: one line each, the whole text on hover.
+  function otherErrorsList() {
+    const others = state.view ? state.view.otherErrors : [];
+    const shown = 20;
+
+    if (!others.length) return '';
+
+    const line = e => '<div class="problem' + (e.level === 'warning' ? ' wrn' : '') + '" title="' + esc(e.message + (e.stack.length ? '\n' + e.stack.join('\n') : '')) + '">' +
+      esc(e.source + ': ' + e.message.split('\n')[0] + (e.count > 1 ? ' (x' + e.count + ')' : '')) + '</div>';
+
+    return '<div class="grp">' + esc(word('otherErrors')) + ' &middot; ' + others.length + '</div>' + others.slice(0, shown).map(line).join('') +
+      (others.length > shown ? '<div class="problem wrn">' + esc(word('moreErrors')(others.length - shown)) + '</div>' : '');
+  }
+
+  function hasErrors(m) {
+    return m.errors.length > 0;
   }
 
   function modRow(m, delay) {
@@ -780,6 +826,7 @@
       (m.state === 'off' ? '<span class="pip offp">' + esc(word('statusOff')) + '</span>' : '') +
       (isPending(m) ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : '') +
       (m.otherGame ? '<span class="pip warnp">' + esc(word('pipOtherGame')) + '</span>' : '') +
+      (m.errors.some(e => e.level === 'error') ? '<span class="pip errp">' + esc(word('pipError')) + '</span>' : hasErrors(m) ? '<span class="pip wrnp">' + esc(word('pipWarning')) + '</span>' : '') +
       (m.install.kind === 'installed' || m.rollback.kind === 'done' ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : hasUpdate(m) ? '<span class="pip upd">' + esc(word('pipUpdate')) + '</span>' : '');
 
     return '<div class="mod' + (isSelected ? ' sel' : '') + (m.loaded ? '' : ' off') + '" data-mod="' + esc(m.guid) + '" style="animation-delay:' + delay + 'ms">' +
@@ -807,7 +854,7 @@
 
     if (names.indexOf(state.tab) < 0) state.tab = '';
 
-    if (state.side === 'conflicts' && !m.patchOverlaps.length || state.side === 'changelog' && m.changelog.kind === 'none') state.side = '';
+    if (state.side === 'conflicts' && !m.patchOverlaps.length || state.side === 'changelog' && m.changelog.kind === 'none' || state.side === 'errors' && !hasErrors(m)) state.side = '';
 
     const railKey = m.guid + '\n' + state.lang;
     const top = hero(m) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m);
@@ -1011,6 +1058,16 @@
     return html + '</div>';
   }
 
+  // The Errors tab: what this mod logged this session, and any game method it went through that another mod patches too.
+  function errorsBody(m) {
+    const clash = c => '<div class="er-clash">' + esc(word('clashLine')(c.method)) + c.guids.map(g => '<span class="rel" data-mod="' + esc(g) + '">' + esc(otherName({ guid: g })) + '</span>').join('') + '</div>';
+    const block = e => '<div class="er ' + e.level + '"><div class="er-head"><span class="er-lv">' + esc(word('level')[e.level]) + '</span><span class="cf-count">' + esc(word('seenTimes')(e.count)) + ' &middot; ' + esc(word('loggedBy')(e.source)) + '</span></div>' +
+      '<div class="er-msg">' + esc(e.message) + '</div>' + e.clashes.map(clash).join('') +
+      (e.stack.length ? '<div class="er-stack">' + esc(e.stack.join('\n')) + '</div>' : '') + '</div>';
+
+    return '<div class="cf"><div class="cf-intro">' + esc(word('errorsIntro')) + '</div>' + m.errors.map(block).join('') + '</div>';
+  }
+
   function changelogBody(m) {
     const log = m.changelog;
     const note = '<div class="cl-note">' + esc(word('changelogNote')) + '</div>';
@@ -1150,12 +1207,12 @@
   }
 
   // A tab per settings section once there are two, then a Changelog tab when the mod names one the page can show,
-  // and a Conflicts tab when other mods patch the same game code.
+  // a Conflicts tab when other mods patch the same game code, and an Errors tab when the mod logged any this session.
   function tabs(m, names) {
     const hasConflicts = m.patchOverlaps.length > 0;
     const hasChangelog = m.changelog.kind !== 'none';
 
-    if (names.length < 2 && !hasConflicts && !hasChangelog) return '';
+    if (names.length < 2 && !hasConflicts && !hasChangelog && !hasErrors(m)) return '';
 
     const tab = (name, label, members) => '<div class="tab' + (!state.side && state.tab === name ? ' on' : '') + '" data-tab="' + esc(name) + '">' + esc(label) + ' <i>' + members.length + '</i>' + (members.some(isChanged) ? '<span class="cd"></span>' : '') + '</div>';
     const sideTab = (side, inner) => '<div class="tab tab-x' + (state.side === side ? ' on' : '') + '" data-side="' + side + '">' + inner + '</div>';
@@ -1164,14 +1221,17 @@
     const worst = ['likely', 'may', 'harmless'].find(risk => m.patchOverlaps.some(o => o.risk === risk));
     const changelogTab = hasChangelog ? sideTab('changelog', esc(word('tabChangelog'))) : '';
     const conflictsTab = hasConflicts ? sideTab('conflicts', esc(word('tabConflicts')) + ' <i>' + m.patchOverlaps.length + '</i><span class="rd ' + worst + '"></span>') : '';
+    const errorsTab = hasErrors(m) ? sideTab('errors', esc(word('tabErrors')) + ' <i>' + m.errors.length + '</i><span class="rd ' + (m.errors.some(e => e.level === 'error') ? 'likely' : 'may') + '"></span>') : '';
 
-    return '<div class="tabs">' + tab('', word(names.length < 2 ? 'tabSettings' : 'tabAll'), shown) + sectionTabs + changelogTab + conflictsTab + '</div>';
+    return '<div class="tabs">' + tab('', word(names.length < 2 ? 'tabSettings' : 'tabAll'), shown) + sectionTabs + changelogTab + conflictsTab + errorsTab + '</div>';
   }
 
   function paneBody(m, names) {
     if (state.side === 'conflicts') return conflictsBody(m);
 
     if (state.side === 'changelog') return changelogBody(m);
+
+    if (state.side === 'errors') return errorsBody(m);
 
     if (m.state === 'off') return notice('', word('offTitle'), word('offBody'));
 

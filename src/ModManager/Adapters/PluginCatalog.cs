@@ -26,6 +26,7 @@ internal sealed class PluginCatalog
     private readonly PluginFolders _folders;
     private readonly UpdateBook _updates;
     private readonly Func<string, IReadOnlyList<string>> _backupVersions;
+    private readonly ProblemBook _errors;
     private readonly string _selfGuid;
     private readonly Action<string> _log;
     private readonly HashSet<string> _reportedFailures = new();
@@ -39,11 +40,12 @@ internal sealed class PluginCatalog
     private IReadOnlyDictionary<string, string>? _banners;
 
     /// <param name="backupVersions">The names of a mod's backup folders, by GUID.</param>
-    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, string selfGuid, string? gameVersion, Action<string> log)
+    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, ProblemBook errors, string selfGuid, string? gameVersion, Action<string> log)
     {
         _folders = folders;
         _updates = updates;
         _backupVersions = backupVersions;
+        _errors = errors;
         _selfGuid = selfGuid;
         GameVersion = gameVersion;
         _log = log;
@@ -52,19 +54,46 @@ internal sealed class PluginCatalog
     public string? GameVersion { get; }
 
     /// <summary>Each mod with its relations resolved against all the others, so the list says whether what it needs will be there.</summary>
-    public IReadOnlyList<ModEntry> Mods()
+    public IReadOnlyList<ModEntry> Mods() => Listing().Mods;
+
+    /// <summary>The mods, and the errors this session that belong to none of them.</summary>
+    public (IReadOnlyList<ModEntry> Mods, IReadOnlyList<ModProblem> OtherErrors, int ErrorsNotKept) Listing()
     {
         var nodes = Nodes();
         var mods = Plugins().Select(plugin => Entry(plugin, nodes)).Concat(OffAtStart().Select(OffEntry)).ToList();
         var overlaps = PatchOverlaps.Find(SharedPatches());
         var declaredBy = mods.Select(mod => mod.Guid).Distinct().ToDictionary(guid => guid, DeclaredOf);
+        var errors = ProblemOwners.Assign(_errors.All(), Owners(mods), overlaps);
 
-        return ModList.SortByName(mods.Select(mod => mod with
+        var listed = ModList.SortByName(mods.Select(mod => mod with
         {
             Relations = RelationResolver.Resolve(declaredBy[mod.Guid], mods, IsInRange),
             Dependents = RelationResolver.Dependents(mod.Guid, declaredBy, mods),
             PatchOverlaps = overlaps.TryGetValue(mod.Guid, out var shared) ? shared : Array.Empty<PatchOverlap>(),
+            Errors = errors.ByMod.TryGetValue(mod.Guid, out var own) ? own : Array.Empty<ModProblem>(),
         }));
+
+        return (listed, errors.Unclaimed, _errors.Dropped);
+    }
+
+    /// <summary>Each plugin BepInEx found, loaded or not, by the names its log source and its code go by.</summary>
+    private static IReadOnlyList<ProblemOwner> Owners(IReadOnlyList<ModEntry> mods)
+    {
+        var isLibrary = mods.GroupBy(mod => mod.Guid).ToDictionary(group => group.Key, group => group.First().Info.IsLibrary);
+
+        return Plugins().Select(plugin => new ProblemOwner(
+            plugin.Metadata.GUID,
+            plugin.Metadata.Name,
+            new[] { RootOf(plugin.TypeName), Path.GetFileNameWithoutExtension(plugin.Location ?? "") }.Where(root => root.Length > 0).Distinct().ToList(),
+            isLibrary.TryGetValue(plugin.Metadata.GUID, out var library) && library)).ToList();
+    }
+
+    private static string RootOf(string? typeName)
+    {
+        var name = typeName ?? "";
+        var dot = name.IndexOf('.');
+
+        return dot < 0 ? "" : name.Substring(0, dot);
     }
 
     /// <summary>Read fresh each time: a mod may patch late, or unpatch when it reloads.</summary>

@@ -82,6 +82,9 @@ public sealed record ModEntry(string Guid, string Name, string Version, string F
     /// <summary>The mod names the game versions it was made for, and the running game is none of them.</summary>
     public bool IsForOtherGame { get; init; }
 
+    /// <summary>Warnings and errors this session that came from the mod, or went through a game method it shares with another mod.</summary>
+    public IReadOnlyList<ModProblem> Errors { get; init; } = Array.Empty<ModProblem>();
+
     /// <summary>The name the mod asks to be shown by, else the one its plugin declares.</summary>
     public string DisplayName => Info.Name?.English ?? Name;
 
@@ -99,6 +102,12 @@ public sealed record ModsView(IReadOnlyList<ModEntry> Mods, IReadOnlyList<string
 {
     /// <summary>The running game's version, or null when it could not be read.</summary>
     public string? GameVersion { get; init; }
+
+    /// <summary>Warnings and errors this session that no mod could be found for: BepInEx's own, or the game's.</summary>
+    public IReadOnlyList<ModProblem> OtherErrors { get; init; } = Array.Empty<ModProblem>();
+
+    /// <summary>Kinds of problem seen after the list was full, so not kept.</summary>
+    public int ErrorsNotKept { get; init; }
 }
 
 /// <summary>

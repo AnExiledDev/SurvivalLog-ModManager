@@ -27,7 +27,48 @@ public static class ModReport
             foreach (var problem in view.Problems) text.Append("- ").Append(OneLine(problem)).Append('\n');
         }
 
+        AppendErrors(text, view);
+
         return text.ToString();
+    }
+
+    public const int MaxReportedErrors = 30;
+    private const int FramesPerError = 3;
+
+    /// <summary>Errors before warnings, each under the mod it came from, with its first stack lines and any clash.</summary>
+    private static void AppendErrors(StringBuilder text, ModsView view)
+    {
+        var nameOf = view.Mods.GroupBy(mod => mod.Guid).ToDictionary(group => group.Key, group => OneLine(group.First().DisplayName));
+        var errors = view.Mods.SelectMany(mod => mod.Errors.Select(error => (Owner: nameOf[mod.Guid], Error: error)))
+            .Concat(view.OtherErrors.Select(error => (Owner: "BepInEx or the game", Error: error)))
+            .OrderByDescending(pair => pair.Error.Problem.Level)
+            .ToList();
+
+        if (errors.Count == 0) return;
+
+        text.Append("Errors this session:\n");
+
+        foreach (var (owner, error) in errors.Take(MaxReportedErrors))
+        {
+            var problem = error.Problem;
+            var level = problem.Level == ProblemLevel.Error ? "error" : "warning";
+            var count = problem.Count > 1 ? " x" + problem.Count : "";
+
+            text.Append("- ").Append(owner).Append(": ").Append(level).Append(count).Append(": ").Append(OneLine(problem.Message)).Append('\n');
+
+            foreach (var frame in problem.Stack.Take(FramesPerError)) text.Append("    ").Append(frame).Append('\n');
+
+            foreach (var clash in error.Clashes)
+            {
+                var others = string.Join(", ", clash.Guids.Select(guid => nameOf.TryGetValue(guid, out var name) ? name : guid));
+
+                text.Append("    went through ").Append(clash.Method).Append(", which ").Append(others).Append(" also patch").Append(clash.Guids.Count == 1 ? "es" : "").Append('\n');
+            }
+        }
+
+        var notShown = Math.Max(0, errors.Count - MaxReportedErrors) + view.ErrorsNotKept;
+
+        if (notShown > 0) text.Append("- and ").Append(notShown).Append(" more\n");
     }
 
     /// <summary>Name, version, GUID, file and state; a switch flipped this session is said too, as the game still runs the old way.</summary>
