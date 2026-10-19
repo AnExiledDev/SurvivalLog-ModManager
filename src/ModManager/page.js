@@ -589,6 +589,81 @@
 
   // ===== Drawing =====
 
+  // Patches a container to match new markup and keeps every node that is still there, so a redraw changes only what
+  // changed: entry animations do not replay, and focus and scroll stay put.
+  function morph(container, html) {
+    const next = document.createElement(container.tagName);
+
+    next.innerHTML = html;
+    morphChildren(container, next);
+  }
+
+  // Rows keyed by data-mod are matched by key, so a list that moves or filters keeps each mod's row; the rest by position.
+  function morphChildren(current, next) {
+    const keyed = new Map();
+    const wanted = Array.from(next.childNodes);
+
+    for (const child of current.children) {
+      if (keyOf(child)) keyed.set(keyOf(child), child);
+    }
+
+    wanted.forEach((want, index) => {
+      const at = current.childNodes[index] || null;
+      const key = keyOf(want);
+      const match = key ? keyed.get(key) : at && !keyOf(at) ? at : null;
+
+      if (key) keyed.delete(key);
+
+      if (!match || !isSameKind(match, want)) {
+        current.insertBefore(want, at);
+
+        return;
+      }
+
+      if (match !== at) current.insertBefore(match, at);
+
+      morphNode(match, want);
+    });
+
+    while (current.childNodes.length > wanted.length) current.removeChild(current.lastChild);
+  }
+
+  function morphNode(have, want) {
+    if (have.nodeType !== 1) {
+      if (have.nodeValue !== want.nodeValue) have.nodeValue = want.nodeValue;
+
+      return;
+    }
+
+    syncAttributes(have, want);
+
+    if (have.tagName === 'INPUT') {
+      if (have.value !== want.value) have.value = want.value;
+
+      if (have.checked !== want.checked) have.checked = want.checked;
+    }
+
+    morphChildren(have, want);
+  }
+
+  function syncAttributes(have, want) {
+    for (const attribute of Array.from(have.attributes)) {
+      if (!want.hasAttribute(attribute.name)) have.removeAttribute(attribute.name);
+    }
+
+    for (const attribute of Array.from(want.attributes)) {
+      if (have.getAttribute(attribute.name) !== attribute.value) have.setAttribute(attribute.name, attribute.value);
+    }
+  }
+
+  function keyOf(node) {
+    return node.nodeType === 1 ? node.getAttribute('data-mod') : null;
+  }
+
+  function isSameKind(have, want) {
+    return have.nodeType === want.nodeType && have.nodeName === want.nodeName;
+  }
+
   function render() {
     const listScroll = list.scrollTop;
     const paneScroll = pane.scrollTop;
@@ -676,7 +751,7 @@
 
     if (problems.length) html += '<div class="grp">' + esc(word('problems')) + ' &middot; ' + problems.length + '</div>' + problems.map(p => '<div class="problem">' + esc(p) + '</div>').join('');
 
-    list.innerHTML = html;
+    morph(list, html);
   }
 
   function modRow(m, delay) {
@@ -705,7 +780,7 @@
     const m = modByGuid(state.selected);
 
     if (!m) {
-      pane.innerHTML = '';
+      morph(pane, '');
 
       return;
     }
@@ -720,7 +795,7 @@
     const top = hero(m) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m);
     const body = modNotices(m) + paneBody(m, names);
 
-    pane.innerHTML = top + (state.rail[railKey] ? '<div class="railed">' + tabs(m, names) + '<div>' + body + '</div></div>' : tabs(m, names) + body);
+    morph(pane, top + (state.rail[railKey] ? '<div class="railed">' + tabs(m, names) + '<div>' + body + '</div></div>' : tabs(m, names) + body));
     askForNotes(m);
 
     if (!state.rail[railKey] && tabsWrap()) {
@@ -1076,7 +1151,7 @@
 
     const empty = '<div class="empty"><div class="big">' + esc(word('nothing')) + '</div>' + esc(word('tryAnother')) + '</div>';
 
-    pane.innerHTML = '<div class="sr-head"><div class="big">' + count + '</div><div class="q">' + esc(word('settingsMatch')(state.query)) + '</div></div><div class="sets">' + (html || empty) + '</div>';
+    morph(pane, '<div class="sr-head"><div class="big">' + count + '</div><div class="q">' + esc(word('settingsMatch')(state.query)) + '</div></div><div class="sets">' + (html || empty) + '</div>');
   }
 
   // ===== One setting =====
@@ -1356,7 +1431,7 @@
     const changedText = changed ? word('footerSome')(changed) + (waiting ? ' <em>' + esc(word('footerRestartHint')) + '</em>' : '') : esc(word('footerNone'));
 
     $('.status-dot').classList.toggle('warn', waiting || restarts > 0);
-    $('.ft-t').innerHTML = changedText + restartText + updateText;
+    morph($('.ft-t'), changedText + restartText + updateText);
     renderCopyButton();
   }
 

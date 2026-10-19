@@ -20,9 +20,6 @@ internal static class PluginFileReader
     private const string IncompatibilityAttribute = "BepInEx.BepInIncompatibility";
     private const string MetadataAttribute = "System.Reflection.AssemblyMetadataAttribute";
 
-    /// <summary>BepInDependency.DependencyFlags.SoftDependency.</summary>
-    private const int SoftFlag = 2;
-
     /// <summary>Shares the file with everyone, so a DLL the game has loaded can still be read and moved.</summary>
     public static IReadOnlyList<PluginFile> Read(string path)
     {
@@ -73,25 +70,25 @@ internal static class PluginFileReader
         }
     }
 
-    /// <summary>BepInDependency(guid, flags) or BepInDependency(guid, versionRange), which is hard; BepInIncompatibility(guid).</summary>
+    /// <summary>
+    /// BepInDependency(guid, flags) or BepInDependency(guid, versionRange), which is hard; BepInIncompatibility(guid).
+    /// A dependency is read from its raw bytes, because decoding its flags enum would need BepInEx.Core resolved.
+    /// </summary>
     private static IReadOnlyList<DeclaredRelation> RelationsOf(TypeDefinition type)
     {
         var relations = new List<DeclaredRelation>();
 
         foreach (var attribute in type.CustomAttributes)
         {
-            if (attribute.ConstructorArguments.Count == 0 || attribute.ConstructorArguments[0].Value is not string { Length: > 0 } guid) continue;
-
             switch (attribute.AttributeType.FullName)
             {
                 case DependencyAttribute:
-                    var second = attribute.ConstructorArguments.Count > 1 ? attribute.ConstructorArguments[1].Value : null;
-                    var isSoft = FlagsOf(second) is { } flags && (flags & SoftFlag) != 0;
+                    if (DependencyBlob.Parse(attribute.GetBlob(), IsVersionRange(attribute)) is { } dependency) relations.Add(dependency);
 
-                    relations.Add(new DeclaredRelation(isSoft ? RelationKind.WorksWith : RelationKind.Needs, guid, second as string is { Length: > 0 } range ? range : null));
                     break;
                 case IncompatibilityAttribute:
-                    relations.Add(new DeclaredRelation(RelationKind.DoesNotWorkWith, guid));
+                    if (attribute.ConstructorArguments.Count > 0 && attribute.ConstructorArguments[0].Value is string { Length: > 0 } guid) relations.Add(new DeclaredRelation(RelationKind.DoesNotWorkWith, guid));
+
                     break;
             }
         }
@@ -99,13 +96,12 @@ internal static class PluginFileReader
         return relations;
     }
 
-    /// <summary>An enum argument reads as its underlying number, sometimes boxed once more inside a CustomAttributeArgument.</summary>
-    private static int? FlagsOf(object? value) => value switch
+    private static bool IsVersionRange(CustomAttribute attribute)
     {
-        int number => number,
-        CustomAttributeArgument inner => FlagsOf(inner.Value),
-        _ => null,
-    };
+        var parameters = attribute.Constructor.Parameters;
+
+        return parameters.Count > 1 && parameters[1].ParameterType.FullName == "System.String";
+    }
 
     private static string Text(CustomAttribute attribute, int index) => attribute.ConstructorArguments[index].Value as string ?? "";
 }

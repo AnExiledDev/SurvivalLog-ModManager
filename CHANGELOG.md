@@ -9,6 +9,8 @@
 - A mod's page shows the version range of each mod it needs, and marks an installed version outside that range as wrong version.
 - A mod's page lists the mods that need it (NEEDED BY) and the ones that can use it (USED BY (OPTIONAL)). A mod that needs it turns red while it is off.
 - A mod with too many sections for one row of tabs lists them down the left side of its settings instead.
+- Changing the view redraws only what changed, so the screen no longer flashes and replays its fade-in on every click.
+- Fixed: a mod with an optional dependency lost its name, description, links and relations on the Mods screen, because its dependency could not be read.
 
 ## 0.5.0
 
