@@ -5,7 +5,8 @@
 - INSTALL ALL UPDATES at the top of the "Updates" filter installs every available update at once.
 - ROLL BACK TO (version): after an update, put the files it replaced back for the next start.
 - A mod's page shows the release notes of every release since your version, not only the latest.
-- A mod's page lists the other mods that change the same game code, and which parts.
+- A mod's page has a CONFLICTS tab listing the other mods that change the same game code, which parts, and what each mod does there. Each is marked LIKELY TO CLASH, MAY CLASH or PROBABLY HARMLESS, riskiest first.
+- A mod with too many sections for one row of tabs lists them down the left side of its settings instead.
 
 ## 0.5.0
 

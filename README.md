@@ -26,7 +26,13 @@ Open it with F10, or with the Mods button in the Esc menu or on the title screen
 - **Install updates**: INSTALL UPDATE downloads the release's zip from GitHub and puts the new files in place for the next game start. The running game keeps the version it loaded. The old files are kept in `BepInEx\mod-manager\backups`, and a failed install puts them back. INSTALL ALL UPDATES at the top of the "Updates" filter installs every update at once.
 - **Release notes since your version**: a mod's page shows the notes of every release since the version you have, newest first, not only the latest one.
 - **Roll back**: when an update replaced an older version, ROLL BACK TO (version) on the mod's page puts the old files back for the next game start. The newer files are kept in the backups folder too.
-- **Mods that change the same game code**: a mod's page lists the other mods that patch the same parts of the game, and which parts. They usually work together; the list is where to look when two mods misbehave while both are on.
+- **Conflicts tab**: a mod's page lists the other mods that patch the same parts of the game, which parts, and what each mod does there. Each is marked by how likely the two are to get in each other's way:
+  - **Likely to clash**: both mods can skip or rewrite that game code, so one may undo what the other does.
+  - **May clash**: one mod can skip or rewrite it and the other adds to it. They often work together, but the addition may not get what it expects.
+  - **Probably harmless**: both only add their own code before or after the game's. That rarely causes trouble.
+
+  It is a guide for where to look when two mods misbehave while both are on, not proof of a problem.
+- **Many sections**: a mod with too many sections for one row of tabs lists them down the left side of its settings.
 
 The Mod Manager adds nothing to your save and does not edit game files. It writes the .cfg files of the mods whose settings you change, moves the DLLs of mods you turn on or off, and replaces the files of mods you update. Its only network use is GitHub: the update check, which asks for the latest release of each mod that names a repository, and the download when you click INSTALL UPDATE.
 
@@ -39,7 +45,7 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 - Update checks only cover mods that name a GitHub repository. INSTALL UPDATE needs the release to carry a .zip that holds the mod's DLL; otherwise use GET UPDATE and install it yourself.
 - An installed update is used from the next game start. Turning the mod off in the same session is refused until then.
 - A rollback is used from the next game start too, and one rollback per mod per session is allowed. A rollback only offers versions the Mod Manager backed up when it installed an update.
-- The same-game-code list only sees patches made with Harmony, which is what BepInEx mods use.
+- The Conflicts tab only sees patches made with Harmony, which is what BepInEx mods use. It judges risk by the kind of patch, not by what the code inside does.
 - GitHub allows 60 requests an hour without an account. Past that, release notes and installs say to try again within the hour; the update itself is still shown.
 
 ## Requirements

@@ -52,8 +52,16 @@
       otherGameBody: (built, game) => 'It was made for ' + built + (game ? ' and this game is ' + game : '') + '. It may not work as expected.',
       relNeeds: 'NEEDS', relWorksWith: 'WORKS WITH (OPTIONAL)', relNot: 'DOES NOT WORK WITH',
       relStatus: { missing: 'not installed', on: 'on', off: 'off' },
-      samePatches: 'CHANGES THE SAME GAME CODE AS',
-      samePatchesNote: 'Mods that change the same game code usually work together. If something goes wrong while both are on, try turning one off.',
+      tabSettings: 'Settings', tabConflicts: 'Conflicts', thisMod: 'This mod',
+      conflictsIntro: 'Other mods that patch the same game code as this one. It is a guide for where to look when mods misbehave together, not proof of a problem. If two mods act up while both are on, try turning one off.',
+      risk: { likely: 'LIKELY TO CLASH', may: 'MAY CLASH', harmless: 'PROBABLY HARMLESS' },
+      riskWhy: {
+        likely: 'Both mods can skip or rewrite the same game code, so one may undo what the other does.',
+        may: 'One mod can skip or rewrite the game code and the other adds to it. They often work together, but the addition may not get what it expects.',
+        harmless: 'Both mods only add their own code before or after the game code. That rarely causes trouble.'
+      },
+      effect: { before: 'runs before it', after: 'runs after it', skip: 'can skip it', rewrite: 'rewrites it' },
+      sharedCount: n => n === 1 ? '1 shared' : n + ' shared',
       moreMethods: n => 'and ' + n + ' more',
       needsProblem: list => 'It needs these, which are off or not installed, so it will not start: ' + list + '.',
       clashProblem: list => 'It does not work with these, which are on, so it will not start: ' + list + '.',
@@ -111,8 +119,16 @@
       otherGameBody: (built, game) => '它是为 ' + built + ' 制作的' + (game ? '，当前游戏是 ' + game : '') + '。它可能无法正常工作。',
       relNeeds: '需要', relWorksWith: '可配合（可选）', relNot: '不兼容',
       relStatus: { missing: '未安装', on: '已开启', off: '已关闭' },
-      samePatches: '修改了相同游戏代码的模组',
-      samePatchesNote: '修改相同游戏代码的模组通常可以一起使用。如果两者都开启时出现问题，试着关闭其中一个。',
+      tabSettings: '设置', tabConflicts: '冲突', thisMod: '本模组',
+      conflictsIntro: '与本模组修改了相同游戏代码的其他模组。这只是模组一起出问题时的排查线索，不代表一定有问题。如果两个模组同时开启时出现异常，试着关闭其中一个。',
+      risk: { likely: '很可能冲突', may: '可能冲突', harmless: '大概无害' },
+      riskWhy: {
+        likely: '两个模组都能跳过或改写同一段游戏代码，一方可能会抵消另一方的效果。',
+        may: '一个模组能跳过或改写这段游戏代码，另一个只是在其上添加内容。它们通常可以一起使用，但添加的部分可能得不到预期的结果。',
+        harmless: '两个模组都只是在这段游戏代码之前或之后加入自己的代码，很少引起问题。'
+      },
+      effect: { before: '在它之前运行', after: '在它之后运行', skip: '可以跳过它', rewrite: '改写了它' },
+      sharedCount: n => '共用 ' + n + ' 处',
       moreMethods: n => '另外 ' + n + ' 处',
       needsProblem: list => '它需要的以下模组已关闭或未安装，所以它不会启动：' + list + '。',
       clashProblem: list => '它与以下已开启的模组不兼容，所以它不会启动：' + list + '。',
@@ -150,6 +166,8 @@
     items: null,
     picker: null,
     openAdvanced: {},
+    conflicts: false,
+    rail: {},
     copied: null,
     showLibraries: false
   };
@@ -439,9 +457,35 @@
 #slmm .rel[data-mod] { cursor: pointer; }
 #slmm .rel[data-mod]:hover { border-color: var(--amber); color: #fff; }
 #slmm .rel i { font-style: normal; font-family: var(--mono); font-size: .72rem; color: #777; margin-left: 6px; }
-#slmm .patch { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; width: 100%; }
-#slmm .patch-m { font-family: var(--mono); font-size: .75rem; color: #888; }
-#slmm .patch-note { font-size: .82rem; color: #777; width: 100%; }
+#slmm .tab-cf { margin-left: auto; }
+#slmm .tab .rd { width: 7px; height: 7px; border-radius: 50%; }
+#slmm .rd.likely { background: var(--red); }
+#slmm .rd.may { background: #e8813a; }
+#slmm .rd.harmless { background: var(--teal); opacity: .7; }
+#slmm .railed { display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: start; margin-top: 18px; border-top: 1px solid var(--line); }
+#slmm .railed .tabs { flex-direction: column; flex-wrap: nowrap; margin-top: 0; padding: 12px 0 16px; border-bottom: 0; border-right: 1px solid var(--line); max-height: 72vh; overflow-y: auto; background: rgba(18,18,20,0.97); }
+#slmm .railed .tab { padding: 8px 18px 8px 30px; font-size: .88rem; letter-spacing: 1.5px; justify-content: flex-start; }
+#slmm .railed .tab.on { background: rgba(235,163,8,0.07); }
+#slmm .railed .tab.on::after { left: 0; right: auto; top: 5px; bottom: 5px; width: 3px; height: auto; }
+#slmm .railed .tab-cf { margin: 10px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
+#slmm .railed .sets, #slmm .railed .cf { padding-left: 30px; }
+#slmm .cf { padding: 18px 40px 40px; }
+#slmm .cf-intro { font-size: .92rem; color: #999; line-height: 1.5; max-width: 760px; }
+#slmm .cf-sum { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
+#slmm .cf-pill { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: .75rem; letter-spacing: 1.5px; color: #bbb; padding: 4px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 2px; }
+#slmm .cf-pill .rd { width: 7px; height: 7px; border-radius: 50%; }
+#slmm .cf-why { font-size: .85rem; color: #888; margin: 0 0 10px; max-width: 760px; }
+#slmm .cf-mod { border-left: 2px solid rgba(255,255,255,0.1); padding: 8px 0 8px 14px; margin-bottom: 8px; }
+#slmm .cf-mod.likely { border-left-color: var(--red); }
+#slmm .cf-mod.may { border-left-color: #e8813a; }
+#slmm .cf-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+#slmm .cf-count { font-family: var(--mono); font-size: .72rem; color: #777; }
+#slmm .cf-m { display: grid; grid-template-columns: 10px minmax(160px, auto) 1fr; gap: 10px; align-items: baseline; padding: 3px 0; }
+#slmm .cf-m .rd { width: 6px; height: 6px; border-radius: 50%; align-self: center; }
+#slmm .cf-name { font-family: var(--mono); font-size: .78rem; color: #ccc; }
+#slmm .cf-eff { font-size: .82rem; color: #888; }
+#slmm .cf-eff b { font-weight: 600; color: #aaa; }
+#slmm .cf-more { font-family: var(--mono); font-size: .72rem; color: #666; padding: 3px 0 0 20px; }
 #slmm .rel.bad { border-color: rgba(255,90,90,0.5); color: #e0a0a0; }
 #slmm .rel.bad i { color: var(--red); }
 #slmm .notice .acts { margin-top: 10px; display: flex; gap: 10px; }
@@ -665,8 +709,28 @@
 
     if (names.indexOf(state.tab) < 0) state.tab = '';
 
-    pane.innerHTML = hero(m) + meta(m) + about(m) + links(m) + relations(m) + samePatches(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m) + tabs(m, names) + modNotices(m) + paneBody(m, names);
+    if (!m.patchOverlaps.length) state.conflicts = false;
+
+    const railKey = m.guid + '\n' + state.lang;
+    const top = hero(m) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m);
+    const body = modNotices(m) + paneBody(m, names);
+
+    pane.innerHTML = top + (state.rail[railKey] ? '<div class="railed">' + tabs(m, names) + '<div>' + body + '</div></div>' : tabs(m, names) + body);
     askForNotes(m);
+
+    if (!state.rail[railKey] && tabsWrap()) {
+      state.rail[railKey] = true;
+      renderPane();
+    }
+  }
+
+  // Tabs that need a second row move to a column beside the settings, which has room for any number of them.
+  function tabsWrap() {
+    const bar = pane.querySelector('.tabs');
+
+    if (!bar || !bar.children.length) return false;
+
+    return bar.lastElementChild.offsetTop > bar.firstElementChild.offsetTop;
   }
 
   // Release notes are fetched the first time a mod's update is shown, not for every mod at the start.
@@ -801,16 +865,35 @@
     return '<div class="rels">' + html + '</div>';
   }
 
-  // Other mods whose Harmony patches change some of the same game methods; a place to look when two mods misbehave together.
-  function samePatches(m) {
-    if (!m.patchOverlaps || !m.patchOverlaps.length) return '';
+  // The Conflicts tab: other mods whose Harmony patches change the same game methods, grouped by how likely they are to clash.
+  function conflictsBody(m) {
+    const risks = ['likely', 'may', 'harmless'];
+    const shown = 8;
+    const effects = list => list.map(e => word('effect')[e]).join(', ');
+    const methodRow = (o, x) => '<div class="cf-m"><span class="rd ' + x.risk + '"></span><span class="cf-name">' + esc(x.name) + '</span><span class="cf-eff"><b>' + esc(word('thisMod')) + '</b> ' + esc(effects(x.mine)) + ' &middot; <b>' + esc(otherName(o)) + '</b> ' + esc(effects(x.theirs)) + '</span></div>';
+    const modBlock = o => '<div class="cf-mod ' + o.risk + '"><div class="cf-head"><span class="rel" data-mod="' + esc(o.guid) + '">' + esc(otherName(o)) + '</span><span class="cf-count">' + esc(word('sharedCount')(o.methods.length)) + '</span></div>' +
+      o.methods.slice(0, shown).map(x => methodRow(o, x)).join('') +
+      (o.methods.length > shown ? '<div class="cf-more">' + esc(word('moreMethods')(o.methods.length - shown)) + '</div>' : '') + '</div>';
+    const pill = risk => {
+      const count = m.patchOverlaps.filter(o => o.risk === risk).length;
 
-    const shown = 6;
-    const methods = o => o.methods.slice(0, shown).join(', ') + (o.methods.length > shown ? ', ' + word('moreMethods')(o.methods.length - shown) : '');
-    const name = o => modByGuid(o.guid) ? nameOf(modByGuid(o.guid)) : o.guid;
-    const rows = m.patchOverlaps.map(o => '<div class="patch"><span class="rel" data-mod="' + esc(o.guid) + '">' + esc(name(o)) + '</span><span class="patch-m">' + esc(methods(o)) + '</span></div>').join('');
+      return count ? '<span class="cf-pill"><span class="rd ' + risk + '"></span>' + count + ' ' + esc(word('risk')[risk]) + '</span>' : '';
+    };
+    let html = '<div class="cf"><div class="cf-intro">' + esc(word('conflictsIntro')) + '</div><div class="cf-sum">' + risks.map(pill).join('') + '</div>';
 
-    return '<div class="rels"><div class="rel-h">' + esc(word('samePatches')) + '</div><div class="rel-items">' + rows + '<div class="patch-note">' + esc(word('samePatchesNote')) + '</div></div></div>';
+    for (const risk of risks) {
+      const members = m.patchOverlaps.filter(o => o.risk === risk);
+
+      if (members.length) html += '<div class="sec"><div class="sec-t">' + esc(word('risk')[risk]) + '</div><div class="cf-why">' + esc(word('riskWhy')[risk]) + '</div>' + members.map(modBlock).join('') + '</div>';
+    }
+
+    return html + '</div>';
+  }
+
+  function otherName(o) {
+    const other = modByGuid(o.guid);
+
+    return other ? nameOf(other) : o.guid;
   }
 
   // Keys the mod listens for that are not settings. A clash with any other mod's key is marked like a hotkey setting's.
@@ -909,17 +992,24 @@
     return buttons.length ? '<div class="links">' + buttons.join('') + '</div>' : '';
   }
 
+  // A tab per settings section once there are two, and a Conflicts tab when other mods patch the same game code.
   function tabs(m, names) {
-    if (names.length < 2) return '';
+    const hasConflicts = m.patchOverlaps.length > 0;
 
-    const tab = (name, label, members) => '<div class="tab' + (state.tab === name ? ' on' : '') + '" data-tab="' + esc(name) + '">' + esc(label) + ' <i>' + members.length + '</i>' + (members.some(isChanged) ? '<span class="cd"></span>' : '') + '</div>';
+    if (names.length < 2 && !hasConflicts) return '';
 
+    const tab = (name, label, members) => '<div class="tab' + (!state.conflicts && state.tab === name ? ' on' : '') + '" data-tab="' + esc(name) + '">' + esc(label) + ' <i>' + members.length + '</i>' + (members.some(isChanged) ? '<span class="cd"></span>' : '') + '</div>';
     const shown = shownSettings(m);
+    const sectionTabs = names.length < 2 ? '' : names.map(n => tab(n, n, shown.filter(s => s.section === n))).join('');
+    const worst = ['likely', 'may', 'harmless'].find(risk => m.patchOverlaps.some(o => o.risk === risk));
+    const conflictsTab = hasConflicts ? '<div class="tab tab-cf' + (state.conflicts ? ' on' : '') + '" data-conflicts="1">' + esc(word('tabConflicts')) + ' <i>' + m.patchOverlaps.length + '</i><span class="rd ' + worst + '"></span></div>' : '';
 
-    return '<div class="tabs">' + tab('', word('tabAll'), shown) + names.map(n => tab(n, n, shown.filter(s => s.section === n))).join('') + '</div>';
+    return '<div class="tabs">' + tab('', word(names.length < 2 ? 'tabSettings' : 'tabAll'), shown) + sectionTabs + conflictsTab + '</div>';
   }
 
   function paneBody(m, names) {
+    if (state.conflicts) return conflictsBody(m);
+
     if (m.state === 'off') return notice('', word('offTitle'), word('offBody'));
 
     if (!m.loaded) return notice('', word('notLoadedTitle'), word('notLoadedBody'));
@@ -1338,6 +1428,14 @@
 
     if (tab) {
       state.tab = tab.dataset.tab;
+      state.conflicts = false;
+      render();
+
+      return;
+    }
+
+    if (target.closest('[data-conflicts]')) {
+      state.conflicts = true;
       render();
 
       return;
@@ -1380,6 +1478,7 @@
     state.selected = guid;
     state.query = '';
     state.tab = '';
+    state.conflicts = false;
     searchBox.value = '';
     render();
     pane.scrollTop = 0;

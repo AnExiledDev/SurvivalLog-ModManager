@@ -90,7 +90,7 @@ public static class PageScript
         json.Append(",\"builtFor\":").Append(List(mod.Info.GameVersions, Str));
         json.Append(",\"otherGame\":").Append(Bool(mod.IsForOtherGame));
         json.Append(",\"relations\":").Append(List(mod.Relations, RelationJson));
-        json.Append(",\"patchOverlaps\":").Append(List(mod.PatchOverlaps, overlap => "{\"guid\":" + Str(overlap.Guid) + ",\"methods\":" + List(overlap.Methods, Str) + "}"));
+        json.Append(",\"patchOverlaps\":").Append(List(mod.PatchOverlaps, OverlapJson));
         json.Append(",\"install\":").Append(InstallJson(mod.Install));
         json.Append(",\"rollback\":").Append(RollbackJson(mod.Rollback));
         json.Append(",\"switch\":").Append(SwitchJson(mod.Switch));
@@ -166,6 +166,27 @@ public static class PageScript
         ApplyMode.Restart => "restart",
         ApplyMode.Unknown => "unknown",
         _ => throw new ArgumentOutOfRangeException(nameof(apply), apply, null),
+    };
+
+    private static string OverlapJson(PatchOverlap overlap) =>
+        "{\"guid\":" + Str(overlap.Guid) + ",\"risk\":" + Str(RiskName(overlap.Risk)) + ",\"methods\":" + List(overlap.Methods, method =>
+            "{\"name\":" + Str(method.Method) + ",\"risk\":" + Str(RiskName(method.Risk)) + ",\"mine\":" + List(method.Mine, effect => Str(EffectName(effect))) + ",\"theirs\":" + List(method.Theirs, effect => Str(EffectName(effect))) + "}") + "}";
+
+    private static string RiskName(PatchRisk risk) => risk switch
+    {
+        PatchRisk.Harmless => "harmless",
+        PatchRisk.MayClash => "may",
+        PatchRisk.LikelyClash => "likely",
+        _ => throw new ArgumentOutOfRangeException(nameof(risk), risk, null),
+    };
+
+    private static string EffectName(PatchEffect effect) => effect switch
+    {
+        PatchEffect.RunsBefore => "before",
+        PatchEffect.RunsAfter => "after",
+        PatchEffect.CanSkip => "skip",
+        PatchEffect.Rewrites => "rewrite",
+        _ => throw new ArgumentOutOfRangeException(nameof(effect), effect, null),
     };
 
     private static string RelationJson(Relation relation)

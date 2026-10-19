@@ -7,7 +7,7 @@ using ModManager.Core;
 
 namespace ModManager.Adapters;
 
-/// <summary>Reads HarmonyX's record of every patched game method, naming each patch by the plugin it came from.</summary>
+/// <summary>Reads HarmonyX's record of every patched game method, naming each patch by the plugin it came from and what it does.</summary>
 internal static class HarmonyPatches
 {
     /// <param name="pluginOf">A loaded plugin's GUID by the assembly it was loaded from.</param>
@@ -22,13 +22,15 @@ internal static class HarmonyPatches
             {
                 if (Harmony.GetPatchInfo(method) is not { } info) continue;
 
-                var owners = info.Prefixes.Concat(info.Postfixes).Concat(info.Transpilers).Concat(info.Finalizers).Concat(info.ILManipulators)
-                    .Select(patch => OwnerOf(patch, pluginOf, guids))
-                    .OfType<string>()
-                    .Distinct(StringComparer.Ordinal)
+                var patches = info.Prefixes.Select(patch => (patch, CanSkip(patch) ? PatchEffect.CanSkip : PatchEffect.RunsBefore))
+                    .Concat(info.Postfixes.Concat(info.Finalizers).Select(patch => (patch, PatchEffect.RunsAfter)))
+                    .Concat(info.Transpilers.Concat(info.ILManipulators).Select(patch => (patch, PatchEffect.Rewrites)));
+                var uses = patches
+                    .Select(pair => OwnerOf(pair.patch, pluginOf, guids) is { } guid ? new PatchUse(guid, pair.Item2) : null)
+                    .OfType<PatchUse>()
                     .ToList();
 
-                if (owners.Count > 1) methods.Add(new PatchedMethod((method.DeclaringType?.Name ?? "?") + "." + method.Name, owners));
+                if (uses.Select(use => use.Guid).Distinct().Count() > 1) methods.Add(new PatchedMethod((method.DeclaringType?.Name ?? "?") + "." + method.Name, uses));
             }
         }
         catch (Exception ex)
@@ -38,6 +40,10 @@ internal static class HarmonyPatches
 
         return methods;
     }
+
+    /// <summary>A prefix that returns bool, or takes __runOriginal by ref, can stop the game's own code.</summary>
+    private static bool CanSkip(Patch patch) =>
+        patch.PatchMethod is { } prefix && (prefix.ReturnType == typeof(bool) || prefix.GetParameters().Any(parameter => parameter.Name == "__runOriginal" && parameter.ParameterType.IsByRef));
 
     private static string? OwnerOf(Patch patch, IReadOnlyDictionary<Assembly, string> pluginOf, IReadOnlyCollection<string> guids)
     {
