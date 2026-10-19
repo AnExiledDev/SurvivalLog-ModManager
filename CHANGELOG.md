@@ -32,6 +32,7 @@
 - Shared libraries sit in a folded "Libraries" group at the bottom of the list.
 - Mods can opt out of update checks, and a mod's GitHub repository is found from its `RepositoryUrl` when it does not name one.
 - The title-screen button reads "Mods", to match the other buttons there.
+- The Mod Manager's own entry shows its name in Chinese and the game version it was made for.
 - Needs Exiled's Toolkit 0.4.0 or later.
 
 ## 0.3.0
