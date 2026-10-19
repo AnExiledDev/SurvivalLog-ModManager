@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0
+
+- Install updates: INSTALL UPDATE downloads the release's zip from GitHub and puts the new files in place for the next start. The old files are kept in `BepInEx\mod-manager\backups`, and a failed install puts them back.
+- One message at the start says how many mods have updates; click it to see them. Turn it off with `Updates.ShowToast`.
+- Settings show whether a change needs a restart: NEEDS RESTART, MAY NEED RESTART, or no mark for settings the mod applies at once. Mods built on Exiled's Toolkit 0.4.0 can apply settings live.
+- A mod's page lists the mods it needs, works with and does not work with. TURN ON WHAT IT NEEDS turns on the ones it needs for the next start.
+- Mods can give a name and description in English and Chinese, an icon, a category, a link for reporting problems, and the game version they were made for. A mod made for another game version is marked VERSION.
+- Shared libraries sit in a folded "Libraries" group at the bottom of the list.
+- Mods can opt out of update checks, and a mod's GitHub repository is found from its `RepositoryUrl` when it does not name one.
+- The title-screen button reads "Mods", to match the other buttons there.
+- Needs Exiled's Toolkit 0.4.0 or later.
+
 ## 0.3.0
 
 - Update checks: at each game start, mods that name a GitHub repository are checked for a newer release. Mods with an update are marked in the list and get an "Updates" filter, and their page shows the release notes and a GET UPDATE button that opens the release page. No account or key is needed. Turn it off with `Updates.CheckForUpdates`.

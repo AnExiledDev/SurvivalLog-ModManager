@@ -63,6 +63,7 @@ public class PageCommandTests
     [InlineData("nexus", LinkKind.Nexus)]
     [InlineData("github", LinkKind.GitHub)]
     [InlineData("website", LinkKind.Website)]
+    [InlineData("issues", LinkKind.Issues)]
     public void A_link_names_the_mod_and_which_of_its_links(string kind, LinkKind expected)
     {
         Assert.Equal(new PageCommand.OpenLink("g", expected), PageCommand.Parse("slmod|modmanager|link|g|" + kind));
@@ -88,6 +89,22 @@ public class PageCommandTests
     [InlineData("slmod|modmanager|explode")]
     [InlineData("slmod|modmanager|open|extra")]
     public void Anything_else_is_unknown(string message)
+    {
+        Assert.IsType<PageCommand.Unknown>(PageCommand.Parse(message));
+    }
+
+    [Fact]
+    public void Install_and_turn_on_needs_name_the_mod()
+    {
+        Assert.Equal(new PageCommand.Install("com.x"), PageCommand.Parse("slmod|modmanager|install|com.x"));
+        Assert.Equal(new PageCommand.TurnOnNeeds("com.x"), PageCommand.Parse("slmod|modmanager|needs|com.x"));
+    }
+
+    [Theory]
+    [InlineData("slmod|modmanager|install")]
+    [InlineData("slmod|modmanager|install|g|https%3A%2F%2Fevil.example")]
+    [InlineData("slmod|modmanager|needs")]
+    public void Install_or_needs_without_exactly_one_mod_is_unknown(string message)
     {
         Assert.IsType<PageCommand.Unknown>(PageCommand.Parse(message));
     }

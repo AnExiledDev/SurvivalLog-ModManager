@@ -294,16 +294,25 @@ public sealed class UpdateBook
 {
     private readonly Dictionary<string, LatestRelease> _latest = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, NotesState> _notes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, InstallState> _installs = new(StringComparer.Ordinal);
 
     public void Record(string repository, LatestRelease latest) => _latest[repository] = latest;
 
     public void Record(LatestRelease.Found release, NotesState notes) => _notes[NotesKey(release)] = notes;
 
+    public void Record(string guid, InstallState install) => _installs[guid] = install;
+
+    /// <summary>Installs are kept: the files on disk stay changed whether or not checks run again.</summary>
     public void Clear()
     {
         _latest.Clear();
         _notes.Clear();
     }
+
+    /// <summary>True once every check started has an answer; false while none were started.</summary>
+    public bool IsSettled => _latest.Count > 0 && _latest.Values.All(latest => latest is not LatestRelease.Checking);
+
+    public InstallState InstallOf(string guid) => _installs.TryGetValue(guid, out var install) ? install : new InstallState.None();
 
     public LatestRelease? Latest(string? repository) => repository != null && _latest.TryGetValue(repository, out var latest) ? latest : null;
 

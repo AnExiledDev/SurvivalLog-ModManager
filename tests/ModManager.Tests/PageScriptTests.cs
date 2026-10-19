@@ -100,7 +100,7 @@ public class PageScriptTests
     [Fact]
     public void A_mod_sends_its_state_info_link_kinds_and_switch_but_never_the_link_addresses()
     {
-        var info = new ModInfo("Ann", new Description("Does a thing.", "做事。"), new[] { new ModLink(LinkKind.Nexus, "https://www.nexusmods.com/survivallog/mods/4"), new ModLink(LinkKind.GitHub, "https://github.com/a/b") });
+        var info = new ModInfo { Author = "Ann", Description = new Description("Does a thing.", "做事。"), Links = new[] { new ModLink(LinkKind.Nexus, "https://www.nexusmods.com/survivallog/mods/4"), new ModLink(LinkKind.GitHub, "https://github.com/a/b") } };
         var mod = new ModEntry("g", "Mod", "1.0", "Mod.dll", new ModState.Off(), info, new ModSwitch.Allowed(true, new[] { "Child" }), NotChecked);
 
         var text = PageScript.ModJson(mod);
@@ -198,5 +198,111 @@ public class PageScriptTests
         Assert.StartsWith("window.__modmanager&&window.__modmanager.replace({", script);
         Assert.Contains("\"guid\":\"g\",\"warn\":true,\"en\":\"Could not.\"", script);
         Assert.EndsWith(",null)", PageScript.Replace(view, null));
+    }
+
+    [Fact]
+    public void A_mod_sends_the_name_it_asks_for_in_each_language_and_its_plugin_name_for_search()
+    {
+        var mod = Loaded() with { Info = new ModInfo { Name = new Description("Better Map", "更好的地图") } };
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(mod));
+        var root = json.RootElement;
+
+        Assert.Equal("Better Map", root.GetProperty("name").GetString());
+        Assert.Equal("更好的地图", root.GetProperty("nameZh").GetString());
+        Assert.Equal("Mod", root.GetProperty("plugin").GetString());
+    }
+
+    [Fact]
+    public void A_mod_without_a_name_of_its_own_shows_its_plugin_name_in_both_languages()
+    {
+        using var json = JsonDocument.Parse(PageScript.ModJson(Loaded()));
+
+        Assert.Equal("Mod", json.RootElement.GetProperty("name").GetString());
+        Assert.Equal("Mod", json.RootElement.GetProperty("nameZh").GetString());
+    }
+
+    [Fact]
+    public void A_mod_sends_its_category_library_flag_versions_relations_and_install()
+    {
+        var info = new ModInfo { Category = ModCategory.QualityOfLife, IsLibrary = true, GameVersions = new[] { "1.0" } };
+        var mod = Loaded() with
+        {
+            Info = info,
+            IsForOtherGame = true,
+            Relations = new[] { new Relation(RelationKind.Needs, "t", "Toolkit", RelationStatus.Off, true), new Relation(RelationKind.DoesNotWorkWith, "x", "x", RelationStatus.Missing, false) },
+            Install = new InstallState.Failed("no zip"),
+        };
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(mod));
+        var root = json.RootElement;
+        var needs = root.GetProperty("relations")[0];
+
+        Assert.Equal("QualityOfLife", root.GetProperty("category").GetString());
+        Assert.True(root.GetProperty("library").GetBoolean());
+        Assert.Equal("1.0", root.GetProperty("builtFor")[0].GetString());
+        Assert.True(root.GetProperty("otherGame").GetBoolean());
+        Assert.Equal("needs", needs.GetProperty("kind").GetString());
+        Assert.Equal("off", needs.GetProperty("status").GetString());
+        Assert.True(needs.GetProperty("canTurnOn").GetBoolean());
+        Assert.Equal("doesNotWorkWith", root.GetProperty("relations")[1].GetProperty("kind").GetString());
+        Assert.Equal("missing", root.GetProperty("relations")[1].GetProperty("status").GetString());
+        Assert.Equal("failed", root.GetProperty("install").GetProperty("kind").GetString());
+        Assert.Equal("no zip", root.GetProperty("install").GetProperty("reason").GetString());
+    }
+
+    [Fact]
+    public void A_mod_without_a_category_sends_null()
+    {
+        using var json = JsonDocument.Parse(PageScript.ModJson(Loaded()));
+
+        Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("category").ValueKind);
+        Assert.Equal("none", json.RootElement.GetProperty("install").GetProperty("kind").GetString());
+    }
+
+    [Theory]
+    [InlineData(ApplyMode.Live, "live")]
+    [InlineData(ApplyMode.Restart, "restart")]
+    [InlineData(ApplyMode.Unknown, "unknown")]
+    public void Each_setting_says_when_a_change_takes_effect(ApplyMode apply, string expected)
+    {
+        var mod = Loaded(Setting("On", new SettingKind.Toggle()) with { Apply = apply });
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(mod));
+
+        Assert.Equal(expected, json.RootElement.GetProperty("settings")[0].GetProperty("apply").GetString());
+    }
+
+    [Fact]
+    public void The_view_carries_the_game_version_or_null()
+    {
+        var view = new ModsView(new[] { Loaded() }, System.Array.Empty<string>(), false, "F10");
+
+        using var known = JsonDocument.Parse(PageScript.ViewJson(view with { GameVersion = "1.1.18902" }));
+        using var unknown = JsonDocument.Parse(PageScript.ViewJson(view));
+
+        Assert.Equal("1.1.18902", known.RootElement.GetProperty("game").GetString());
+        Assert.Equal(JsonValueKind.Null, unknown.RootElement.GetProperty("game").ValueKind);
+    }
+
+    [Fact]
+    public void Opening_on_a_filter_names_it_and_opening_plainly_leaves_the_page_its_own()
+    {
+        var view = new ModsView(new[] { Loaded() }, System.Array.Empty<string>(), false, "F10");
+
+        Assert.EndsWith("},\"updates\")", PageScript.Open(view, "updates"));
+        Assert.EndsWith("]})", PageScript.Open(view));
+    }
+
+    [Fact]
+    public void Icons_go_by_guid_as_one_object()
+    {
+        var script = PageScript.Icons(new Dictionary<string, string> { ["b"] = "data:image/png;base64,QQ==", ["a"] = "data:image/jpeg;base64,Qg==" });
+        var argument = script.Substring(script.IndexOf(".icons(", System.StringComparison.Ordinal) + 7).TrimEnd(')');
+
+        using var json = JsonDocument.Parse(argument);
+
+        Assert.Equal("data:image/png;base64,QQ==", json.RootElement.GetProperty("b").GetString());
+        Assert.Equal("data:image/jpeg;base64,Qg==", json.RootElement.GetProperty("a").GetString());
     }
 }

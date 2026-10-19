@@ -25,7 +25,8 @@
       mayRestart: 'MAY NEED RESTART', resetTo: v => 'Reset to ' + v, pressKey: 'PRESS A KEY', none: 'None',
       alsoUsed: list => 'Also used by ' + list + '.', readOnly: 'Read only',
       footerNone: 'No changes this session. Everything saves the moment you change it.',
-      footerSome: n => '<b>' + n + '</b> ' + (n === 1 ? 'setting' : 'settings') + ' changed this session, saved. <em>Some mods only read settings at start: restart the game if a change does not show.</em>',
+      footerSome: n => '<b>' + n + '</b> ' + (n === 1 ? 'setting' : 'settings') + ' changed this session, saved.',
+      footerRestartHint: 'Some of them apply only after a restart: see the marks beside them.',
       menuButton: 'Mods',
       groupOff: 'Off', offSub: 'off', statusOff: 'OFF', statusRequired: 'REQUIRED', pipRestart: 'RESTART',
       switchOnHint: 'turning it off applies next start', switchOffHint: 'turning it on applies next start',
@@ -44,7 +45,19 @@
       whatsNew: "WHAT'S NEW", notesLoading: 'Loading the release notes.', notesEmpty: 'This release has no notes.',
       notesBusy: 'GitHub is busy for now (it limits how often anyone without an account can ask). The release page has the notes.',
       notesFailed: 'Could not load the release notes. The release page has them.',
-      footerUpdates: n => (n === 1 ? '1 mod has' : n + ' mods have') + ' an update.'
+      footerUpdates: n => (n === 1 ? '1 mod has' : n + ' mods have') + ' an update.',
+      linkIssues: 'REPORT A PROBLEM', groupLibraries: 'Libraries', library: 'LIBRARY', needsRestart: 'NEEDS RESTART',
+      categories: { Gameplay: 'Gameplay', Balance: 'Balance', QualityOfLife: 'Quality of life', Interface: 'Interface', Visuals: 'Visuals', Audio: 'Audio', Cheats: 'Cheats', Tools: 'Tools' },
+      pipOtherGame: 'VERSION', otherGameTitle: 'Made for another game version.',
+      otherGameBody: (built, game) => 'It was made for ' + built + (game ? ' and this game is ' + game : '') + '. It may not work as expected.',
+      relNeeds: 'NEEDS', relWorksWith: 'WORKS WITH (OPTIONAL)', relNot: 'DOES NOT WORK WITH',
+      relStatus: { missing: 'not installed', on: 'on', off: 'off' },
+      needsProblem: list => 'It needs these, which are off or not installed, so it will not start: ' + list + '.',
+      clashProblem: list => 'It does not work with these, which are on, so it will not start: ' + list + '.',
+      turnOnNeeds: 'TURN ON WHAT IT NEEDS',
+      installUpdate: 'INSTALL UPDATE', tryAgain: 'TRY AGAIN', installing: 'Installing the update.',
+      installed: tag => 'Version ' + tag + ' is installed. Restart the game to use it.',
+      installFailed: reason => 'Could not install the update: ' + reason + '.'
     },
     zh: {
       loaded: '已加载', settings: '项设置', toggle: '切换', close: '关闭', search: '搜索所有设置',
@@ -60,7 +73,8 @@
       mayRestart: '可能需要重启', resetTo: v => '恢复为 ' + v, pressKey: '请按一个键', none: '无',
       alsoUsed: list => '也被 ' + list + ' 使用。', readOnly: '只读',
       footerNone: '本次没有修改。每项设置一改就会保存。',
-      footerSome: n => '本次修改了 <b>' + n + '</b> 项设置，已保存。<em>有些模组只在启动时读取设置：如果修改没有生效，请重启游戏。</em>',
+      footerSome: n => '本次修改了 <b>' + n + '</b> 项设置，已保存。',
+      footerRestartHint: '其中有些需要重启游戏才会生效：见设置旁的标记。',
       menuButton: '模组',
       groupOff: '已关闭', offSub: '已关闭', statusOff: '已关闭', statusRequired: '必需', pipRestart: '重启',
       switchOnHint: '关闭将在下次启动时生效', switchOffHint: '开启将在下次启动时生效',
@@ -79,7 +93,19 @@
       whatsNew: '更新内容', notesLoading: '正在加载更新说明。', notesEmpty: '这个版本没有更新说明。',
       notesBusy: 'GitHub 暂时繁忙（它限制了未登录时的查询次数）。发布页面上有更新说明。',
       notesFailed: '无法加载更新说明。发布页面上有。',
-      footerUpdates: n => n + ' 个模组有更新。'
+      footerUpdates: n => n + ' 个模组有更新。',
+      linkIssues: '反馈问题', groupLibraries: '前置库', library: '前置库', needsRestart: '需要重启',
+      categories: { Gameplay: '玩法', Balance: '平衡', QualityOfLife: '便利', Interface: '界面', Visuals: '画面', Audio: '音频', Cheats: '作弊', Tools: '工具' },
+      pipOtherGame: '版本', otherGameTitle: '为其他游戏版本制作。',
+      otherGameBody: (built, game) => '它是为 ' + built + ' 制作的' + (game ? '，当前游戏是 ' + game : '') + '。它可能无法正常工作。',
+      relNeeds: '需要', relWorksWith: '可配合（可选）', relNot: '不兼容',
+      relStatus: { missing: '未安装', on: '已开启', off: '已关闭' },
+      needsProblem: list => '它需要的以下模组已关闭或未安装，所以它不会启动：' + list + '。',
+      clashProblem: list => '它与以下已开启的模组不兼容，所以它不会启动：' + list + '。',
+      turnOnNeeds: '开启它需要的模组',
+      installUpdate: '安装更新', tryAgain: '重试', installing: '正在安装更新。',
+      installed: tag => '版本 ' + tag + ' 已安装。重启游戏后生效。',
+      installFailed: reason => '无法安装更新：' + reason + '。'
     }
   };
 
@@ -96,10 +122,12 @@
     isTyping: false,
     rows: [],
     modNote: null,
-    notesAsked: {}
+    notesAsked: {},
+    icons: {},
+    showLibraries: false
   };
 
-  const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite' };
+  const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite', issues: 'linkIssues' };
 
   // ===== Talking to the C# side =====
 
@@ -133,6 +161,33 @@
   const settingId = (mod, s) => mod.guid + '\n' + s.section + '\n' + s.key;
   const mods = () => (state.view ? state.view.mods : []);
   const modByGuid = guid => mods().find(m => m.guid === guid);
+  const nameOf = m => (state.lang === 'zh' ? m.nameZh : m.name);
+  const isLibraryShelf = m => m.library && m.state === 'loaded';
+
+  // The mod's own icon when it embeds one, else its initials on a colour taken from its name.
+  function badge(m, cls) {
+    const icon = state.icons[m.guid];
+
+    if (icon) return '<div class="' + cls + ' has-icon"><img src="' + esc(icon) + '" alt=""></div>';
+
+    return '<div class="' + cls + '" style="' + monoStyle(m.name) + '">' + esc(initials(m.name)) + '</div>';
+  }
+
+  // Whether the mod will run from the next start, which is when what it needs has to be there.
+  function isOnNext(m) {
+    if (m.switch.kind === 'allowed') return m.switch.next;
+
+    return m.switch.kind === 'locked' || m.state !== 'off';
+  }
+
+  function relationProblems(m) {
+    if (!isOnNext(m)) return { needs: [], clashes: [] };
+
+    return {
+      needs: m.relations.filter(r => r.kind === 'needs' && r.status !== 'on'),
+      clashes: m.relations.filter(r => r.kind === 'doesNotWorkWith' && r.status === 'on')
+    };
+  }
 
   function hue(name) {
     let h = 0;
@@ -224,6 +279,12 @@
 #slmm .pip.chg { color: var(--amber); border: 1px solid rgba(235,163,8,0.45); }
 #slmm .pip.offp { color: #999; border: 1px dashed #666; }
 #slmm .pip.upd { color: #111; background: var(--teal); border: 1px solid var(--teal); }
+#slmm .pip.warnp { color: var(--red); border: 1px solid rgba(255,90,90,0.5); }
+#slmm .has-icon { padding: 0; overflow: hidden; background: #000; }
+#slmm .has-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#slmm .grp.tog { cursor: pointer; }
+#slmm .grp.tog:hover { opacity: 1; }
+#slmm .grp .arrow { font-size: .7rem; letter-spacing: 0; }
 #slmm .problem { font-family: var(--mono); font-size: .75rem; color: #c98a8a; line-height: 1.5; padding: 4px 18px 6px; white-space: pre-wrap; word-break: break-word; }
 
 #slmm .pane { overflow-y: auto; min-height: 0; position: relative; }
@@ -333,6 +394,18 @@
 #slmm .upd-h { font-family: var(--mono); font-size: .75rem; letter-spacing: 2px; color: var(--teal); margin-bottom: 6px; }
 #slmm .upd-line { margin-top: 8px; font-size: .88rem; color: #888; }
 #slmm .upd-act { margin-top: 14px; display: flex; gap: 10px; }
+#slmm .upd-line.ok { color: var(--teal); }
+#slmm .upd-line.bad { color: #c98a8a; }
+#slmm .rels { padding: 16px 40px 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; align-items: baseline; }
+#slmm .rel-h { font-family: var(--mono); font-size: .75rem; letter-spacing: 2px; color: #777; white-space: nowrap; }
+#slmm .rel-items { display: flex; flex-wrap: wrap; gap: 8px; }
+#slmm .rel { font-size: .9rem; color: #bbb; padding: 3px 9px; border: 1px solid rgba(255,255,255,0.12); border-radius: 2px; }
+#slmm .rel[data-mod] { cursor: pointer; }
+#slmm .rel[data-mod]:hover { border-color: var(--amber); color: #fff; }
+#slmm .rel i { font-style: normal; font-family: var(--mono); font-size: .72rem; color: #777; margin-left: 6px; }
+#slmm .rel.bad { border-color: rgba(255,90,90,0.5); color: #e0a0a0; }
+#slmm .rel.bad i { color: var(--red); }
+#slmm .notice .acts { margin-top: 10px; display: flex; gap: 10px; }
 #slmm .empty { padding: 70px 40px; text-align: center; color: #777; }
 #slmm .empty .big { font-family: var(--display); font-size: 2rem; color: #555; letter-spacing: 3px; margin-bottom: 10px; }
 
@@ -437,22 +510,32 @@
     if (state.filter === 'changed') shown = shown.filter(m => m.settings.some(isChanged));
     else if (state.filter === 'updates') shown = shown.filter(hasUpdate);
 
-    if (q) shown = shown.filter(m => m.name.toLowerCase().indexOf(q) >= 0 || m.guid.toLowerCase().indexOf(q) >= 0 || m.settings.some(s => matchesQuery(m, s, q)));
+    if (q) shown = shown.filter(m => [m.name, m.nameZh, m.plugin, m.guid].some(text => text.toLowerCase().indexOf(q) >= 0) || m.settings.some(s => matchesQuery(m, s, q)));
 
     return shown;
   }
 
   function renderList() {
     const shown = visibleMods();
-    const groups = [[word('groupLoaded'), shown.filter(m => m.state === 'loaded')], [word('groupNotLoaded'), shown.filter(m => m.state === 'notLoaded')], [word('groupOff'), shown.filter(m => m.state === 'off')]];
+    const groups = [
+      [word('groupLoaded'), shown.filter(m => m.state === 'loaded' && !isLibraryShelf(m)), false],
+      [word('groupNotLoaded'), shown.filter(m => m.state === 'notLoaded'), false],
+      [word('groupOff'), shown.filter(m => m.state === 'off'), false],
+      [word('groupLibraries'), shown.filter(isLibraryShelf), true]
+    ];
     const problems = state.view ? state.view.problems : [];
     let html = '';
     let delay = 0;
 
-    for (const [title, members] of groups) {
+    for (const [title, members, isShelf] of groups) {
       if (!members.length) continue;
 
-      html += '<div class="grp">' + esc(title) + ' &middot; ' + members.length + '</div>';
+      const isOpen = !isShelf || state.showLibraries || !!state.query;
+      const arrow = isShelf ? ' <span class="arrow">' + (isOpen ? '&#x25BE;' : '&#x25B8;') + '</span>' : '';
+
+      html += '<div class="grp' + (isShelf ? ' tog" data-act="libraries' : '') + '">' + esc(title) + ' &middot; ' + members.length + arrow + '</div>';
+
+      if (!isOpen) continue;
 
       for (const m of members) {
         html += modRow(m, Math.min(delay++ * 18, 500));
@@ -473,11 +556,12 @@
     const pips = (changed ? '<span class="pip chg">' + changed + '</span>' : '') +
       (m.state === 'off' ? '<span class="pip offp">' + esc(word('statusOff')) + '</span>' : '') +
       (isPending(m) ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : '') +
-      (hasUpdate(m) ? '<span class="pip upd">' + esc(word('pipUpdate')) + '</span>' : '');
+      (m.otherGame ? '<span class="pip warnp">' + esc(word('pipOtherGame')) + '</span>' : '') +
+      (m.install.kind === 'installed' ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : hasUpdate(m) ? '<span class="pip upd">' + esc(word('pipUpdate')) + '</span>' : '');
 
     return '<div class="mod' + (isSelected ? ' sel' : '') + (m.loaded ? '' : ' off') + '" data-mod="' + esc(m.guid) + '" style="animation-delay:' + delay + 'ms">' +
-      '<div class="mono" style="' + monoStyle(m.name) + '">' + esc(initials(m.name)) + '</div>' +
-      '<div><div class="mname">' + esc(m.name) + '</div><div class="msub">' + sub + '</div></div>' +
+      badge(m, 'mono') +
+      '<div><div class="mname">' + esc(nameOf(m)) + '</div><div class="msub">' + sub + '</div></div>' +
       '<div>' + pips + '</div></div>';
   }
 
@@ -500,7 +584,7 @@
 
     if (names.indexOf(state.tab) < 0) state.tab = '';
 
-    pane.innerHTML = hero(m) + meta(m) + about(m) + links(m) + updateNotice(m) + tabs(m, names) + modNotices(m) + paneBody(m, names);
+    pane.innerHTML = hero(m) + meta(m) + about(m) + links(m) + relations(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + tabs(m, names) + modNotices(m) + paneBody(m, names);
     askForNotes(m);
   }
 
@@ -527,8 +611,8 @@
     const sub = m.loaded ? (m.settings.length ? word('found') : word('foundNone')) : '';
 
     return '<div class="hero"><div class="gen" style="--hue-a:hsla(' + hue(m.name) + ',50%,35%,.45)">' +
-      '<div class="big" style="' + monoStyle(m.name) + '">' + esc(initials(m.name)) + '</div>' +
-      '<div><div class="gt">' + esc(m.name) + '</div><div class="gs">' + esc(sub) + '</div></div></div>' +
+      badge(m, 'big') +
+      '<div><div class="gt">' + esc(nameOf(m)) + '</div><div class="gs">' + esc(sub) + '</div></div></div>' +
       '<div class="hero-side">' + enSwitch(m) + '</div></div>';
   }
 
@@ -554,8 +638,10 @@
   function meta(m) {
     const file = m.file ? '<span class="id"><b>' + esc(m.file) + '</b></span>' : '';
     const author = m.author ? '<span class="id">' + esc(word('by')) + ' <b>' + esc(m.author) + '</b></span>' : '';
+    const category = m.category && word('categories')[m.category] ? '<span class="id"><b>' + esc(word('categories')[m.category]) + '</b></span>' : '';
+    const library = m.library ? '<span class="id"><b>' + esc(word('library')) + '</b></span>' : '';
 
-    return '<div class="meta"><span class="id">v<b>' + esc(m.version) + '</b></span>' + updateStatus(m.update) + author + '<span class="id"><b>' + esc(m.guid) + '</b></span>' + file + '</div>';
+    return '<div class="meta"><span class="id">v<b>' + esc(m.version) + '</b></span>' + updateStatus(m.update) + author + category + library + '<span class="id"><b>' + esc(m.guid) + '</b></span>' + file + '</div>';
   }
 
   // How the update check went, beside the version. An available update gets its own notice instead.
@@ -576,7 +662,70 @@
     if (!hasUpdate(m)) return '';
 
     return '<div class="notice upd"><span class="ico">&#x2191;</span><div class="upd-main"><b>' + esc(word('updateTitle')(tagText(m.update.tag))) + '</b> ' + esc(word('updateBody')(m.version)) +
-      releaseNotes(m.update.notes) + '<div class="upd-act"><div class="key-btn" data-act="update">' + esc(word('getUpdate')) + ' &#x2197;</div></div></div></div>';
+      releaseNotes(m.update.notes) + installLine(m.install) + '<div class="upd-act">' + installButton(m.install) + '<div class="key-btn" data-act="update">' + esc(word('getUpdate')) + ' &#x2197;</div></div></div></div>';
+  }
+
+  function installLine(install) {
+    switch (install.kind) {
+      case 'installing': return '<div class="upd-line">' + esc(word('installing')) + '</div>';
+      case 'installed': return '<div class="upd-line ok">' + esc(word('installed')(tagText(install.tag))) + '</div>';
+      case 'failed': return '<div class="upd-line bad">' + esc(word('installFailed')(install.reason)) + '</div>';
+      default: return '';
+    }
+  }
+
+  function installButton(install) {
+    switch (install.kind) {
+      case 'none': return '<div class="key-btn" data-act="install">' + esc(word('installUpdate')) + '</div>';
+      case 'failed': return '<div class="key-btn" data-act="install">' + esc(word('tryAgain')) + '</div>';
+      default: return '';
+    }
+  }
+
+  function otherGameNotice(m) {
+    if (!m.otherGame) return '';
+
+    return '<div class="notice warn"><span class="ico">!</span><div><b>' + esc(word('otherGameTitle')) + '</b> ' + esc(word('otherGameBody')(m.builtFor.join(' / '), state.view.game)) + '</div></div>';
+  }
+
+  // What the mod declares it needs, works with, or clashes with, and whether each will be there at the next start.
+  function relations(m) {
+    if (!m.relations.length) return '';
+
+    const kinds = [['needs', 'relNeeds'], ['worksWith', 'relWorksWith'], ['doesNotWorkWith', 'relNot']];
+    const isBad = r => (r.kind === 'needs' && r.status !== 'on') || (r.kind === 'doesNotWorkWith' && r.status === 'on');
+    const chip = r => '<span class="rel' + (isBad(r) && isOnNext(m) ? ' bad' : '') + '"' + (r.status === 'missing' ? '' : ' data-mod="' + esc(r.guid) + '"') + '>' + esc(relationName(r)) + '<i>' + esc(word('relStatus')[r.status]) + '</i></span>';
+    let html = '';
+
+    for (const [kind, label] of kinds) {
+      const members = m.relations.filter(r => r.kind === kind);
+
+      if (members.length) html += '<div class="rel-h">' + esc(word(label)) + '</div><div class="rel-items">' + members.map(chip).join('') + '</div>';
+    }
+
+    return '<div class="rels">' + html + '</div>';
+  }
+
+  function relationName(r) {
+    const other = modByGuid(r.guid);
+
+    return other ? nameOf(other) : r.name;
+  }
+
+  function relationNotice(m) {
+    const problems = relationProblems(m);
+    const lines = [];
+
+    if (problems.needs.length) lines.push(esc(word('needsProblem')(problems.needs.map(relationName).join(', '))));
+
+    if (problems.clashes.length) lines.push(esc(word('clashProblem')(problems.clashes.map(relationName).join(', '))));
+
+    if (!lines.length) return '';
+
+    const canTurnOn = problems.needs.some(r => r.status === 'off' && r.canTurnOn);
+    const button = canTurnOn ? '<div class="acts"><div class="key-btn" data-act="needs">' + esc(word('turnOnNeeds')) + '</div></div>' : '';
+
+    return '<div class="notice warn"><span class="ico">!</span><div>' + lines.join('<br>') + button + '</div></div>';
   }
 
   function releaseNotes(notes) {
@@ -665,7 +814,7 @@
       if (!hits.length) continue;
 
       count += hits.length;
-      html += '<div class="sr-mod" data-mod="' + esc(m.guid) + '"><div class="mono" style="' + monoStyle(m.name) + '">' + esc(initials(m.name)) + '</div>' + esc(m.name) + ' <span>' + esc(word('match')(hits.length)) + '</span></div>' + hits.map(s => row(m, s, highlight)).join('');
+      html += '<div class="sr-mod" data-mod="' + esc(m.guid) + '">' + badge(m, 'mono') + esc(nameOf(m)) + ' <span>' + esc(word('match')(hits.length)) + '</span></div>' + hits.map(s => row(m, s, highlight)).join('');
     }
 
     const empty = '<div class="empty"><div class="big">' + esc(word('nothing')) + '</div>' + esc(word('tryAnother')) + '</div>';
@@ -694,14 +843,21 @@
     if (note) lines.push('<div class="hint ' + (note.warn ? 'warn' : 'note') + '">' + esc(state.lang === 'zh' ? note.zh : note.en) + '</div>');
 
     const readOnly = s.readOnly ? '<span class="ro">' + esc(word('readOnly')) + '</span>' : '';
-    const badge = isChangedThisSession(s) ? '<span class="badge">&#x21BB; ' + esc(word('mayRestart')) + '</span>' : '';
+    const restartMark = restartBadge(s);
     const canReset = !s.readOnly;
 
     return '<div class="row' + (isChanged(s) ? ' chg' : '') + (id === state.pending ? ' flash' : '') + '" data-row="' + index + '">' +
       '<div><div class="lab">' + show(s.label) + readOnly + '</div>' + lines.join('') + '</div>' +
-      '<div>' + badge + '</div>' +
+      '<div>' + restartMark + '</div>' +
       '<div class="ctl' + (s.readOnly ? ' locked' : '') + '">' + control(m, s, index) + '</div>' +
       '<div class="reset' + (canReset ? ' can' : '') + '" data-act="reset" title="' + esc(word('resetTo')(shown(s, s.default))) + '">&#x21BA;</div></div>';
+  }
+
+  // A changed setting says whether the change needs a restart; a setting the mod applies at once says nothing.
+  function restartBadge(s) {
+    if (!isChangedThisSession(s) || s.apply === 'live') return '';
+
+    return '<span class="badge">&#x21BB; ' + esc(word(s.apply === 'restart' ? 'needsRestart' : 'mayRestart')) + '</span>';
   }
 
   function shown(s, value) {
@@ -762,7 +918,7 @@
       for (const other of mod.settings) {
         if (other.kind !== 'hotkey' || other.current !== s.current || (mod === m && other === s)) continue;
 
-        others.push(mod === m ? other.label : mod.name + ' (' + other.label + ')');
+        others.push(mod === m ? other.label : nameOf(mod) + ' (' + other.label + ')');
       }
     }
 
@@ -771,13 +927,16 @@
 
   function renderFooter() {
     const changed = mods().reduce((sum, m) => sum + m.settings.filter(isChangedThisSession).length, 0);
+    const waiting = mods().some(m => m.settings.some(s => isChangedThisSession(s) && s.apply !== 'live'));
     const restarts = mods().filter(isPending).length;
     const restartText = restarts ? ' <em>' + esc(word('footerRestart')(restarts)) + '</em>' : '';
     const updates = mods().filter(hasUpdate).length;
     const updateText = updates ? ' <em>' + esc(word('footerUpdates')(updates)) + '</em>' : '';
 
-    $('.status-dot').classList.toggle('warn', changed > 0 || restarts > 0);
-    $('.ft-t').innerHTML = (changed ? word('footerSome')(changed) : esc(word('footerNone'))) + restartText + updateText;
+    const changedText = changed ? word('footerSome')(changed) + (waiting ? ' <em>' + esc(word('footerRestartHint')) + '</em>' : '') : esc(word('footerNone'));
+
+    $('.status-dot').classList.toggle('warn', waiting || restarts > 0);
+    $('.ft-t').innerHTML = changedText + restartText + updateText;
   }
 
   // ===== What the player does =====
@@ -820,6 +979,13 @@
       return;
     }
 
+    if (actName === 'libraries') {
+      state.showLibraries = !state.showLibraries;
+      render();
+
+      return;
+    }
+
     const modLink = target.closest('[data-mod]');
 
     if (modLink) {
@@ -857,6 +1023,8 @@
     if (actName === 'showCfg') send('showCfg', [state.selected]);
     else if (actName === 'link') send('link', [state.selected, act.dataset.kind]);
     else if (actName === 'update') send('update', [state.selected]);
+    else if (actName === 'install') send('install', [state.selected]);
+    else if (actName === 'needs') send('needs', [state.selected]);
     else if (actName === 'resetMod') resetMod();
     else if (actName === 'reset' && row) resetRow(row);
     else if (actName === 'bind' && row) bind(row, act);
@@ -1006,7 +1174,8 @@
 
   // ===== Calls from the C# side =====
 
-  function open(view) {
+  // filter: a list filter to start on (the update toast opens on "updates"); without one the page keeps its own.
+  function open(view, filter) {
     const saved = savedLanguage();
 
     state.view = view;
@@ -1018,6 +1187,8 @@
     state.notesAsked = {};
 
     if (!modByGuid(state.selected)) state.selected = view.mods.length ? (view.mods.find(m => m.loaded) || view.mods[0]).guid : null;
+
+    if (filter) openOn(filter);
 
     fit();
     root.classList.add('on');
@@ -1061,9 +1232,26 @@
     render();
   }
 
+  function openOn(filter) {
+    const first = filter === 'updates' ? mods().find(hasUpdate) : null;
+
+    state.filter = filter;
+    state.query = '';
+    searchBox.value = '';
+
+    if (first) state.selected = first.guid;
+  }
+
   function bindEnded() {
     state.binding = null;
     render();
+  }
+
+  // Icons come once per page, apart from the view: they are large and do not change while the game runs.
+  function icons(map) {
+    state.icons = map || {};
+
+    if (root.classList.contains('on')) render();
   }
 
   // ===== MODS buttons in the game's own menus =====
@@ -1118,7 +1306,7 @@
 
     if (exit.previousElementSibling !== item) exit.parentNode.insertBefore(item, exit);
 
-    item.querySelector('.menu-text').textContent = isCjk(exitText.textContent) ? WORDS.zh.menuButton : WORDS.en.menuButton.toUpperCase();
+    item.querySelector('.menu-text').textContent = isCjk(exitText.textContent) ? WORDS.zh.menuButton : WORDS.en.menuButton;
   }
 
   function addMenuButtons() {
@@ -1153,6 +1341,6 @@
   setInterval(addMenuButtons, MENU_POLL_MS);
   addMenuButtons();
 
-  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded };
+  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, icons: icons };
   sendReady();
 })();

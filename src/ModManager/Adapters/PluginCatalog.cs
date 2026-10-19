@@ -8,6 +8,7 @@ using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
+using ExiledToolkit;
 using ModManager.Core;
 using UnityEngine;
 
@@ -33,30 +34,74 @@ internal sealed class PluginCatalog
     private readonly Dictionary<string, string> _moves = new(StringComparer.OrdinalIgnoreCase);
 
     private IReadOnlyList<(string Path, PluginFile Plugin)>? _offAtStart;
+    private IReadOnlyDictionary<string, string>? _icons;
 
-    public PluginCatalog(PluginFolders folders, UpdateBook updates, string selfGuid, Action<string> log)
+    public PluginCatalog(PluginFolders folders, UpdateBook updates, string selfGuid, string? gameVersion, Action<string> log)
     {
         _folders = folders;
         _updates = updates;
         _selfGuid = selfGuid;
+        GameVersion = gameVersion;
         _log = log;
     }
 
+    public string? GameVersion { get; }
+
+    /// <summary>Each mod with its relations resolved against all the others, so the list says whether what it needs will be there.</summary>
     public IReadOnlyList<ModEntry> Mods()
     {
         var nodes = Nodes();
+        var mods = Plugins().Select(plugin => Entry(plugin, nodes)).Concat(OffAtStart().Select(OffEntry)).ToList();
 
-        return ModList.SortByName(Plugins().Select(plugin => Entry(plugin, nodes)).Concat(OffAtStart().Select(OffEntry)));
+        return ModList.SortByName(mods.Select(mod => mod with { Relations = RelationResolver.Resolve(DeclaredOf(mod.Guid), mods) }));
     }
+
+    /// <summary>The icons of every mod that embeds a usable one, read once: DLLs do not change their icon while the game runs.</summary>
+    public IReadOnlyDictionary<string, string> Icons()
+    {
+        if (_icons != null) return _icons;
+
+        var icons = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var mod in Mods())
+        {
+            if (mod.Info.Icon is not { } name || StartPathOf(mod.Guid) is not { } path) continue;
+
+            try
+            {
+                var bytes = PluginFileReader.Resource(CurrentPath(path), name, IconImage.MaxBytes);
+                var (uri, problem) = bytes == null ? (null, "is not embedded in " + Path.GetFileName(path)) : IconImage.DataUri(bytes);
+
+                if (uri != null) icons[mod.Guid] = uri;
+                else ReportOnce(mod.Guid + "/icon", "the icon " + name + " of " + mod.Guid + " is not shown: it " + problem);
+            }
+            catch (Exception ex)
+            {
+                ReportOnce(mod.Guid + "/icon", "could not read the icon of " + mod.Guid + ": " + ex.Message);
+            }
+        }
+
+        return _icons = icons;
+    }
+
+    /// <summary>Where a mod's update may be put: a loaded mod under the plugins folder whose DLL was not moved this session.</summary>
+    public (string? DllPath, string? Problem) InstallPathOf(string guid)
+    {
+        var location = Find(guid)?.Location;
+
+        if (location == null || !_folders.IsOn(location)) return (null, "only a mod that is running from the plugins folder can be updated here");
+
+        if (_moves.ContainsKey(location)) return (null, "it was turned off this session; turn it on and restart the game first");
+
+        return (location, null);
+    }
+
+    public bool IsStraightInPlugins(string dllPath) =>
+        string.Equals(Path.GetFullPath(Path.GetDirectoryName(dllPath) ?? ""), Path.GetFullPath(_folders.Plugins).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
 
     public IReadOnlyList<string> Problems() => IL2CPPChainloader.Instance.DependencyErrors.ToList();
 
-    public ModEntry? Mod(string guid)
-    {
-        if (Find(guid) is { } plugin) return Entry(plugin, Nodes());
-
-        return OffAtStart().Where(off => off.Plugin.Guid == guid).Select(OffEntry).FirstOrDefault();
-    }
+    public ModEntry? Mod(string guid) => Mods().FirstOrDefault(mod => mod.Guid == guid);
 
     public ModLink? Link(string guid, LinkKind kind) => Mod(guid)?.Info.Link(kind);
 
@@ -125,15 +170,15 @@ internal sealed class PluginCatalog
     {
         var guid = plugin.Metadata.GUID;
         var location = plugin.Location;
-        ModState state = plugin.Instance is BasePlugin loaded ? new ModState.Loaded(ModList.Arrange(guid, Found(guid, loaded.Config), _startValues)) : new ModState.NotLoaded();
+        var info = InfoOf(guid, location);
+        ModState state = plugin.Instance is BasePlugin loaded ? new ModState.Loaded(ModList.Arrange(guid, Found(guid, loaded.Config), _startValues, info.SettingsApply)) : new ModState.NotLoaded();
         ModSwitch modSwitch = location != null && _folders.IsOn(location) && nodes.FirstOrDefault(node => node.Guid == guid) is { } node
             ? SwitchPlanner.ForLoaded(node, nodes, _selfGuid, _folders.IsOn(CurrentPath(location)))
             : new ModSwitch.Unavailable();
 
         var version = plugin.Metadata.Version.ToString();
-        var info = InfoOf(guid, location);
 
-        return new ModEntry(guid, plugin.Metadata.Name, version, Path.GetFileName(location ?? ""), state, info, modSwitch, _updates.StateOf(info.GitHubRepository, version));
+        return Finish(new ModEntry(guid, plugin.Metadata.Name, version, Path.GetFileName(location ?? ""), state, info, modSwitch, _updates.StateOf(info.UpdateRepository, version)));
     }
 
     private ModEntry OffEntry((string Path, PluginFile Plugin) off)
@@ -143,8 +188,17 @@ internal sealed class PluginCatalog
 
         var info = Info(plugin);
 
-        return new ModEntry(plugin.Guid, plugin.Name, plugin.Version, Path.GetFileName(off.Path), new ModState.Off(), info, modSwitch, _updates.StateOf(info.GitHubRepository, plugin.Version));
+        return Finish(new ModEntry(plugin.Guid, plugin.Name, plugin.Version, Path.GetFileName(off.Path), new ModState.Off(), info, modSwitch, _updates.StateOf(info.UpdateRepository, plugin.Version)));
     }
+
+    private ModEntry Finish(ModEntry mod) => mod with
+    {
+        Install = _updates.InstallOf(mod.Guid),
+        IsForOtherGame = !Core.GameVersion.IsMadeFor(mod.Info.GameVersions, GameVersion),
+    };
+
+    private IReadOnlyList<DeclaredRelation> DeclaredOf(string guid) =>
+        StartPathOf(guid) is { } path ? FilesOf(path).FirstOrDefault(plugin => plugin.Guid == guid)?.Relations ?? Array.Empty<DeclaredRelation>() : Array.Empty<DeclaredRelation>();
 
     /// <summary>Plugins found in the folders for turned-off plugins, read once: the list stays as it was at the start, while their files may move.</summary>
     private IReadOnlyList<(string Path, PluginFile Plugin)> OffAtStart()
@@ -230,7 +284,9 @@ internal sealed class PluginCatalog
         var kind = SettingKinds.Classify(entry.SettingType, AcceptableOf(description?.AcceptableValues, entry.SettingType), KeyNames);
         var defaultValue = TomlTypeConverter.ConvertToString(entry.DefaultValue, entry.SettingType);
 
-        return new FoundSetting(entry.Definition.Section, entry.Definition.Key, description?.Description ?? "", kind, defaultValue, entry.GetSerializedValue(), HintsOf(description?.Tags));
+        var apply = ApplyModes.ForSetting(description?.Tags, LiveSettings.IsWatched(entry));
+
+        return new FoundSetting(entry.Definition.Section, entry.Definition.Key, description?.Description ?? "", kind, defaultValue, entry.GetSerializedValue(), HintsOf(description?.Tags), apply);
     }
 
     /// <summary>AcceptableValueRange and AcceptableValueList are generic, so their values are read by name.</summary>

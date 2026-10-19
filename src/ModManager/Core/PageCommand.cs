@@ -53,6 +53,12 @@ public abstract record PageCommand
     /// <summary>Open the page of the release this mod can update to. The address comes from GitHub's own redirect.</summary>
     public sealed record OpenUpdate(string Guid) : PageCommand;
 
+    /// <summary>Download the release this mod can update to and put its files in place for the next game start.</summary>
+    public sealed record Install(string Guid) : PageCommand;
+
+    /// <summary>Turn on, from the next start, the installed mods this one needs that are off.</summary>
+    public sealed record TurnOnNeeds(string Guid) : PageCommand;
+
     public sealed record Unknown(string Text) : PageCommand;
 
     public static PageCommand Parse(string message)
@@ -83,6 +89,8 @@ public abstract record PageCommand
         ("link", 3) when LinkKindOf(parts[2]) is { } kind => new OpenLink(parts[1], kind),
         ("notes", 2) => new Notes(parts[1]),
         ("update", 2) => new OpenUpdate(parts[1]),
+        ("install", 2) => new Install(parts[1]),
+        ("needs", 2) => new TurnOnNeeds(parts[1]),
         _ => null,
     };
 
@@ -92,6 +100,7 @@ public abstract record PageCommand
         LinkKind.Nexus => "nexus",
         LinkKind.GitHub => "github",
         LinkKind.Website => "website",
+        LinkKind.Issues => "issues",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 

@@ -89,4 +89,47 @@ public class ModListTests
     private static readonly UpdateState NotChecked = new UpdateState.NotChecked();
 
     private static ModEntry Mod(string guid, string name) => new(guid, name, "1.0", guid + ".dll", new ModState.NotLoaded(), ModInfo.None, new ModSwitch.Unavailable(), NotChecked);
+
+    [Fact]
+    public void A_setting_that_says_when_it_applies_wins_over_the_mod_and_the_rest_take_the_mods_word()
+    {
+        var found = new[] { Found("A", "Plain"), Found("A", "Tagged") with { Apply = ApplyMode.Restart } };
+
+        var settings = ModList.Arrange("g", found, new StartValues(), ApplyMode.Live);
+
+        Assert.Equal(ApplyMode.Live, settings[0].Apply);
+        Assert.Equal(ApplyMode.Restart, settings[1].Apply);
+    }
+
+    [Fact]
+    public void A_mod_that_says_nothing_leaves_its_settings_unknown()
+    {
+        Assert.Equal(ApplyMode.Unknown, Assert.Single(ModList.Arrange("g", new[] { Found("A", "Key") }, new StartValues())).Apply);
+    }
+
+    [Fact]
+    public void Mods_sort_by_the_name_they_ask_for()
+    {
+        var mods = new[] { Mod("a", "Alpha"), Mod("z", "zz_internal") with { Info = new ModInfo { Name = new Description("Able", "") } } };
+
+        Assert.Equal(new[] { "z", "a" }, ModList.SortByName(mods).Select(m => m.Guid));
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public void A_switchable_mod_runs_next_start_when_its_switch_says_so(bool next, bool expected)
+    {
+        var mod = Mod("a", "A") with { State = new ModState.Off(), Switch = new ModSwitch.Allowed(next, System.Array.Empty<string>()) };
+
+        Assert.Equal(expected, mod.IsOnNextStart);
+    }
+
+    [Fact]
+    public void A_locked_mod_always_runs_and_an_unmovable_one_keeps_its_state()
+    {
+        Assert.True((Mod("a", "A") with { State = new ModState.Off(), Switch = new ModSwitch.Locked(false, System.Array.Empty<string>()) }).IsOnNextStart);
+        Assert.False((Mod("a", "A") with { State = new ModState.Off() }).IsOnNextStart);
+        Assert.True(Mod("a", "A").IsOnNextStart);
+    }
 }

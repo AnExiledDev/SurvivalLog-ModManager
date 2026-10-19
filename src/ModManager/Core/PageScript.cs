@@ -20,7 +20,12 @@ public static class PageScript
     /// <summary>Asks the page whether the script is still there; a page reload drops it.</summary>
     public const string Probe = "if(!" + Api + ")window.vuplex&&window.vuplex.postMessage('" + PageCommand.Prefix + "noscript')";
 
-    public static string Open(ModsView view) => Call("open", ViewJson(view));
+    /// <param name="filter">A list filter to start on, such as "updates"; null keeps the page's own.</param>
+    public static string Open(ModsView view, string? filter = null) => Call("open", ViewJson(view) + (filter == null ? "" : "," + Str(filter)));
+
+    /// <summary>The mods' icons as data URIs, by GUID. Sent apart from the view, once per page, since they do not change while the game runs.</summary>
+    public static string Icons(IReadOnlyDictionary<string, string> icons) =>
+        Call("icons", "{" + string.Join(",", icons.OrderBy(icon => icon.Key, StringComparer.Ordinal).Select(icon => Str(icon.Key) + ":" + Str(icon.Value))) + "}");
 
     public static string Update(ModEntry mod, SettingNote? note) => Call("update", ModJson(mod) + "," + (note == null ? "null" : NoteJson(note)));
 
@@ -41,6 +46,7 @@ public static class PageScript
 
         json.Append("\"zh\":").Append(Bool(view.IsChinese));
         json.Append(",\"openKey\":").Append(Str(view.OpenKey));
+        json.Append(",\"game\":").Append(view.GameVersion == null ? "null" : Str(view.GameVersion));
         json.Append(",\"mods\":").Append(List(view.Mods, ModJson));
         json.Append(",\"problems\":").Append(List(view.Problems, Str));
 
@@ -53,7 +59,9 @@ public static class PageScript
         var settings = mod.State is ModState.Loaded loaded ? loaded.Settings : Array.Empty<Setting>();
 
         json.Append("\"guid\":").Append(Str(mod.Guid));
-        json.Append(",\"name\":").Append(Str(mod.Name));
+        json.Append(",\"name\":").Append(Str(mod.DisplayName));
+        json.Append(",\"nameZh\":").Append(Str(mod.Info.Name?.Chinese ?? mod.DisplayName));
+        json.Append(",\"plugin\":").Append(Str(mod.Name));
         json.Append(",\"version\":").Append(Str(mod.Version));
         json.Append(",\"file\":").Append(Str(mod.FileName));
         json.Append(",\"loaded\":").Append(Bool(mod.State is ModState.Loaded));
@@ -61,6 +69,12 @@ public static class PageScript
         json.Append(",\"author\":").Append(mod.Info.Author == null ? "null" : Str(mod.Info.Author));
         json.Append(",\"about\":").Append(mod.Info.Description is { } about ? "{\"en\":" + Str(about.English) + ",\"zh\":" + Str(about.Chinese) + "}" : "null");
         json.Append(",\"links\":").Append(List(mod.Info.Links, link => Str(PageCommand.LinkName(link.Kind))));
+        json.Append(",\"category\":").Append(mod.Info.Category is { } category ? Str(category.ToString()) : "null");
+        json.Append(",\"library\":").Append(Bool(mod.Info.IsLibrary));
+        json.Append(",\"builtFor\":").Append(List(mod.Info.GameVersions, Str));
+        json.Append(",\"otherGame\":").Append(Bool(mod.IsForOtherGame));
+        json.Append(",\"relations\":").Append(List(mod.Relations, RelationJson));
+        json.Append(",\"install\":").Append(InstallJson(mod.Install));
         json.Append(",\"switch\":").Append(SwitchJson(mod.Switch));
         json.Append(",\"update\":").Append(UpdateJson(mod.Update));
         json.Append(",\"settings\":").Append(List(settings, SettingJson));
@@ -81,6 +95,7 @@ public static class PageScript
         json.Append(",\"current\":").Append(Str(setting.Current));
         json.Append(",\"atStart\":").Append(Str(setting.AtStart));
         json.Append(",\"readOnly\":").Append(Bool(setting.IsReadOnly));
+        json.Append(",\"apply\":").Append(Str(ApplyName(setting.Apply)));
         AppendKind(json, setting.Kind);
 
         return json.Append('}').ToString();
@@ -111,6 +126,43 @@ public static class PageScript
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
         }
     }
+
+    private static string ApplyName(ApplyMode apply) => apply switch
+    {
+        ApplyMode.Live => "live",
+        ApplyMode.Restart => "restart",
+        ApplyMode.Unknown => "unknown",
+        _ => throw new ArgumentOutOfRangeException(nameof(apply), apply, null),
+    };
+
+    private static string RelationJson(Relation relation)
+    {
+        var kind = relation.Kind switch
+        {
+            RelationKind.Needs => "needs",
+            RelationKind.WorksWith => "worksWith",
+            RelationKind.DoesNotWorkWith => "doesNotWorkWith",
+            _ => throw new ArgumentOutOfRangeException(nameof(relation), relation.Kind, null),
+        };
+        var status = relation.Status switch
+        {
+            RelationStatus.Missing => "missing",
+            RelationStatus.On => "on",
+            RelationStatus.Off => "off",
+            _ => throw new ArgumentOutOfRangeException(nameof(relation), relation.Status, null),
+        };
+
+        return "{\"kind\":" + Str(kind) + ",\"guid\":" + Str(relation.Guid) + ",\"name\":" + Str(relation.Name) + ",\"status\":" + Str(status) + ",\"canTurnOn\":" + Bool(relation.CanTurnOn) + "}";
+    }
+
+    private static string InstallJson(InstallState install) => install switch
+    {
+        InstallState.None => "{\"kind\":\"none\"}",
+        InstallState.Installing => "{\"kind\":\"installing\"}",
+        InstallState.Installed installed => "{\"kind\":\"installed\",\"tag\":" + Str(installed.Tag) + "}",
+        InstallState.Failed failed => "{\"kind\":\"failed\",\"reason\":" + Str(failed.Reason) + "}",
+        _ => throw new ArgumentOutOfRangeException(nameof(install), install, null),
+    };
 
     private static string StateName(ModState state) => state switch
     {

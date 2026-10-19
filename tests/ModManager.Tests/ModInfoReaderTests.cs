@@ -34,9 +34,9 @@ public class ModInfoReaderTests
         var read = Read(("RepositoryUrl", "https://x.example"), ("SomeoneElse.Key", "v"));
 
         Assert.Empty(read.Ignored);
-        Assert.Null(read.Info.Author);
-        Assert.Null(read.Info.Description);
+        Assert.Equal(ModInfo.None, read.Info with { Links = ModInfo.None.Links });
         Assert.Empty(read.Info.Links);
+        Assert.True(read.Info.ChecksForUpdates);
     }
 
     [Theory]
@@ -108,5 +108,133 @@ public class ModInfoReaderTests
 
         Assert.Empty(read.Info.Links);
         Assert.Equal(new[] { "ModManager.Nexus is not a key the Mod Manager knows" }, read.Ignored);
+    }
+
+    [Fact]
+    public void The_newer_keys_become_info()
+    {
+        var read = Read(
+            ("ModManager.Name", "Better Map\n\u66f4\u597d\u7684\u5730\u56fe"),
+            ("ModManager.Icon", "BetterMap.icon.png"),
+            ("ModManager.Category", "quality of life"),
+            ("ModManager.Library", "TRUE"),
+            ("ModManager.GameVersion", "1.1.18902, 1.2"),
+            ("ModManager.Issues", "https://github.com/Ann/Map/issues"),
+            ("ModManager.CheckForUpdates", "false"),
+            ("ModManager.Settings", "live"));
+
+        Assert.Empty(read.Ignored);
+        Assert.Equal(new Description("Better Map", "\u66f4\u597d\u7684\u5730\u56fe"), read.Info.Name);
+        Assert.Equal("BetterMap.icon.png", read.Info.Icon);
+        Assert.Equal(ModCategory.QualityOfLife, read.Info.Category);
+        Assert.True(read.Info.IsLibrary);
+        Assert.Equal(new[] { "1.1.18902", "1.2" }, read.Info.GameVersions);
+        Assert.Equal("https://github.com/Ann/Map/issues", read.Info.Link(LinkKind.Issues)?.Url);
+        Assert.False(read.Info.ChecksForUpdates);
+        Assert.Equal(ApplyMode.Live, read.Info.SettingsApply);
+    }
+
+    [Theory]
+    [InlineData("ModManager.Category", "Weapons")]
+    [InlineData("ModManager.Library", "yes")]
+    [InlineData("ModManager.CheckForUpdates", "0")]
+    [InlineData("ModManager.Settings", "sometimes")]
+    [InlineData("ModManager.GameVersion", "latest")]
+    [InlineData("ModManager.GameVersion", "1.1, beta")]
+    [InlineData("ModManager.Issues", "javascript:alert(1)")]
+    public void A_value_that_does_not_fit_its_key_is_reported_and_dropped(string key, string value)
+    {
+        var read = Read((key, value));
+
+        Assert.Single(read.Ignored);
+        Assert.StartsWith(key + " must be", read.Ignored[0]);
+        Assert.Equal(ModInfo.None, read.Info with { Links = ModInfo.None.Links });
+        Assert.Empty(read.Info.Links);
+    }
+
+    [Fact]
+    public void A_mod_that_opts_out_of_update_checks_keeps_its_GitHub_link_but_is_not_checked()
+    {
+        var info = Read(("ModManager.GitHub", "Ann/Map"), ("ModManager.CheckForUpdates", "false")).Info;
+
+        Assert.Equal("Ann/Map", info.GitHubRepository);
+        Assert.Null(info.UpdateRepository);
+    }
+
+    [Theory]
+    [InlineData("https://github.com/Ann/Map")]
+    [InlineData("https://github.com/Ann/Map.git")]
+    [InlineData("https://www.github.com/Ann/Map/")]
+    public void The_SDKs_repository_url_stands_in_for_a_missing_GitHub_key(string url)
+    {
+        var read = Read(("RepositoryUrl", url));
+
+        Assert.Empty(read.Ignored);
+        Assert.Equal("Ann/Map", read.Info.GitHubRepository);
+    }
+
+    [Theory]
+    [InlineData("https://gitlab.com/Ann/Map")]
+    [InlineData("http://github.com/Ann/Map")]
+    [InlineData("https://github.com/Ann")]
+    [InlineData("https://github.com/Ann/Map/tree/main")]
+    [InlineData("https://github.com.evil.example/Ann/Map")]
+    public void A_repository_url_that_is_not_a_GitHub_repository_is_passed_over_quietly(string url)
+    {
+        var read = Read(("RepositoryUrl", url));
+
+        Assert.Empty(read.Ignored);
+        Assert.Null(read.Info.GitHubRepository);
+    }
+
+    [Fact]
+    public void The_mods_own_GitHub_key_wins_over_the_repository_url()
+    {
+        var info = Read(("ModManager.GitHub", "Ann/Map"), ("RepositoryUrl", "https://github.com/Fork/Other")).Info;
+
+        Assert.Equal("Ann/Map", info.GitHubRepository);
+        Assert.Single(info.Links);
+    }
+}
+
+public class GameVersionTests
+{
+    [Fact]
+    public void The_version_file_gives_version_and_build()
+    {
+        Assert.Equal("1.1.18902", GameVersion.FromVersionFile("1.1\r\n18902\r\nstaging_1.1\r\nRelease\r\n"));
+    }
+
+    [Theory]
+    [InlineData("1.1", "1.1")]
+    [InlineData("1.1\nRelease", "1.1")]
+    [InlineData("staging\n18902", null)]
+    [InlineData("", null)]
+    public void A_file_without_a_build_line_gives_what_it_can(string text, string? expected)
+    {
+        Assert.Equal(expected, GameVersion.FromVersionFile(text));
+    }
+
+    [Theory]
+    [InlineData("1.1.18902", true)]
+    [InlineData("1.1", true)]
+    [InlineData("1.2", false)]
+    [InlineData("1.1.1", false)]
+    public void A_mod_is_made_for_its_version_or_any_build_under_it(string madeFor, bool expected)
+    {
+        Assert.Equal(expected, GameVersion.IsMadeFor(new[] { madeFor }, "1.1.18902"));
+    }
+
+    [Fact]
+    public void A_build_number_that_only_starts_the_same_is_another_version()
+    {
+        Assert.False(GameVersion.IsMadeFor(new[] { "1.1.1890" }, "1.1.18902"));
+    }
+
+    [Fact]
+    public void A_mod_that_names_no_version_or_an_unknown_game_is_never_flagged()
+    {
+        Assert.True(GameVersion.IsMadeFor(System.Array.Empty<string>(), "1.1.18902"));
+        Assert.True(GameVersion.IsMadeFor(new[] { "0.9" }, null));
     }
 }

@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using ExiledToolkit;
 using ExiledToolkit.Adapters;
 using ModManager.Core;
 using UnityEngine;
@@ -15,6 +17,10 @@ namespace ModManager.Adapters;
 internal sealed class ModsSession
 {
     private const string Holder = "modmanager";
+    private const string UpdatesFilter = "updates";
+
+    /// <summary>More than any real chain of mods needing mods, so a loop in what mods declare cannot run forever.</summary>
+    private const int MaxNeeded = 50;
 
     /// <summary>Frames after the page gives the keyboard back in which Esc and the open key are ignored, so the Esc that left a text field does not also close the screen.</summary>
     private const int FramesAfterTyping = 2;
@@ -23,25 +29,30 @@ internal sealed class ModsSession
     private readonly PluginCatalog _catalog;
     private readonly UpdateBook _updates;
     private readonly UpdateChecks _checks;
+    private readonly UpdateInstaller _installer;
     private readonly PageMailbox _mailbox;
     private readonly WebKeyboard _keyboard = new();
     private readonly KeyCapture _capture = new();
     private readonly Func<KeyCode> _openKey;
     private readonly Func<bool> _isCheckingForUpdates;
+    private readonly Func<bool> _isShowingUpdateToast;
     private readonly Action<string> _log;
     private bool _isOpen;
     private bool _hasStarted;
+    private bool _hasToldUpdates;
     private int _typingEndedAtFrame = -100;
 
-    public ModsSession(ModsPage page, PluginCatalog catalog, UpdateBook updates, UpdateChecks checks, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Action<string> log)
+    public ModsSession(ModsPage page, PluginCatalog catalog, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
         _updates = updates;
         _checks = checks;
+        _installer = installer;
         _mailbox = PageInbox.Listen(PageCommand.Prefix);
         _openKey = openKey;
         _isCheckingForUpdates = isCheckingForUpdates;
+        _isShowingUpdateToast = isShowingUpdateToast;
         _log = log;
     }
 
@@ -59,7 +70,12 @@ internal sealed class ModsSession
 
         while (_mailbox.TryTake(out var message)) Handle(PageCommand.Parse(message), frame);
 
-        if (_checks.TakeFinished() && _isOpen) _page.Run(PageScript.Refresh(View()));
+        var hasChecked = _checks.TakeFinished();
+        var hasInstalled = _installer.TakeFinished();
+
+        if (hasChecked) TellUpdatesOnce();
+
+        if ((hasChecked || hasInstalled) && _isOpen) _page.Run(PageScript.Refresh(View()));
 
         if (_capture.Target != null)
         {
@@ -80,6 +96,7 @@ internal sealed class ModsSession
         {
             case PageCommand.Ready:
                 Forget();
+                SendIcons();
                 break;
             case PageCommand.NoScript:
                 Forget();
@@ -124,6 +141,12 @@ internal sealed class ModsSession
             case PageCommand.OpenUpdate openUpdate:
                 Open(UpdateFor(openUpdate.Guid)?.PageUrl);
                 break;
+            case PageCommand.Install install:
+                Install(install.Guid);
+                break;
+            case PageCommand.TurnOnNeeds needs:
+                TurnOnNeeds(needs.Guid);
+                break;
             case PageCommand.Unknown unknown:
                 _log("unknown message from the Mods page: " + unknown.Text);
                 break;
@@ -135,13 +158,94 @@ internal sealed class ModsSession
     /// <summary>Starts or stops the update checks, at the start and whenever the player changes the setting.</summary>
     public void CheckForUpdates(bool isOn)
     {
-        if (isOn) _checks.Start(_catalog.Mods().Select(mod => mod.Info.GitHubRepository).OfType<string>());
+        if (isOn) _checks.Start(_catalog.Mods().Select(mod => mod.Info.UpdateRepository).OfType<string>());
         else _checks.Stop();
 
         if (_isOpen) _page.Run(PageScript.Refresh(View()));
     }
 
-    private LatestRelease.Found? UpdateFor(string guid) => _catalog.Mod(guid) is { } mod ? _updates.UpdateFor(mod.Info.GitHubRepository, mod.Version) : null;
+    private LatestRelease.Found? UpdateFor(string guid) => _catalog.Mod(guid) is { } mod ? _updates.UpdateFor(mod.Info.UpdateRepository, mod.Version) : null;
+
+    /// <summary>One toast per game session, once every check has an answer, when any mod has an update.</summary>
+    private void TellUpdatesOnce()
+    {
+        if (_hasToldUpdates || !_updates.IsSettled) return;
+
+        _hasToldUpdates = true;
+
+        var count = _catalog.Mods().Count(mod => mod.Update is UpdateState.Available);
+
+        if (count == 0 || !_isShowingUpdateToast()) return;
+
+        var text = UpdateToast.Text(count);
+        var isChinese = GameLanguage.IsChinese();
+
+        Toasts.Show(new ToastRequest("Mod Manager", isChinese ? "模组更新" : "Mod updates")
+        {
+            Body = isChinese ? text.Chinese : text.English,
+            OnClick = () => OpenScreen(UpdatesFilter),
+            Key = "modmanager-updates",
+        });
+    }
+
+    private void SendIcons()
+    {
+        var icons = _catalog.Icons();
+
+        if (icons.Count > 0) _page.Run(PageScript.Icons(icons));
+    }
+
+    private void Install(string guid)
+    {
+        var mod = _catalog.Mod(guid);
+        var release = UpdateFor(guid);
+        var (dllPath, problem) = _catalog.InstallPathOf(guid);
+
+        if (mod == null || release == null) return;
+
+        if (dllPath == null) _updates.Record(guid, new InstallState.Failed(problem ?? "it cannot be updated here"));
+        else _installer.Start(mod, release, dllPath, _catalog.IsStraightInPlugins(dllPath));
+
+        if (_isOpen) _page.Run(PageScript.Refresh(View()));
+    }
+
+    /// <summary>Turns on what the mod needs, then what those need, and says what could not be turned on.</summary>
+    private void TurnOnNeeds(string guid)
+    {
+        var turnedOn = new List<string>();
+        var failed = new List<string>();
+        var missing = new List<string>();
+        var visited = new HashSet<string> { guid };
+        var waiting = new Queue<string>(new[] { guid });
+
+        while (waiting.Count > 0 && visited.Count < MaxNeeded)
+        {
+            if (_catalog.Mod(waiting.Dequeue()) is not { } mod) continue;
+
+            var (turnOn, notInstalled) = RelationResolver.Needed(mod.Relations);
+
+            missing.AddRange(notInstalled.Where(name => !missing.Contains(name)));
+
+            foreach (var needed in turnOn.Where(visited.Add))
+            {
+                var name = _catalog.Mod(needed)?.DisplayName ?? needed;
+
+                if (_catalog.Switch(needed, true).IsWarning)
+                {
+                    failed.Add(name);
+
+                    continue;
+                }
+
+                turnedOn.Add(name);
+                waiting.Enqueue(needed);
+            }
+        }
+
+        var isWarning = failed.Count > 0 || missing.Count > 0;
+
+        _page.Run(PageScript.Replace(View(), new ModNote(guid, isWarning, NeedsNotes.TurnedOn(turnedOn, missing, failed))));
+    }
 
     private void FetchNotes(string guid)
     {
@@ -158,15 +262,18 @@ internal sealed class ModsSession
         else Open();
     }
 
-    private ModsView View() => new(_catalog.Mods(), _catalog.Problems(), GameLanguage.IsChinese(), _openKey().ToString());
+    private ModsView View() => new(_catalog.Mods(), _catalog.Problems(), GameLanguage.IsChinese(), _openKey().ToString()) { GameVersion = _catalog.GameVersion };
 
-    private void Open()
+    private void Open() => OpenScreen(null);
+
+    /// <param name="filter">The list filter to start on; null keeps the one the page had.</param>
+    private void OpenScreen(string? filter)
     {
         var view = View();
 
         _page.Install();
 
-        if (!_page.Run(PageScript.Open(view))) return;
+        if (!_page.Run(PageScript.Open(view, filter))) return;
 
         _isOpen = true;
         HotkeyGate.Hold(Holder);

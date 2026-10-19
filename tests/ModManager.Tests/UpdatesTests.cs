@@ -274,6 +274,35 @@ public class UpdateBookTests
     }
 
     [Fact]
+    public void The_book_is_settled_only_once_every_started_check_has_an_answer()
+    {
+        var book = new UpdateBook();
+
+        Assert.False(book.IsSettled);
+
+        book.Record("Ann/Mod", new LatestRelease.Checking());
+        book.Record("Ann/Other", Latest);
+
+        Assert.False(book.IsSettled);
+
+        book.Record("Ann/Mod", new LatestRelease.Failed("offline"));
+
+        Assert.True(book.IsSettled);
+    }
+
+    [Fact]
+    public void Installs_are_remembered_per_mod_and_survive_a_new_round_of_checks()
+    {
+        var book = Book(Latest);
+
+        book.Record("com.ann.mod", new InstallState.Installed("v1.2.0"));
+        book.Clear();
+
+        Assert.Equal(new InstallState.Installed("v1.2.0"), book.InstallOf("com.ann.mod"));
+        Assert.IsType<InstallState.None>(book.InstallOf("com.other"));
+    }
+
+    [Fact]
     public void The_repository_comes_from_the_mods_GitHub_info()
     {
         var info = ModInfoReader.Read(new[] { new KeyValuePair<string, string?>(ModInfoReader.GitHubKey, "Ann/Mod") }).Info;
