@@ -1,0 +1,64 @@
+using ModManager.Core;
+using Xunit;
+
+namespace ModManager.Tests;
+
+public class PageCommandTests
+{
+    [Fact]
+    public void A_set_carries_the_setting_and_the_value()
+    {
+        var command = PageCommand.Parse("slmod|modmanager|set|com.x|General|OpenKey|F7");
+
+        Assert.Equal(new PageCommand.Set(new SettingId("com.x", "General", "OpenKey"), "F7"), command);
+    }
+
+    [Fact]
+    public void Encoded_bars_inside_a_part_do_not_split_it()
+    {
+        var command = PageCommand.Parse("slmod|modmanager|set|com.x|A%7CB|Key|one%7Ctwo%20three");
+
+        Assert.Equal(new PageCommand.Set(new SettingId("com.x", "A|B", "Key"), "one|two three"), command);
+    }
+
+    [Theory]
+    [InlineData("slmod|modmanager|focus|1", true)]
+    [InlineData("slmod|modmanager|focus|0", false)]
+    public void Focus_says_whether_a_field_is_being_typed_in(string message, bool isTyping)
+    {
+        Assert.Equal(new PageCommand.Focus(isTyping), PageCommand.Parse(message));
+    }
+
+    [Theory]
+    [InlineData("slmod|modmanager|ready")]
+    [InlineData("slmod|modmanager|open")]
+    [InlineData("slmod|modmanager|close")]
+    [InlineData("slmod|modmanager|noscript")]
+    [InlineData("slmod|modmanager|bindCancel")]
+    public void Commands_without_parts_are_read(string message)
+    {
+        Assert.IsNotType<PageCommand.Unknown>(PageCommand.Parse(message));
+    }
+
+    [Fact]
+    public void Reset_bind_resetMod_and_showCfg_name_what_they_act_on()
+    {
+        var id = new SettingId("g", "S", "K");
+
+        Assert.Equal(new PageCommand.Reset(id), PageCommand.Parse("slmod|modmanager|reset|g|S|K"));
+        Assert.Equal(new PageCommand.Bind(id), PageCommand.Parse("slmod|modmanager|bind|g|S|K"));
+        Assert.Equal(new PageCommand.ResetMod("g"), PageCommand.Parse("slmod|modmanager|resetMod|g"));
+        Assert.Equal(new PageCommand.ShowConfigFile("g"), PageCommand.Parse("slmod|modmanager|showCfg|g"));
+    }
+
+    [Theory]
+    [InlineData("slmod|othermod|open")]
+    [InlineData("slmod|modmanager|set|g|S|K")]
+    [InlineData("slmod|modmanager|focus|yes")]
+    [InlineData("slmod|modmanager|explode")]
+    [InlineData("slmod|modmanager|open|extra")]
+    public void Anything_else_is_unknown(string message)
+    {
+        Assert.IsType<PageCommand.Unknown>(PageCommand.Parse(message));
+    }
+}
