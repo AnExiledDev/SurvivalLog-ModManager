@@ -27,6 +27,32 @@ public static class KeyChords
     private static readonly HashSet<string> Ignored = new() { "None", "Mouse0", "Mouse1" };
 
     /// <summary>
+    /// A key or shortcut written by hand ("leftcontrol+f11"), in the form a captured one takes ("F11 + LeftControl"),
+    /// so the two compare equal. A shortcut is one main key plus held keys, each once; null when it is not one.
+    /// </summary>
+    public static string? Normalize(string text, IReadOnlyList<string> keyNames)
+    {
+        var keys = new List<string>();
+
+        foreach (var part in text.Split('+').Select(part => part.Trim()))
+        {
+            var key = keyNames.FirstOrDefault(name => name.Equals(part, System.StringComparison.OrdinalIgnoreCase));
+
+            if (key == null || Ignored.Contains(key) || keys.Contains(key)) return null;
+
+            keys.Add(key);
+        }
+
+        if (keys.Count == 1) return keys[0];
+
+        var main = keys.Where(key => !Modifiers.Contains(key)).ToList();
+
+        if (main.Count != 1) return null;
+
+        return string.Join(" + ", main.Concat(Modifiers.Where(keys.Contains)));
+    }
+
+    /// <summary>
     /// <paramref name="pressed"/> are the keys that went down this frame, <paramref name="held"/> the modifiers held
     /// down. Esc always cancels. A single-key setting takes the first key pressed, a modifier included; a shortcut
     /// waits for a key that is not a modifier and adds the modifiers held with it.

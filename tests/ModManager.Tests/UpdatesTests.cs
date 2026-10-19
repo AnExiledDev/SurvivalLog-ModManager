@@ -305,7 +305,7 @@ public class UpdateBookTests
     [Fact]
     public void The_repository_comes_from_the_mods_GitHub_info()
     {
-        var info = ModInfoReader.Read(new[] { new KeyValuePair<string, string?>(ModInfoReader.GitHubKey, "Ann/Mod") }).Info;
+        var info = ModInfoReader.Read(new[] { new KeyValuePair<string, string?>(ModInfoReader.GitHubKey, "Ann/Mod") }, System.Array.Empty<string>()).Info;
 
         Assert.Equal("Ann/Mod", info.GitHubRepository);
         Assert.Null(ModInfo.None.GitHubRepository);

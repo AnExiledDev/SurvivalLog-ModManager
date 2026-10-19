@@ -8,7 +8,9 @@ namespace ModManager.Tests;
 public class ModInfoReaderTests
 {
     private static ModInfoRead Read(params (string Key, string? Value)[] pairs) =>
-        ModInfoReader.Read(pairs.Select(pair => new KeyValuePair<string, string?>(pair.Key, pair.Value)));
+        ModInfoReader.Read(pairs.Select(pair => new KeyValuePair<string, string?>(pair.Key, pair.Value)), KeyNames);
+
+    private static readonly string[] KeyNames = { "None", "A", "F11", "F12", "LeftControl", "LeftShift", "Mouse0" };
 
     [Fact]
     public void Every_known_key_becomes_info_with_full_addresses()
@@ -194,6 +196,49 @@ public class ModInfoReaderTests
 
         Assert.Equal("Ann/Map", info.GitHubRepository);
         Assert.Single(info.Links);
+    }
+
+    [Fact]
+    public void A_banner_and_a_changelog_link_become_info()
+    {
+        var read = Read(("ModManager.Banner", "Thing.banner.png"), ("ModManager.Changelog", "https://example.com/thing/changes"));
+
+        Assert.Empty(read.Ignored);
+        Assert.Equal("Thing.banner.png", read.Info.Banner);
+        Assert.Equal("https://example.com/thing/changes", read.Info.Link(LinkKind.Changelog)?.Url);
+    }
+
+    [Fact]
+    public void A_changelog_that_is_not_a_web_address_is_refused()
+    {
+        var read = Read(("ModManager.Changelog", "file:///C:/notes.txt"));
+
+        Assert.Null(read.Info.Link(LinkKind.Changelog));
+        Assert.Single(read.Ignored);
+    }
+
+    [Fact]
+    public void Fixed_hotkeys_are_read_with_their_keys_in_captured_form_and_labels_in_both_languages()
+    {
+        var read = Read(("ModManager.Hotkeys", "leftcontrol + f11 = Open the console|\u6253\u5f00\u63a7\u5236\u53f0 ; F12=Take a picture"));
+
+        Assert.Empty(read.Ignored);
+        Assert.Equal(new[] { "F11 + LeftControl", "F12" }, read.Info.Hotkeys.Select(hotkey => hotkey.Keys));
+        Assert.Equal(new Description("Open the console", "\u6253\u5f00\u63a7\u5236\u53f0"), read.Info.Hotkeys[0].Label);
+        Assert.Equal(new Description("Take a picture", "Take a picture"), read.Info.Hotkeys[1].Label);
+    }
+
+    [Theory]
+    [InlineData("F13=Nothing")]
+    [InlineData("F11")]
+    [InlineData("F11=")]
+    [InlineData("=Open")]
+    public void A_bad_hotkey_entry_is_reported_and_the_good_ones_kept(string bad)
+    {
+        var read = Read(("ModManager.Hotkeys", bad + ";A=Jump"));
+
+        Assert.Equal(new[] { "A" }, read.Info.Hotkeys.Select(hotkey => hotkey.Keys));
+        Assert.Single(read.Ignored);
     }
 }
 

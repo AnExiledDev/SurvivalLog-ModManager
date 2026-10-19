@@ -9,7 +9,9 @@ Mod Manager adds a Mods screen to Survival Log. It lists every BepInEx mod you h
 [*][b]Every mod in one list[/b]: icon, version and DLL for each mod, with the ones that did not start listed apart along with BepInEx's load errors. Shared libraries sit in a folded group at the bottom.[/*]
 [*][b]Change settings in-game[/b]: switches, sliders, number boxes, drop-down lists, text boxes and key capture for hotkeys. Each change is saved to the mod's .cfg file at once.[/*]
 [*][b]Knows what needs a restart[/b]: changed settings that apply at the next start are marked NEEDS RESTART. Settings a mod applies at once get no mark.[/*]
+[*][b]Item pickers[/b]: settings that hold game items or categories get a searchable picker with names and icons, instead of a box for id numbers.[/*]
 [*][b]Search, reset, clashes[/b]: find any setting across all mods, see which ones differ from the default and put them back, and spot hotkeys two mods share.[/*]
+[*][b]Copy mod list[/b]: one button copies every mod with its version and state, ready to paste into a bug report.[/*]
 [*][b]Turn mods on or off[/b]: a switch on each mod's page, applied at the next start. It warns about mods that need the one you turn off, and turns on what a mod needs with one button.[/*]
 [*][b]Update checks and installs[/b]: at each start it asks GitHub which mods have a newer release and shows one message saying how many. INSTALL UPDATE downloads the new version and puts it in place for the next start, keeping the old files.[/*]
 [*][b]Game version warning[/b]: a mod made for another game version is marked.[/*]
@@ -18,7 +20,7 @@ Mod Manager adds a Mods screen to Survival Log. It lists every BepInEx mod you h
 The Mod Manager adds nothing to your save and does not edit game files. It only contacts GitHub, for update checks and installs, and needs no account or key.
 
 [size=5]For mod authors[/size]
-Your mod shows up with no work at all. To give it a name in both languages, an icon, a category, links, live settings, update installs and more, add a few lines of metadata to your .csproj; nothing needs a reference to the Mod Manager. The [url=https://github.com/AnExiledDev/SurvivalLog-ModManager#for-mod-authors]full guide is in the README[/url].
+Your mod shows up with no work at all. To give it a name in both languages, an icon, a banner, a category, links, item pickers, live settings, update installs and more, add a few lines of metadata to your .csproj; nothing needs a reference to the Mod Manager. The [url=https://github.com/AnExiledDev/SurvivalLog-ModManager#for-mod-authors]full guide is in the README[/url].
 
 Works in English and Chinese.
 
@@ -69,7 +71,9 @@ Mod Manager 为 Survival Log 加入一个模组界面。它列出你安装的每
 [*][b]所有模组一览[/b]：每个模组都显示图标、版本和 DLL；没有启动的模组单独列出，并附上 BepInEx 报告的加载错误。共用的前置库折叠在列表底部。[/*]
 [*][b]游戏内修改设置[/b]：开关、滑块、数字框、下拉列表、文本框，以及热键的按键录入。每次修改都会立即保存到模组的 .cfg 文件。[/*]
 [*][b]知道哪些需要重启[/b]：下次启动才生效的已修改设置会标记为「需要重启」。模组立即应用的设置没有标记。[/*]
+[*][b]物品选择器[/b]：保存游戏物品或物品类别的设置会显示可搜索的选择器，带有名称和图标，不用再输入编号。[/*]
 [*][b]搜索、重置、冲突[/b]：在所有模组中搜索任意设置，查看哪些与默认值不同并一键恢复，还能发现两个模组共用的热键。[/*]
+[*][b]复制模组列表[/b]：一个按钮即可复制所有模组及其版本和状态，方便粘贴到问题反馈中。[/*]
 [*][b]开启或关闭模组[/b]：每个模组页面上都有开关，下次启动时生效。关闭模组时会提醒哪些模组需要它；一个按钮就能开启某个模组需要的模组。[/*]
 [*][b]检查并安装更新[/b]：每次启动时向 GitHub 查询哪些模组有新版本，并用一条消息告诉你有几个。「安装更新」会下载新版本，下次启动时生效，旧文件会保留。[/*]
 [*][b]游戏版本提醒[/b]：为其他游戏版本制作的模组会被标记。[/*]
@@ -78,7 +82,7 @@ Mod Manager 为 Survival Log 加入一个模组界面。它列出你安装的每
 Mod Manager 不会向存档添加任何内容，也不会修改游戏文件。它只会连接 GitHub 来检查和安装更新，不需要账号或密钥。
 
 [size=5]致模组作者[/size]
-你的模组无需任何改动就会显示在列表中。如果想提供中英文名称、图标、分类、链接、实时生效的设置、一键安装更新等，只需在 .csproj 中加几行元数据，不需要引用 Mod Manager。[url=https://github.com/AnExiledDev/SurvivalLog-ModManager#for-mod-authors]完整说明见 README[/url]（英文）。
+你的模组无需任何改动就会显示在列表中。如果想提供中英文名称、图标、横幅、分类、链接、物品选择器、实时生效的设置、一键安装更新等，只需在 .csproj 中加几行元数据，不需要引用 Mod Manager。[url=https://github.com/AnExiledDev/SurvivalLog-ModManager#for-mod-authors]完整说明见 README[/url]（英文）。
 
 [size=5]已知问题[/size]
 [list]

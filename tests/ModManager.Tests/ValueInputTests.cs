@@ -114,4 +114,59 @@ public class ValueInputTests
     {
         Assert.Equal("  spaced  ", Accepted(ValueInput.Normalize(new SettingKind.Text(), "  spaced  ")));
     }
+
+    [Theory]
+    [InlineData(" 1203 ", "1203")]
+    [InlineData("0", "0")]
+    [InlineData("007", "7")]
+    public void An_item_or_category_is_a_whole_number_of_0_or_more(string raw, string expected)
+    {
+        Assert.Equal(expected, Accepted(ValueInput.Normalize(new SettingKind.Item(), raw)));
+        Assert.Equal(expected, Accepted(ValueInput.Normalize(new SettingKind.Category(), raw)));
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("1.5")]
+    [InlineData("abc")]
+    [InlineData("")]
+    [InlineData("99999999999")]
+    public void An_item_that_is_not_a_plain_id_is_refused(string raw)
+    {
+        Assert.IsType<Normalized.Rejected>(ValueInput.Normalize(new SettingKind.Item(), raw));
+    }
+
+    [Theory]
+    [InlineData("1203, 1405", "1203,1405")]
+    [InlineData(" 5,,5 ,6, ", "5,6")]
+    [InlineData("", "")]
+    public void An_item_list_is_written_plainly_with_each_item_once(string raw, string expected)
+    {
+        Assert.Equal(expected, Accepted(ValueInput.Normalize(new SettingKind.ItemList(), raw)));
+    }
+
+    [Fact]
+    public void An_item_list_with_a_bad_id_is_refused()
+    {
+        Assert.IsType<Normalized.Rejected>(ValueInput.Normalize(new SettingKind.ItemList(), "1203,apple"));
+    }
+
+    [Theory]
+    [InlineData("1203:5, 1405 : 2", "1203:5,1405:2")]
+    [InlineData("", "")]
+    public void Item_amounts_are_written_as_id_colon_count(string raw, string expected)
+    {
+        Assert.Equal(expected, Accepted(ValueInput.Normalize(new SettingKind.ItemCounts(), raw)));
+    }
+
+    [Theory]
+    [InlineData("1203")]
+    [InlineData("1203:0")]
+    [InlineData("1203:-2")]
+    [InlineData("1203:5:1")]
+    [InlineData("1203:5,1203:2")]
+    public void Item_amounts_without_a_count_of_1_or_more_or_with_an_item_twice_are_refused(string raw)
+    {
+        Assert.IsType<Normalized.Rejected>(ValueInput.Normalize(new SettingKind.ItemCounts(), raw));
+    }
 }

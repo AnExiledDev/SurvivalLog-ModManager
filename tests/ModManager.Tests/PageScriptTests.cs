@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json;
 using ModManager.Core;
 using Xunit;
@@ -304,5 +305,52 @@ public class PageScriptTests
 
         Assert.Equal("data:image/png;base64,QQ==", json.RootElement.GetProperty("b").GetString());
         Assert.Equal("data:image/jpeg;base64,Qg==", json.RootElement.GetProperty("a").GetString());
+    }
+
+    [Fact]
+    public void Each_rich_control_and_whether_a_setting_is_shown_or_advanced_reach_the_page()
+    {
+        var mod = Loaded(
+            Setting("One", new SettingKind.Item()) with { IsAdvanced = true },
+            Setting("Many", new SettingKind.ItemList()) with { IsShown = false },
+            Setting("Counts", new SettingKind.ItemCounts()),
+            Setting("Kind", new SettingKind.Category()));
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(mod));
+        var settings = json.RootElement.GetProperty("settings");
+
+        Assert.Equal(new[] { "item", "itemList", "itemCounts", "category" }, settings.EnumerateArray().Select(s => s.GetProperty("kind").GetString()));
+        Assert.True(settings[0].GetProperty("advanced").GetBoolean());
+        Assert.True(settings[0].GetProperty("shown").GetBoolean());
+        Assert.False(settings[1].GetProperty("shown").GetBoolean());
+        Assert.False(settings[1].GetProperty("advanced").GetBoolean());
+    }
+
+    [Fact]
+    public void A_mods_fixed_hotkeys_reach_the_page()
+    {
+        var info = ModInfo.None with { Hotkeys = new[] { new FixedHotkey("F11 + LeftControl", new Description("Console", "控制台")) } };
+        var mod = Loaded() with { Info = info };
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(mod));
+        var hotkey = json.RootElement.GetProperty("hotkeys")[0];
+
+        Assert.Equal("F11 + LeftControl", hotkey.GetProperty("keys").GetString());
+        Assert.Equal("控制台", hotkey.GetProperty("zh").GetString());
+    }
+
+    [Fact]
+    public void The_item_table_reaches_the_page_with_icons_and_categories()
+    {
+        var script = PageScript.Items(new[] { new CatalogItem(1203, "Apple", "Res/Food/apple.png", 1), new CatalogItem(7, "Rope", null, 9) }, new[] { new CategoryName(1, "Food") });
+        var argument = script.Substring(script.IndexOf(".items(", System.StringComparison.Ordinal) + 7).TrimEnd(')');
+
+        using var json = JsonDocument.Parse(argument);
+        var items = json.RootElement.GetProperty("items");
+
+        Assert.Equal(1203, items[0].GetProperty("id").GetInt32());
+        Assert.Equal("Res/Food/apple.png", items[0].GetProperty("icon").GetString());
+        Assert.Equal(JsonValueKind.Null, items[1].GetProperty("icon").ValueKind);
+        Assert.Equal("Food", json.RootElement.GetProperty("categories")[0].GetProperty("name").GetString());
     }
 }

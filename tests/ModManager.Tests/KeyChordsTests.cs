@@ -51,4 +51,28 @@ public class KeyChordsTests
         Assert.IsType<CaptureStep.Waiting>(KeyChords.Step(new[] { "Mouse0", "Mouse1" }, Nothing, false));
         Assert.Equal(new CaptureStep.Captured("Mouse2"), KeyChords.Step(new[] { "Mouse0", "Mouse2" }, Nothing, false));
     }
+
+    private static readonly string[] KeyNames = { "None", "F11", "A", "LeftControl", "LeftShift", "RightAlt", "Mouse0" };
+
+    [Theory]
+    [InlineData("f11", "F11")]
+    [InlineData("leftshift + F11 + LeftControl", "F11 + LeftControl + LeftShift")]
+    [InlineData("LeftControl", "LeftControl")]
+    [InlineData(" RightAlt+a ", "A + RightAlt")]
+    public void A_hand_written_shortcut_takes_the_form_a_captured_one_has(string text, string expected)
+    {
+        Assert.Equal(expected, KeyChords.Normalize(text, KeyNames));
+    }
+
+    [Theory]
+    [InlineData("F13")]
+    [InlineData("F11 + A")]
+    [InlineData("LeftControl + LeftShift")]
+    [InlineData("F11 + F11")]
+    [InlineData("Mouse0")]
+    [InlineData("")]
+    public void Text_that_is_not_one_key_plus_held_keys_is_not_a_shortcut(string text)
+    {
+        Assert.Null(KeyChords.Normalize(text, KeyNames));
+    }
 }

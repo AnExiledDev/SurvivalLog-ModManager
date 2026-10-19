@@ -59,6 +59,9 @@ public abstract record PageCommand
     /// <summary>Turn on, from the next start, the installed mods this one needs that are off.</summary>
     public sealed record TurnOnNeeds(string Guid) : PageCommand;
 
+    /// <summary>Put the list of installed mods on the clipboard, for a bug report.</summary>
+    public sealed record CopyList : PageCommand;
+
     public sealed record Unknown(string Text) : PageCommand;
 
     public static PageCommand Parse(string message)
@@ -91,6 +94,7 @@ public abstract record PageCommand
         ("update", 2) => new OpenUpdate(parts[1]),
         ("install", 2) => new Install(parts[1]),
         ("needs", 2) => new TurnOnNeeds(parts[1]),
+        ("copyList", 1) => new CopyList(),
         _ => null,
     };
 
@@ -101,6 +105,7 @@ public abstract record PageCommand
         LinkKind.GitHub => "github",
         LinkKind.Website => "website",
         LinkKind.Issues => "issues",
+        LinkKind.Changelog => "changelog",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 

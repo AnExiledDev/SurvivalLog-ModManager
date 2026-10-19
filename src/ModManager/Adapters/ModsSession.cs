@@ -33,6 +33,7 @@ internal sealed class ModsSession
     private readonly PageMailbox _mailbox;
     private readonly WebKeyboard _keyboard = new();
     private readonly KeyCapture _capture = new();
+    private readonly GameItemTable _items;
     private readonly Func<KeyCode> _openKey;
     private readonly Func<bool> _isCheckingForUpdates;
     private readonly Func<bool> _isShowingUpdateToast;
@@ -41,6 +42,9 @@ internal sealed class ModsSession
     private bool _hasStarted;
     private bool _hasToldUpdates;
     private int _typingEndedAtFrame = -100;
+
+    /// <summary>The language the item table was sent in to the page that is there now; null when it has not been sent.</summary>
+    private bool? _itemsSentIn;
 
     public ModsSession(ModsPage page, PluginCatalog catalog, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
@@ -54,6 +58,7 @@ internal sealed class ModsSession
         _isCheckingForUpdates = isCheckingForUpdates;
         _isShowingUpdateToast = isShowingUpdateToast;
         _log = log;
+        _items = new GameItemTable(log);
     }
 
     public void Update(float now, int frame)
@@ -96,10 +101,12 @@ internal sealed class ModsSession
         {
             case PageCommand.Ready:
                 Forget();
-                SendIcons();
+                _itemsSentIn = null;
+                SendPictures();
                 break;
             case PageCommand.NoScript:
                 Forget();
+                _itemsSentIn = null;
                 _page.Install();
                 break;
             case PageCommand.Open:
@@ -147,6 +154,9 @@ internal sealed class ModsSession
             case PageCommand.TurnOnNeeds needs:
                 TurnOnNeeds(needs.Guid);
                 break;
+            case PageCommand.CopyList:
+                CopyList();
+                break;
             case PageCommand.Unknown unknown:
                 _log("unknown message from the Mods page: " + unknown.Text);
                 break;
@@ -188,11 +198,40 @@ internal sealed class ModsSession
         });
     }
 
-    private void SendIcons()
+    private void SendPictures()
     {
         var icons = _catalog.Icons();
+        var banners = _catalog.Banners();
 
         if (icons.Count > 0) _page.Run(PageScript.Icons(icons));
+
+        if (banners.Count > 0) _page.Run(PageScript.Banners(banners));
+    }
+
+    /// <summary>Sent with the screen, once per page and language, and only when some mod shows an item or category control.</summary>
+    private void SendItems(ModsView view)
+    {
+        if (_itemsSentIn == view.IsChinese || !GameItems.AreNeeded(view.Mods)) return;
+
+        var (items, categories) = _items.Read(view.IsChinese);
+
+        if (items.Count == 0) return;
+
+        if (_page.Run(PageScript.Items(items, categories))) _itemsSentIn = view.IsChinese;
+    }
+
+    private void CopyList()
+    {
+        try
+        {
+            GUIUtility.systemCopyBuffer = ModReport.Text(View());
+            _page.Run(PageScript.Copied(true));
+        }
+        catch (Exception ex)
+        {
+            _log("could not copy the mod list: " + ex.Message);
+            _page.Run(PageScript.Copied(false));
+        }
     }
 
     private void Install(string guid)
@@ -272,6 +311,7 @@ internal sealed class ModsSession
         var view = View();
 
         _page.Install();
+        SendItems(view);
 
         if (!_page.Run(PageScript.Open(view, filter))) return;
 

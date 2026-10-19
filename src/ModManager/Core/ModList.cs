@@ -12,11 +12,18 @@ public sealed record SettingId(string Guid, string Section, string Key)
 
 /// <summary>
 /// What a mod can say about how its settings are shown, read from the attribute object that ConfigurationManager
-/// popularised (in the setting's tags). A hidden setting is left out; the rest are display only.
+/// popularised (in the setting's tags), and from the Mod Manager's own string tags. A hidden setting is left out;
+/// the rest are display only.
 /// </summary>
 public sealed record Hints(bool IsHidden, string? DisplayName, int Order, bool IsReadOnly)
 {
     public static readonly Hints None = new(false, null, 0, false);
+
+    /// <summary>Shown folded away under the section's "Advanced" heading.</summary>
+    public bool IsAdvanced { get; init; }
+
+    /// <summary>Every rule must hold for the setting to be shown.</summary>
+    public IReadOnlyList<ShowRule> ShowWhen { get; init; } = Array.Empty<ShowRule>();
 }
 
 /// <summary>A setting as read from a plugin's config, values written as in the .cfg file.</summary>
@@ -27,6 +34,11 @@ public sealed record FoundSetting(string Section, string Key, string Description
 public sealed record Setting(SettingId Id, string Label, Description Description, SettingKind Kind, string Default, string Current, string AtStart, bool IsReadOnly)
 {
     public ApplyMode Apply { get; init; } = ApplyMode.Unknown;
+
+    public bool IsAdvanced { get; init; }
+
+    /// <summary>Its show-when rules hold. A setting that is not shown is still sent, so resetting the mod resets it too.</summary>
+    public bool IsShown { get; init; } = true;
 
     public bool IsChanged => Current != Default;
 
@@ -99,19 +111,25 @@ public sealed class StartValues
 
 public static class ModList
 {
-    /// <summary>Hidden settings dropped; sections kept in the order the mod made them, settings sorted by their Order hint (higher first), ties in the mod's order.</summary>
+    /// <summary>
+    /// Hidden settings dropped; sections kept in the order the mod made them, settings sorted by their Order hint
+    /// (higher first), ties in the mod's order. Show-when rules are checked against every setting, hidden ones too,
+    /// since a mod may switch a part on with a setting it keeps off the screen.
+    /// </summary>
     /// <param name="modApply">How the mod says its settings apply, for settings that say nothing for themselves.</param>
     public static IReadOnlyList<Setting> Arrange(string guid, IEnumerable<FoundSetting> found, StartValues startValues, ApplyMode modApply = ApplyMode.Unknown)
     {
-        var visible = found.Where(setting => !setting.Hints.IsHidden).ToList();
-        var sections = visible.Select(setting => setting.Section).Distinct().ToList();
+        var all = found.ToList();
+        var shown = ShowRules.Shown(all);
+        var visible = all.Select((setting, index) => (setting, isShown: shown[index])).Where(pair => !pair.setting.Hints.IsHidden).ToList();
+        var sections = visible.Select(pair => pair.setting.Section).Distinct().ToList();
 
         return visible
-            .Select((setting, index) => (setting, index))
-            .OrderBy(pair => sections.IndexOf(pair.setting.Section))
-            .ThenByDescending(pair => pair.setting.Hints.Order)
-            .ThenBy(pair => pair.index)
-            .Select(pair => Show(guid, pair.setting, startValues, modApply))
+            .Select((pair, index) => (pair.setting, pair.isShown, index))
+            .OrderBy(entry => sections.IndexOf(entry.setting.Section))
+            .ThenByDescending(entry => entry.setting.Hints.Order)
+            .ThenBy(entry => entry.index)
+            .Select(entry => Show(guid, entry.setting, startValues, modApply) with { IsShown = entry.isShown })
             .ToList();
     }
 
@@ -126,6 +144,7 @@ public static class ModList
         return new Setting(id, label, Wording.SplitDescription(found.Description), found.Kind, found.Default, found.Current, startValues.Remember(id, found.Current), found.Hints.IsReadOnly)
         {
             Apply = found.Apply != ApplyMode.Unknown ? found.Apply : modApply,
+            IsAdvanced = found.Hints.IsAdvanced,
         };
     }
 }

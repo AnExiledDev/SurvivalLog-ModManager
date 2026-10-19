@@ -33,6 +33,9 @@ public static class ValueInput
         SettingKind.Choice choice => Choice(choice, raw.Trim()),
         SettingKind.Hotkey hotkey => Hotkey(hotkey, raw),
         SettingKind.Text => new Normalized.Accepted(raw, WasClamped: false),
+        SettingKind.Item or SettingKind.Category => Id(raw.Trim()),
+        SettingKind.ItemList => ItemList(raw),
+        SettingKind.ItemCounts => ItemCounts(raw),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 
@@ -91,6 +94,51 @@ public static class ValueInput
 
         return new Normalized.Accepted(string.Join(" + ", keys), false);
     }
+
+    private static Normalized Id(string raw) =>
+        IdOf(raw) is { } id ? new Normalized.Accepted(id.ToString(CultureInfo.InvariantCulture), false) : Reject("Must be a whole number, 0 or more.", "必须是不小于 0 的整数。");
+
+    /// <summary>Spaces and empty entries are dropped and an item listed twice is kept once, so the cfg holds the plain "1203,1405".</summary>
+    private static Normalized ItemList(string raw)
+    {
+        var ids = new List<int>();
+
+        foreach (var part in Entries(raw))
+        {
+            if (IdOf(part) is not { } id) return Reject("Not an item id: " + part, "不是有效的物品编号：" + part);
+
+            if (!ids.Contains(id)) ids.Add(id);
+        }
+
+        return new Normalized.Accepted(string.Join(",", ids.Select(id => id.ToString(CultureInfo.InvariantCulture))), false);
+    }
+
+    /// <summary>An item listed twice is refused rather than merged, since either amount could be the one meant.</summary>
+    private static Normalized ItemCounts(string raw)
+    {
+        var counts = new List<(int Id, int Count)>();
+
+        foreach (var part in Entries(raw))
+        {
+            var pair = part.Split(':');
+
+            if (pair.Length != 2 || IdOf(pair[0].Trim()) is not { } id) return Reject("Not an item and amount, such as 1203:5: " + part, "不是「物品:数量」格式，例如 1203:5：" + part);
+
+            if (IdOf(pair[1].Trim()) is not ({ } count and > 0)) return Reject("The amount must be 1 or more: " + part, "数量必须不小于 1：" + part);
+
+            if (counts.Any(entry => entry.Id == id)) return Reject("Item listed twice: " + id, "物品重复：" + id);
+
+            counts.Add((id, count));
+        }
+
+        return new Normalized.Accepted(string.Join(",", counts.Select(entry => entry.Id.ToString(CultureInfo.InvariantCulture) + ":" + entry.Count.ToString(CultureInfo.InvariantCulture))), false);
+    }
+
+    private static IEnumerable<string> Entries(string raw) => raw.Split(',').Select(part => part.Trim()).Where(part => part.Length > 0);
+
+    /// <summary>Digits only, so a sign, a fraction or a number too big for the setting never gets through.</summary>
+    private static int? IdOf(string text) =>
+        int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? id : null;
 
     private static Normalized.Rejected Reject(string english, string chinese) => new(new BilingualText(english, chinese));
 }

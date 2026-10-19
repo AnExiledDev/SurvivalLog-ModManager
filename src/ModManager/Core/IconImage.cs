@@ -7,13 +7,16 @@ public static class IconImage
 {
     public const int MaxBytes = 256 * 1024;
 
+    /// <summary>A banner is wider, so it may be larger than an icon.</summary>
+    public const int MaxBannerBytes = 512 * 1024;
+
     private static readonly byte[] Png = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
     private static readonly byte[] Jpeg = { 0xFF, 0xD8, 0xFF };
 
     /// <summary>A data URI, or null with the reason. The type is taken from the bytes, never from the name, so nothing else can pass as a picture.</summary>
-    public static (string? Uri, string? Problem) DataUri(byte[] bytes)
+    public static (string? Uri, string? Problem) DataUri(byte[] bytes, int maxBytes = MaxBytes)
     {
-        if (bytes.Length > MaxBytes) return (null, "is larger than " + MaxBytes / 1024 + " KB");
+        if (bytes.Length > maxBytes) return (null, "is larger than " + maxBytes / 1024 + " KB");
 
         var type = StartsWith(bytes, Png) ? "image/png" : StartsWith(bytes, Jpeg) ? "image/jpeg" : null;
 

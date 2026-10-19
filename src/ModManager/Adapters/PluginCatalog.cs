@@ -35,6 +35,7 @@ internal sealed class PluginCatalog
 
     private IReadOnlyList<(string Path, PluginFile Plugin)>? _offAtStart;
     private IReadOnlyDictionary<string, string>? _icons;
+    private IReadOnlyDictionary<string, string>? _banners;
 
     public PluginCatalog(PluginFolders folders, UpdateBook updates, string selfGuid, string? gameVersion, Action<string> log)
     {
@@ -56,32 +57,34 @@ internal sealed class PluginCatalog
         return ModList.SortByName(mods.Select(mod => mod with { Relations = RelationResolver.Resolve(DeclaredOf(mod.Guid), mods) }));
     }
 
-    /// <summary>The icons of every mod that embeds a usable one, read once: DLLs do not change their icon while the game runs.</summary>
-    public IReadOnlyDictionary<string, string> Icons()
-    {
-        if (_icons != null) return _icons;
+    /// <summary>The icons of every mod that embeds a usable one, read once: DLLs do not change their pictures while the game runs.</summary>
+    public IReadOnlyDictionary<string, string> Icons() => _icons ??= Pictures("icon", info => info.Icon, IconImage.MaxBytes);
 
-        var icons = new Dictionary<string, string>(StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, string> Banners() => _banners ??= Pictures("banner", info => info.Banner, IconImage.MaxBannerBytes);
+
+    private Dictionary<string, string> Pictures(string what, Func<ModInfo, string?> nameOf, int maxBytes)
+    {
+        var pictures = new Dictionary<string, string>(StringComparer.Ordinal);
 
         foreach (var mod in Mods())
         {
-            if (mod.Info.Icon is not { } name || StartPathOf(mod.Guid) is not { } path) continue;
+            if (nameOf(mod.Info) is not { } name || StartPathOf(mod.Guid) is not { } path) continue;
 
             try
             {
-                var bytes = PluginFileReader.Resource(CurrentPath(path), name, IconImage.MaxBytes);
-                var (uri, problem) = bytes == null ? (null, "is not embedded in " + Path.GetFileName(path)) : IconImage.DataUri(bytes);
+                var bytes = PluginFileReader.Resource(CurrentPath(path), name, maxBytes);
+                var (uri, problem) = bytes == null ? (null, "is not embedded in " + Path.GetFileName(path)) : IconImage.DataUri(bytes, maxBytes);
 
-                if (uri != null) icons[mod.Guid] = uri;
-                else ReportOnce(mod.Guid + "/icon", "the icon " + name + " of " + mod.Guid + " is not shown: it " + problem);
+                if (uri != null) pictures[mod.Guid] = uri;
+                else ReportOnce(mod.Guid + "/" + what, "the " + what + " " + name + " of " + mod.Guid + " is not shown: it " + problem);
             }
             catch (Exception ex)
             {
-                ReportOnce(mod.Guid + "/icon", "could not read the icon of " + mod.Guid + ": " + ex.Message);
+                ReportOnce(mod.Guid + "/" + what, "could not read the " + what + " of " + mod.Guid + ": " + ex.Message);
             }
         }
 
-        return _icons = icons;
+        return pictures;
     }
 
     /// <summary>Where a mod's update may be put: a loaded mod under the plugins folder whose DLL was not moved this session.</summary>
@@ -231,7 +234,7 @@ internal sealed class PluginCatalog
 
     private ModInfo Info(PluginFile plugin)
     {
-        var read = ModInfoReader.Read(plugin.Metadata);
+        var read = ModInfoReader.Read(plugin.Metadata, KeyNames);
 
         foreach (var ignored in read.Ignored) ReportOnce(plugin.Guid + "/info/" + ignored, "ignored part of the Mods screen info of " + plugin.Guid + ": " + ignored);
 
@@ -258,7 +261,10 @@ internal sealed class PluginCatalog
         return known;
     }
 
-    /// <summary>One setting that can't be read is skipped (and logged once) rather than hiding the whole mod.</summary>
+    /// <summary>
+    /// One setting that can't be read is skipped (and logged once) rather than hiding the whole mod. A tag or rule the
+    /// Mod Manager cannot use is logged once too, so the mod's author can find out why.
+    /// </summary>
     private IEnumerable<FoundSetting> Found(string guid, ConfigFile config)
     {
         var found = new List<FoundSetting>();
@@ -267,7 +273,11 @@ internal sealed class PluginCatalog
         {
             try
             {
-                found.Add(Read(entry));
+                var (setting, ignored) = Read(entry);
+
+                found.Add(setting);
+
+                foreach (var problem in ignored) ReportOnce(guid + "/" + entry.Definition + "/" + problem, "the setting " + entry.Definition + " of " + guid + ": " + problem);
             }
             catch (Exception ex)
             {
@@ -275,18 +285,32 @@ internal sealed class PluginCatalog
             }
         }
 
+        foreach (var problem in ShowRules.Problems(found)) ReportOnce(guid + "/show/" + problem, "in " + guid + ", " + problem);
+
         return found;
     }
 
-    private static FoundSetting Read(ConfigEntryBase entry)
+    private static (FoundSetting Setting, IReadOnlyList<string> Ignored) Read(ConfigEntryBase entry)
     {
         var description = entry.Description;
+        var tags = SettingTags.Read(description?.Tags);
+        var ignored = tags.Ignored.ToList();
         var kind = SettingKinds.Classify(entry.SettingType, AcceptableOf(description?.AcceptableValues, entry.SettingType), KeyNames);
+
+        if (tags.Control is { } control)
+        {
+            var (withControl, problem) = SettingKinds.WithControl(entry.SettingType, kind, control);
+
+            kind = withControl;
+
+            if (problem != null) ignored.Add(problem);
+        }
+
         var defaultValue = TomlTypeConverter.ConvertToString(entry.DefaultValue, entry.SettingType);
-
         var apply = ApplyModes.ForSetting(description?.Tags, LiveSettings.IsWatched(entry));
+        var hints = HintsOf(description?.Tags) with { IsAdvanced = tags.IsAdvanced || IsAdvancedByAttributes(description?.Tags), ShowWhen = tags.ShowWhen };
 
-        return new FoundSetting(entry.Definition.Section, entry.Definition.Key, description?.Description ?? "", kind, defaultValue, entry.GetSerializedValue(), HintsOf(description?.Tags), apply);
+        return (new FoundSetting(entry.Definition.Section, entry.Definition.Key, description?.Description ?? "", kind, defaultValue, entry.GetSerializedValue(), hints, apply), ignored);
     }
 
     /// <summary>AcceptableValueRange and AcceptableValueList are generic, so their values are read by name.</summary>
@@ -312,7 +336,7 @@ internal sealed class PluginCatalog
     /// <summary>Mods copy ConfigurationManagerAttributes into their own assembly, so it is found by its members, not its type.</summary>
     private static Hints HintsOf(object[]? tags)
     {
-        var attributes = tags?.FirstOrDefault(tag => tag != null && tag.GetType().Name.Contains("ConfigurationManagerAttributes"));
+        var attributes = AttributesOf(tags);
 
         if (attributes == null) return Hints.None;
 
@@ -322,6 +346,10 @@ internal sealed class PluginCatalog
             Order: Member(attributes, "Order") is int order ? order : 0,
             IsReadOnly: Member(attributes, "ReadOnly") is true);
     }
+
+    private static bool IsAdvancedByAttributes(object[]? tags) => AttributesOf(tags) is { } attributes && Member(attributes, "IsAdvanced") is true;
+
+    private static object? AttributesOf(object[]? tags) => tags?.FirstOrDefault(tag => tag != null && tag.GetType().Name.Contains("ConfigurationManagerAttributes"));
 
     private static object? Member(object owner, string name)
     {

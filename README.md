@@ -12,7 +12,10 @@ Open it with F10, or with the Mods button in the Esc menu or on the title screen
 - **Checked before saving**: a number outside its range is moved to the nearest end and the screen says so. A value the mod cannot take is refused with the reason, and the file is left as it was.
 - **Search every setting**: type in the search box to find a setting across all mods by its name, section or description, or a mod by its name in either language.
 - **Shows what you changed**: settings that differ from the mod's default are marked, with a button to put each one back, or all of a mod's settings at once.
-- **Hotkey clashes**: a hotkey that another mod also uses is shown in red, with the name of the other mod.
+- **Item pickers**: settings that hold game items or item categories get a searchable picker with the items' names and icons in the game's language, instead of a box for id numbers. Lists of items show as tags you add and remove, and item amounts get a number box each.
+- **Tidy pages**: settings a mod marks as advanced sit in a folded "Advanced" group at the end of their section, and settings that only matter when another setting is on stay hidden until it is.
+- **Hotkey clashes**: a hotkey that another mod also uses is shown in red, with the name of the other mod. Mods can also list fixed hotkeys they use, which show on their page and count in the clash check.
+- **Copy mod list**: the COPY MOD LIST button at the bottom copies every mod with its version and state, ready to paste into a bug report.
 - **English and Chinese**: the screen follows the game's language, and the language switch at the top changes it. Mod names and descriptions written in both languages show the matching one.
 - **Open the .cfg folder**: a button opens Explorer with the mod's .cfg file selected.
 - **Turn mods on or off**: the switch at the top of a mod's page moves its DLL out of `BepInEx\plugins` into `BepInEx\disabled-plugins` (or back). The change applies at the next game start, and the screen marks mods waiting for a restart. Turned-off mods stay in the list under "Off", and their settings files are kept. Turning a mod off also lists the mods that need it, since they will not start either. Mods in `BepInEx\plugins-disabled` are listed too and can be turned back on.
@@ -90,6 +93,9 @@ Add any of these to your .csproj:
   <AssemblyMetadata Include="ModManager.GitHub" Value="owner/repository" />
   <AssemblyMetadata Include="ModManager.Website" Value="https://example.com/my-mod" />
   <AssemblyMetadata Include="ModManager.Issues" Value="https://github.com/owner/repository/issues" />
+  <AssemblyMetadata Include="ModManager.Changelog" Value="https://github.com/owner/repository/blob/main/CHANGELOG.md" />
+  <AssemblyMetadata Include="ModManager.Banner" Value="BetterMap.banner.png" />
+  <AssemblyMetadata Include="ModManager.Hotkeys" Value="M=Open the map|打开地图;F11 + LeftControl=Hide markers|隐藏标记" />
 </ItemGroup>
 ```
 
@@ -110,6 +116,9 @@ Or in code: `[assembly: AssemblyMetadata("ModManager.NexusId", "47")]`. Only the
 | `ModManager.CheckForUpdates` | `false` keeps the GitHub link but stops update checks for your mod. Default `true`. |
 | `ModManager.Website` | A full `http` or `https` address. |
 | `ModManager.Issues` | A full `http` or `https` address where players report problems. Shown as REPORT A PROBLEM. |
+| `ModManager.Changelog` | A full `http` or `https` address of your changelog. Shown as CHANGELOG. |
+| `ModManager.Banner` | The name of an embedded PNG or JPEG, up to 512 KB, shown across the top of your mod's page behind its name. The page crops it to fill a wide strip about 4:1, so keep the subject in the middle; 1200x300 looks good. Embed it like the icon. |
+| `ModManager.Hotkeys` | Fixed hotkeys your mod uses that are not settings, so players see them and the clash check counts them. Entries are `keys=label`, separated by `;`. Keys are Unity `KeyCode` names, with modifiers after a `+` (`F11 + LeftControl`). The label is English, or English, `\|`, then Chinese. Up to 30. Hotkeys that are settings need nothing here. |
 
 Values that do not fit are left out, and `BepInEx\mod-manager.log` says which and why.
 
@@ -151,6 +160,29 @@ By default the screen cannot know whether your mod reads a setting only at start
 3. **Say it for the whole mod** with `ModManager.Settings` (`Live` or `Restart`).
 
 When they disagree, a `ModManager.Restart` tag wins, then a `ModManager.Live` tag or a Toolkit watch, then `ModManager.Settings`.
+
+### Item pickers, hidden and advanced settings
+
+More plain-string tags for a setting's `ConfigDescription`, mixed freely with the ones above:
+
+```csharp
+Config.Bind("Loot", "Mode", "Simple", new ConfigDescription("...", new AcceptableValueList<string>("Simple", "Custom")));
+Config.Bind("Loot", "BonusItem", 0, new ConfigDescription("...", null, "ModManager.Control=Item", "ModManager.ShowWhen=Mode=Custom"));
+Config.Bind("Loot", "Blocked", "", new ConfigDescription("...", null, "ModManager.Control=ItemList"));
+Config.Bind("Start", "Kit", "1203:5,7:2", new ConfigDescription("...", null, "ModManager.Control=ItemCounts"));
+Config.Bind("Loot", "LogRolls", false, new ConfigDescription("...", null, "ModManager.Advanced"));
+```
+
+| Tag | What it does |
+| --- | --- |
+| `ModManager.Control=Item` | An `int` setting holding a game item id. Shown as a searchable item picker; `0` reads as None. |
+| `ModManager.Control=ItemList` | A `string` of item ids separated by commas, such as `1203,7`. Shown as item tags with an add button. Saved without spaces, each item once. |
+| `ModManager.Control=ItemCounts` | A `string` of `id:amount` pairs separated by commas, such as `1203:5,7:2`. Shown as item tags with an amount box each. An item listed twice or an amount under 1 is refused. |
+| `ModManager.Control=Category` | An `int` setting holding a game item category id. Shown as a drop-down of the game's categories. |
+| `ModManager.ShowWhen=...` | Show the setting only while another setting of your mod has a value. `ShowWhen=Enabled` means that on/off setting is on; `ShowWhen=Mode=Custom\|Expert` means it holds either value (any case). Name a setting in another section as `Section.Key`. Several conditions joined by `;` must all hold. When the setting it depends on is hidden, this one is too. |
+| `ModManager.Advanced` | Put the setting in the folded "Advanced" group at the end of its section. |
+
+Item and category names come from the game in the player's language. A control on a setting of the wrong type, a rule naming a setting that does not exist, or a loop of rules is passed over (the setting shows as usual) and `BepInEx\mod-manager.log` says why. Hidden settings keep their values and search skips them.
 
 ### Dependencies and incompatibilities
 

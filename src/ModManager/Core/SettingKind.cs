@@ -25,6 +25,27 @@ public abstract record SettingKind
     public sealed record Hotkey(IReadOnlyList<string> KeyNames, bool AllowsModifiers) : SettingKind;
 
     public sealed record Text : SettingKind;
+
+    /// <summary>One item from the game's item table, by its id; 0 means none. Stored in a whole-number setting.</summary>
+    public sealed record Item : SettingKind;
+
+    /// <summary>Several items, written as ids separated by commas ("1203,1405"). Stored in a text setting.</summary>
+    public sealed record ItemList : SettingKind;
+
+    /// <summary>Items with an amount each, written "id:count" separated by commas ("1203:5,1405:2"). Stored in a text setting.</summary>
+    public sealed record ItemCounts : SettingKind;
+
+    /// <summary>One of the game's item categories, by its number. Stored in a whole-number setting.</summary>
+    public sealed record Category : SettingKind;
+}
+
+/// <summary>A control a mod asks for by tag, in place of the one its setting's type would get.</summary>
+public enum SettingControl
+{
+    Item,
+    ItemList,
+    ItemCounts,
+    Category,
 }
 
 /// <summary>The values a setting's author declared acceptable, read off BepInEx's AcceptableValue classes.</summary>
@@ -63,6 +84,29 @@ public static class SettingKinds
         if (type.IsEnum) return Enum(type, acceptable, keyNames);
 
         return acceptable is Acceptable.Values values ? new SettingKind.Choice(values.Options) : new SettingKind.Text();
+    }
+
+    /// <summary>
+    /// The asked-for control when the setting can hold its values: Item and Category need a whole-number setting,
+    /// ItemList and ItemCounts a string. Otherwise the setting keeps its own control, with the reason.
+    /// </summary>
+    public static (SettingKind Kind, string? Problem) WithControl(Type type, SettingKind kind, SettingControl control)
+    {
+        var needsWhole = control is SettingControl.Item or SettingControl.Category;
+        var fits = needsWhole ? kind is SettingKind.Number { IsWhole: true } : type == typeof(string);
+
+        if (!fits) return (kind, "the control " + control + " needs " + (needsWhole ? "a whole-number setting" : "a string setting") + ", so it is not used");
+
+        SettingKind chosen = control switch
+        {
+            SettingControl.Item => new SettingKind.Item(),
+            SettingControl.ItemList => new SettingKind.ItemList(),
+            SettingControl.ItemCounts => new SettingKind.ItemCounts(),
+            SettingControl.Category => new SettingKind.Category(),
+            _ => throw new ArgumentOutOfRangeException(nameof(control), control, null),
+        };
+
+        return (chosen, null);
     }
 
     private static SettingKind Number(bool isWhole, Acceptable acceptable) =>

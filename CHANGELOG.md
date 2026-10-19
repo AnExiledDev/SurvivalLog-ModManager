@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- Item pickers: settings that hold game items, lists of items, items with amounts, or item categories can ask for a picker with names and icons in the game's language, instead of a box for id numbers.
+- Mods can hide a setting until another setting has a given value, and fold rarely used settings into an "Advanced" group.
+- Mods can show a banner across the top of their page and a CHANGELOG link.
+- Mods can list fixed hotkeys they use. They show on the mod's page and count in the hotkey clash check.
+- COPY MOD LIST at the bottom of the screen copies every mod with its version and state, for bug reports.
+
 ## 0.4.0
 
 - Install updates: INSTALL UPDATE downloads the release's zip from GitHub and puts the new files in place for the next start. The old files are kept in `BepInEx\mod-manager\backups`, and a failed install puts them back.

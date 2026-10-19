@@ -27,6 +27,22 @@ public static class PageScript
     public static string Icons(IReadOnlyDictionary<string, string> icons) =>
         Call("icons", "{" + string.Join(",", icons.OrderBy(icon => icon.Key, StringComparer.Ordinal).Select(icon => Str(icon.Key) + ":" + Str(icon.Value))) + "}");
 
+    /// <summary>The mods' banners as data URIs, by GUID, sent like the icons.</summary>
+    public static string Banners(IReadOnlyDictionary<string, string> banners) =>
+        Call("banners", "{" + string.Join(",", banners.OrderBy(banner => banner.Key, StringComparer.Ordinal).Select(banner => Str(banner.Key) + ":" + Str(banner.Value))) + "}");
+
+    /// <summary>The game's items and item categories for the item pickers, sent once per page and language.</summary>
+    public static string Items(IReadOnlyList<CatalogItem> items, IReadOnlyList<CategoryName> categories)
+    {
+        var itemsJson = List(items, item => "{\"id\":" + item.Id.ToString(CultureInfo.InvariantCulture) + ",\"name\":" + Str(item.Name) + ",\"icon\":" + (item.Icon == null ? "null" : Str(item.Icon)) + ",\"cat\":" + item.Category.ToString(CultureInfo.InvariantCulture) + "}");
+        var categoriesJson = List(categories, category => "{\"id\":" + category.Id.ToString(CultureInfo.InvariantCulture) + ",\"name\":" + Str(category.Name) + "}");
+
+        return Call("items", "{\"items\":" + itemsJson + ",\"categories\":" + categoriesJson + "}");
+    }
+
+    /// <summary>Says whether the mod list reached the clipboard.</summary>
+    public static string Copied(bool isCopied) => Call("copied", Bool(isCopied));
+
     public static string Update(ModEntry mod, SettingNote? note) => Call("update", ModJson(mod) + "," + (note == null ? "null" : NoteJson(note)));
 
     /// <summary>Redraws everything while the screen stays open, after a change that touches more than one mod.</summary>
@@ -77,6 +93,7 @@ public static class PageScript
         json.Append(",\"install\":").Append(InstallJson(mod.Install));
         json.Append(",\"switch\":").Append(SwitchJson(mod.Switch));
         json.Append(",\"update\":").Append(UpdateJson(mod.Update));
+        json.Append(",\"hotkeys\":").Append(List(mod.Info.Hotkeys, hotkey => "{\"keys\":" + Str(hotkey.Keys) + ",\"en\":" + Str(hotkey.Label.English) + ",\"zh\":" + Str(hotkey.Label.Chinese) + "}"));
         json.Append(",\"settings\":").Append(List(settings, SettingJson));
 
         return json.Append('}').ToString();
@@ -96,6 +113,8 @@ public static class PageScript
         json.Append(",\"atStart\":").Append(Str(setting.AtStart));
         json.Append(",\"readOnly\":").Append(Bool(setting.IsReadOnly));
         json.Append(",\"apply\":").Append(Str(ApplyName(setting.Apply)));
+        json.Append(",\"shown\":").Append(Bool(setting.IsShown));
+        json.Append(",\"advanced\":").Append(Bool(setting.IsAdvanced));
         AppendKind(json, setting.Kind);
 
         return json.Append('}').ToString();
@@ -121,6 +140,18 @@ public static class PageScript
                 break;
             case SettingKind.Text:
                 json.Append(",\"kind\":\"text\"");
+                break;
+            case SettingKind.Item:
+                json.Append(",\"kind\":\"item\"");
+                break;
+            case SettingKind.ItemList:
+                json.Append(",\"kind\":\"itemList\"");
+                break;
+            case SettingKind.ItemCounts:
+                json.Append(",\"kind\":\"itemCounts\"");
+                break;
+            case SettingKind.Category:
+                json.Append(",\"kind\":\"category\"");
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, null);

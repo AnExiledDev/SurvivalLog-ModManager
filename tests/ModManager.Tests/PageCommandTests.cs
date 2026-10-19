@@ -35,6 +35,7 @@ public class PageCommandTests
     [InlineData("slmod|modmanager|close")]
     [InlineData("slmod|modmanager|noscript")]
     [InlineData("slmod|modmanager|bindCancel")]
+    [InlineData("slmod|modmanager|copyList")]
     public void Commands_without_parts_are_read(string message)
     {
         Assert.IsNotType<PageCommand.Unknown>(PageCommand.Parse(message));
@@ -64,6 +65,7 @@ public class PageCommandTests
     [InlineData("github", LinkKind.GitHub)]
     [InlineData("website", LinkKind.Website)]
     [InlineData("issues", LinkKind.Issues)]
+    [InlineData("changelog", LinkKind.Changelog)]
     public void A_link_names_the_mod_and_which_of_its_links(string kind, LinkKind expected)
     {
         Assert.Equal(new PageCommand.OpenLink("g", expected), PageCommand.Parse("slmod|modmanager|link|g|" + kind));

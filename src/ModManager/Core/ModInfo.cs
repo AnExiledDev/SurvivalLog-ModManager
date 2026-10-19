@@ -10,6 +10,7 @@ public enum LinkKind
     GitHub,
     Website,
     Issues,
+    Changelog,
 }
 
 /// <summary>The fixed set a mod can pick its category from, so the list can be searched and read in both languages.</summary>
@@ -35,6 +36,10 @@ public enum ApplyMode
 
 public sealed record ModLink(LinkKind Kind, string Url);
 
+/// <summary>A key the mod listens for that is not a setting, so the player can see it and the page can warn of clashes.</summary>
+/// <param name="Keys">BepInEx's form: the main key, then any held keys ("F11 + LeftControl").</param>
+public sealed record FixedHotkey(string Keys, Description Label);
+
 /// <summary>What a mod tells the Mods screen about itself. Every part is optional.</summary>
 public sealed record ModInfo
 {
@@ -51,6 +56,11 @@ public sealed record ModInfo
 
     /// <summary>The name of a PNG or JPEG embedded in the mod's DLL.</summary>
     public string? Icon { get; init; }
+
+    /// <summary>The name of a wide PNG or JPEG embedded in the mod's DLL, shown across the top of its page.</summary>
+    public string? Banner { get; init; }
+
+    public IReadOnlyList<FixedHotkey> Hotkeys { get; init; } = Array.Empty<FixedHotkey>();
 
     public ModCategory? Category { get; init; }
 
@@ -94,6 +104,9 @@ public static class ModInfoReader
     public const string IssuesKey = Prefix + "Issues";
     public const string NameKey = Prefix + "Name";
     public const string IconKey = Prefix + "Icon";
+    public const string BannerKey = Prefix + "Banner";
+    public const string ChangelogKey = Prefix + "Changelog";
+    public const string HotkeysKey = Prefix + "Hotkeys";
     public const string CategoryKey = Prefix + "Category";
     public const string LibraryKey = Prefix + "Library";
     public const string GameVersionKey = Prefix + "GameVersion";
@@ -110,13 +123,17 @@ public static class ModInfoReader
     private const int MaxDescriptionLength = 1000;
     private const int MaxIconLength = 200;
     private const int MaxGameVersions = 10;
+    private const int MaxHotkeys = 30;
+    private const int MaxHotkeysLength = 3000;
+    private const int MaxHotkeyLabelLength = 160;
 
     private const string NexusGame = "https://www.nexusmods.com/survivallog/mods/";
 
-    private static readonly string[] Known = { DescriptionKey, AuthorKey, NexusIdKey, GitHubKey, WebsiteKey, IssuesKey, NameKey, IconKey, CategoryKey, LibraryKey, GameVersionKey, CheckForUpdatesKey, SettingsKey };
+    private static readonly string[] Known = { DescriptionKey, AuthorKey, NexusIdKey, GitHubKey, WebsiteKey, IssuesKey, ChangelogKey, NameKey, IconKey, BannerKey, HotkeysKey, CategoryKey, LibraryKey, GameVersionKey, CheckForUpdatesKey, SettingsKey };
 
     /// <summary>The first value of each key counts. Keys without the prefix belong to someone else and are passed over.</summary>
-    public static ModInfoRead Read(IEnumerable<KeyValuePair<string, string?>> metadata)
+    /// <param name="keyNames">Unity's KeyCode names, which a fixed hotkey must use.</param>
+    public static ModInfoRead Read(IEnumerable<KeyValuePair<string, string?>> metadata, IReadOnlyList<string> keyNames)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         var ignored = new List<string>();
@@ -137,6 +154,8 @@ public static class ModInfoReader
             Links = Links(values, ignored),
             Name = Text(values, NameKey, MaxNameLength, ignored) is { } name ? Wording.SplitDescription(name) : null,
             Icon = Text(values, IconKey, MaxIconLength, ignored),
+            Banner = Text(values, BannerKey, MaxIconLength, ignored),
+            Hotkeys = Text(values, HotkeysKey, MaxHotkeysLength, ignored) is { } hotkeys ? HotkeysOf(hotkeys, keyNames, ignored) : Array.Empty<FixedHotkey>(),
             Category = Parsed(values, CategoryKey, CategoryOf, "one of " + string.Join(", ", Enum.GetNames(typeof(ModCategory))), ignored),
             IsLibrary = Parsed(values, LibraryKey, BoolOf, "true or false", ignored) ?? false,
             GameVersions = GameVersionsOf(values, ignored),
@@ -168,6 +187,39 @@ public static class ModInfoReader
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// "F11 + LeftControl=Open the console|打开控制台;F12=Take a picture": keys, "=", then the label in English, or
+    /// English and Chinese split by "|". A bad entry is reported and the rest are kept.
+    /// </summary>
+    private static IReadOnlyList<FixedHotkey> HotkeysOf(string value, IReadOnlyList<string> keyNames, List<string> ignored)
+    {
+        var hotkeys = new List<FixedHotkey>();
+
+        foreach (var entry in value.Split(';').Select(part => part.Trim()).Where(part => part.Length > 0))
+        {
+            var equals = entry.IndexOf('=');
+            var keys = equals < 0 ? null : KeyChords.Normalize(entry.Substring(0, equals), keyNames);
+            var label = equals < 0 ? "" : entry.Substring(equals + 1).Trim();
+
+            if (keys == null || label.Length == 0 || label.Length > MaxHotkeyLabelLength)
+            {
+                ignored.Add(HotkeysKey + " entry \"" + entry + "\" must be keys=label, such as F11 + LeftControl=Open the console, with a label of up to " + MaxHotkeyLabelLength + " characters");
+            }
+            else if (hotkeys.Count == MaxHotkeys)
+            {
+                ignored.Add(HotkeysKey + " lists more than " + MaxHotkeys + " hotkeys; the rest are not shown");
+
+                break;
+            }
+            else
+            {
+                hotkeys.Add(new FixedHotkey(keys, Wording.SplitDescription(label.Replace('|', '\n'))));
+            }
+        }
+
+        return hotkeys;
     }
 
     private static bool? BoolOf(string value) => value.ToLowerInvariant() switch
@@ -225,6 +277,7 @@ public static class ModInfoReader
 
         AddLink(links, values, WebsiteKey, LinkKind.Website, WebsiteUrl, "a full http or https address", ignored);
         AddLink(links, values, IssuesKey, LinkKind.Issues, WebsiteUrl, "a full http or https address", ignored);
+        AddLink(links, values, ChangelogKey, LinkKind.Changelog, WebsiteUrl, "a full http or https address", ignored);
 
         return links;
     }

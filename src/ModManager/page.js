@@ -57,7 +57,10 @@
       turnOnNeeds: 'TURN ON WHAT IT NEEDS',
       installUpdate: 'INSTALL UPDATE', tryAgain: 'TRY AGAIN', installing: 'Installing the update.',
       installed: tag => 'Version ' + tag + ' is installed. Restart the game to use it.',
-      installFailed: reason => 'Could not install the update: ' + reason + '.'
+      installFailed: reason => 'Could not install the update: ' + reason + '.',
+      advanced: 'Advanced', hotkeys: 'HOTKEYS', linkChangelog: 'CHANGELOG', add: '+ ADD', remove: 'Remove',
+      findItem: 'FIND AN ITEM', noItemMatches: 'No item matches.', moreItems: n => n + ' more, type to narrow it down',
+      copyList: 'COPY MOD LIST', copied: 'COPIED', copyFailed: 'COULD NOT COPY', copyHint: 'Copies every mod with its version and state, to paste into a bug report.'
     },
     zh: {
       loaded: '已加载', settings: '项设置', toggle: '切换', close: '关闭', search: '搜索所有设置',
@@ -105,7 +108,10 @@
       turnOnNeeds: '开启它需要的模组',
       installUpdate: '安装更新', tryAgain: '重试', installing: '正在安装更新。',
       installed: tag => '版本 ' + tag + ' 已安装。重启游戏后生效。',
-      installFailed: reason => '无法安装更新：' + reason + '。'
+      installFailed: reason => '无法安装更新：' + reason + '。',
+      advanced: '高级', hotkeys: '快捷键', linkChangelog: '更新日志', add: '+ 添加', remove: '移除',
+      findItem: '搜索物品', noItemMatches: '没有匹配的物品。', moreItems: n => '还有 ' + n + ' 个，输入文字缩小范围',
+      copyList: '复制模组列表', copied: '已复制', copyFailed: '无法复制', copyHint: '复制所有模组及其版本和状态，可粘贴到问题反馈中。'
     }
   };
 
@@ -124,10 +130,17 @@
     modNote: null,
     notesAsked: {},
     icons: {},
+    banners: {},
+    items: null,
+    picker: null,
+    openAdvanced: {},
+    copied: null,
     showLibraries: false
   };
 
-  const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite', issues: 'linkIssues' };
+  const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite', issues: 'linkIssues', changelog: 'linkChangelog' };
+  const PICKER_LIMIT = 60;
+  const COPIED_MS = 2500;
 
   // ===== Talking to the C# side =====
 
@@ -205,10 +218,13 @@
 
   const monoStyle = name => 'background:linear-gradient(135deg,hsl(' + hue(name) + ' 45% 32%),hsl(' + ((hue(name) + 40) % 360) + ' 40% 16%))';
 
+  // A setting a show-when rule hides is still sent, so Reset All still resets it, but it is not drawn.
+  const shownSettings = mod => mod.settings.filter(s => s.shown !== false);
+
   function sections(mod) {
     const order = [];
 
-    for (const s of mod.settings) if (order.indexOf(s.section) < 0) order.push(s.section);
+    for (const s of shownSettings(mod)) if (order.indexOf(s.section) < 0) order.push(s.section);
 
     return order;
   }
@@ -416,6 +432,43 @@
 #slmm .ft-t { font-family: var(--mono); font-size: .85rem; color: #999; letter-spacing: .5px; }
 #slmm .ft-t b { color: #fff; font-weight: 400; }
 #slmm .ft-t em { color: var(--amber); font-style: normal; }
+#slmm .ft-t { flex: 1; min-width: 0; }
+#slmm .ft .key-btn { padding: 5px 12px; font-size: .8rem; }
+#slmm .ft .key-btn.ok { border-color: var(--teal); color: var(--teal); }
+#slmm .ft .key-btn.bad { border-color: rgba(255,90,90,0.6); color: var(--red); }
+
+#slmm .hero .banner { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+#slmm .gen.on-banner { background: linear-gradient(90deg, rgba(18,18,20,0.92) 0%, rgba(18,18,20,0.55) 55%, rgba(18,18,20,0.1) 100%); }
+#slmm .rel .hk { font-family: var(--mono); font-size: .8rem; color: var(--amber); margin-right: 8px; }
+#slmm .rel.bad .hk { color: var(--red); }
+#slmm .adv-t { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 18px; font-family: var(--mono); font-size: .75rem; letter-spacing: 2px; color: #888; text-transform: uppercase; cursor: pointer; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+#slmm .adv-t:hover { color: #ddd; }
+#slmm .adv-t .cd { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+
+#slmm .ipk { position: relative; width: 100%; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+#slmm .ipk-pick { display: flex; align-items: center; gap: 9px; min-width: 240px; max-width: 100%; background: #000; color: var(--amber); border: 1px solid #444; border-radius: 4px; padding: 5px 12px 5px 6px; font-size: .95rem; font-weight: 700; cursor: pointer; }
+#slmm .ipk-pick:hover { border-color: var(--amber); }
+#slmm .ipk-pick .ipk-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: left; }
+#slmm .ico-sq { flex-shrink: 0; width: 28px; height: 28px; border-radius: 3px; background: rgba(255,255,255,0.06); object-fit: contain; display: block; }
+#slmm .ipk-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+#slmm .ipk-tag { display: flex; align-items: center; gap: 7px; padding: 3px 4px 3px 4px; border: 1px solid rgba(255,255,255,0.14); border-radius: 3px; font-size: .88rem; color: #ddd; max-width: 100%; }
+#slmm .ipk-tag .ico-sq { width: 22px; height: 22px; }
+#slmm .ipk-tag .num { width: 64px; padding: 3px 6px; font-size: .88rem; }
+#slmm .ipk-x { cursor: pointer; color: #888; padding: 0 5px; font-size: 1rem; line-height: 1; }
+#slmm .ipk-x:hover { color: var(--red); }
+#slmm .ipk-add { font-family: var(--mono); font-size: .78rem; letter-spacing: 1px; color: var(--amber); border: 1px dashed rgba(235,163,8,0.5); border-radius: 3px; padding: 4px 10px; cursor: pointer; }
+#slmm .ipk-add:hover { background: rgba(235,163,8,0.12); }
+#slmm .ipk-panel { position: absolute; top: calc(100% + 4px); right: 0; width: 380px; background: #121214; border: 1px solid #555; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.85); z-index: 30; padding: 8px; }
+#slmm .ipk-find { width: 100%; background: #000; border: 1px solid #444; border-radius: 3px; color: #eee; font: 700 .95rem var(--body); padding: 7px 10px; outline: none; user-select: text; }
+#slmm .ipk-find:focus { border-color: var(--amber); }
+#slmm .ipk-list { max-height: 300px; overflow-y: auto; margin-top: 6px; }
+#slmm .ipk-list::-webkit-scrollbar { width: 6px; }
+#slmm .ipk-list::-webkit-scrollbar-thumb { background: rgba(235,163,8,0.35); border-radius: 3px; }
+#slmm .ipk-item { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 3px; cursor: pointer; color: #ccc; font-size: .92rem; font-weight: 700; }
+#slmm .ipk-item:hover { background: rgba(235,163,8,0.15); color: #fff; }
+#slmm .ipk-item.selected { color: var(--amber); }
+#slmm .ipk-item i { margin-left: auto; font-style: normal; font-family: var(--mono); font-size: .72rem; color: #666; font-weight: 400; }
+#slmm .ipk-more { padding: 6px; font-family: var(--mono); font-size: .75rem; color: #777; }
 `;
 
   // ===== The window =====
@@ -448,7 +501,7 @@
     </div>
     <div class="pane"></div>
   </div>
-  <div class="ft"><div class="status-dot"></div><div class="ft-t"></div></div>
+  <div class="ft"><div class="status-dot"></div><div class="ft-t"></div><div class="key-btn" data-act="copyList"></div></div>
 </div></div>`;
 
   const $ = selector => root.querySelector(selector);
@@ -475,6 +528,7 @@
     renderFooter();
     list.scrollTop = listScroll;
     pane.scrollTop = paneScroll;
+    focusPicker();
     syncTyping();
   }
 
@@ -584,7 +638,7 @@
 
     if (names.indexOf(state.tab) < 0) state.tab = '';
 
-    pane.innerHTML = hero(m) + meta(m) + about(m) + links(m) + relations(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + tabs(m, names) + modNotices(m) + paneBody(m, names);
+    pane.innerHTML = hero(m) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + tabs(m, names) + modNotices(m) + paneBody(m, names);
     askForNotes(m);
   }
 
@@ -609,8 +663,10 @@
 
   function hero(m) {
     const sub = m.loaded ? (m.settings.length ? word('found') : word('foundNone')) : '';
+    const banner = state.banners[m.guid];
 
-    return '<div class="hero"><div class="gen" style="--hue-a:hsla(' + hue(m.name) + ',50%,35%,.45)">' +
+    return '<div class="hero">' + (banner ? '<img class="banner" src="' + esc(banner) + '" alt="">' : '') +
+      '<div class="gen' + (banner ? ' on-banner' : '') + '" style="--hue-a:hsla(' + hue(m.name) + ',50%,35%,.45)">' +
       badge(m, 'big') +
       '<div><div class="gt">' + esc(nameOf(m)) + '</div><div class="gs">' + esc(sub) + '</div></div></div>' +
       '<div class="hero-side">' + enSwitch(m) + '</div></div>';
@@ -706,6 +762,20 @@
     return '<div class="rels">' + html + '</div>';
   }
 
+  // Keys the mod listens for that are not settings. A clash with any other mod's key is marked like a hotkey setting's.
+  function fixedHotkeys(m) {
+    if (!m.hotkeys || !m.hotkeys.length) return '';
+
+    const chip = h => {
+      const others = keyUsers(h.keys, m, h);
+      const title = others.length ? ' title="' + esc(word('alsoUsed')(others.join(', '))) + '"' : '';
+
+      return '<span class="rel' + (others.length ? ' bad' : '') + '"' + title + '><span class="hk">' + esc(h.keys) + '</span>' + esc(state.lang === 'zh' ? h.zh : h.en) + '</span>';
+    };
+
+    return '<div class="rels"><div class="rel-h">' + esc(word('hotkeys')) + '</div><div class="rel-items">' + m.hotkeys.map(chip).join('') + '</div></div>';
+  }
+
   function relationName(r) {
     const other = modByGuid(r.guid);
 
@@ -786,7 +856,9 @@
 
     const tab = (name, label, members) => '<div class="tab' + (state.tab === name ? ' on' : '') + '" data-tab="' + esc(name) + '">' + esc(label) + ' <i>' + members.length + '</i>' + (members.some(isChanged) ? '<span class="cd"></span>' : '') + '</div>';
 
-    return '<div class="tabs">' + tab('', word('tabAll'), m.settings) + names.map(n => tab(n, n, m.settings.filter(s => s.section === n))).join('') + '</div>';
+    const shown = shownSettings(m);
+
+    return '<div class="tabs">' + tab('', word('tabAll'), shown) + names.map(n => tab(n, n, shown.filter(s => s.section === n))).join('') + '</div>';
   }
 
   function paneBody(m, names) {
@@ -798,7 +870,25 @@
 
     const shown = state.tab ? [state.tab] : names;
 
-    return '<div class="sets">' + shown.map(n => '<div class="sec"><div class="sec-t">' + esc(n) + '</div>' + m.settings.filter(s => s.section === n).map(s => row(m, s, null)).join('') + '</div>').join('') + '</div>';
+    return '<div class="sets">' + shown.map(n => section(m, n)).join('') + '</div>';
+  }
+
+  // Advanced settings sit folded under their section's ordinary ones; a changed one marks the fold.
+  function section(m, name) {
+    const members = shownSettings(m).filter(s => s.section === name);
+    const advanced = members.filter(s => s.advanced);
+    const foldId = m.guid + '\n' + name;
+    const isOpen = !!state.openAdvanced[foldId];
+    const arrow = isOpen ? '&#x25BE;' : '&#x25B8;';
+    let html = '<div class="sec"><div class="sec-t">' + esc(name) + '</div>' + members.filter(s => !s.advanced).map(s => row(m, s, null)).join('');
+
+    if (advanced.length) {
+      html += '<div class="adv-t" data-fold="' + esc(foldId) + '">' + arrow + ' ' + esc(word('advanced')) + ' &middot; ' + advanced.length + (advanced.some(isChanged) ? '<span class="cd"></span>' : '') + '</div>';
+
+      if (isOpen) html += advanced.map(s => row(m, s, null)).join('');
+    }
+
+    return html + '</div>';
   }
 
   function renderSearch() {
@@ -809,7 +899,7 @@
     let html = '';
 
     for (const m of visibleMods()) {
-      const hits = m.settings.filter(s => matchesQuery(m, s, q));
+      const hits = shownSettings(m).filter(s => matchesQuery(m, s, q));
 
       if (!hits.length) continue;
 
@@ -863,6 +953,16 @@
   function shown(s, value) {
     if (s.kind === 'hotkey' && (value === '' || value === 'None')) return word('none');
 
+    if (!state.items) return value;
+
+    if (s.kind === 'item') return itemName(value);
+
+    if (s.kind === 'category') return categoryName(value);
+
+    if (s.kind === 'itemList') return idsOf(value).map(itemName).join(', ') || word('none');
+
+    if (s.kind === 'itemCounts') return countsOf(value).map(c => itemName(c.id) + ' x' + c.count).join(', ') || word('none');
+
     return value;
   }
 
@@ -880,10 +980,154 @@
 
         return '<div class="keycap' + (isListening ? ' listening' : '') + (conflicts(m, s).length ? ' conflict' : '') + '" data-act="bind">' + esc(label) + '</div>';
       }
+      case 'item':
+      case 'itemList':
+      case 'itemCounts':
+        if (state.items) return itemControl(m, s);
+        break;
+      case 'category':
+        if (state.items) return categoryControl(s);
+        break;
       default:
-        return '<input class="txt" data-input="text" value="' + esc(s.current) + '" spellcheck="false">';
+        break;
     }
+
+    // Also the fallback for the item and category controls until the game's item table has arrived.
+    return '<input class="txt" data-input="text" value="' + esc(s.current) + '" spellcheck="false">';
   }
+
+  // ===== Item and category controls =====
+
+  const idsOf = value => String(value).split(',').map(part => part.trim()).filter(Boolean);
+  const countsOf = value => idsOf(value).map(pair => ({ id: pair.split(':')[0], count: pair.split(':')[1] || '1' }));
+  const countsText = counts => counts.map(c => c.id + ':' + c.count).join(',');
+  const itemOf = id => state.items.byId[String(id)];
+
+  function itemName(id) {
+    if (String(id) === '0') return word('none');
+
+    const item = itemOf(id);
+
+    return item ? item.name : '#' + id;
+  }
+
+  function categoryName(id) {
+    if (String(id) === '0') return word('none');
+
+    const category = state.items.categories.find(c => String(c.id) === String(id));
+
+    return category ? category.name : '#' + id;
+  }
+
+  function itemIcon(id) {
+    const item = itemOf(id);
+
+    return item && item.icon ? '<img class="ico-sq" src="' + esc(item.icon) + '" alt="">' : '<span class="ico-sq"></span>';
+  }
+
+  function itemControl(m, s) {
+    const isPicking = state.picker && state.picker.id === settingId(m, s);
+    const panel = isPicking ? pickerPanel(s) : '';
+
+    if (s.kind === 'item') return '<div class="ipk"><div class="ipk-pick" data-act="pick">' + itemIcon(s.current) + '<span class="ipk-name">' + esc(itemName(s.current)) + '</span><span class="dd-arrow"></span></div>' + panel + '</div>';
+
+    const remove = index => '<span class="ipk-x" data-act="dropItem" data-index="' + index + '" title="' + esc(word('remove')) + '">&#x2715;</span>';
+    const tags = s.kind === 'itemList'
+      ? idsOf(s.current).map((id, i) => '<span class="ipk-tag">' + itemIcon(id) + esc(itemName(id)) + remove(i) + '</span>')
+      : countsOf(s.current).map((c, i) => '<span class="ipk-tag">' + itemIcon(c.id) + esc(itemName(c.id)) + '<input class="num" data-input="count" data-index="' + i + '" value="' + esc(c.count) + '">' + remove(i) + '</span>');
+
+    return '<div class="ipk"><div class="ipk-tags">' + tags.join('') + '<span class="ipk-add" data-act="pick">' + esc(word('add')) + '</span></div>' + panel + '</div>';
+  }
+
+  function pickerPanel(s) {
+    return '<div class="ipk-panel"><input class="ipk-find" placeholder="' + esc(word('findItem')) + '" value="' + esc(state.picker.query) + '" spellcheck="false" autocomplete="off">' +
+      '<div class="ipk-list">' + pickerItems(s) + '</div></div>';
+  }
+
+  // The items matching the picker's search, by name or exact id, capped so a page of thousands stays quick.
+  function pickerItems(s) {
+    const q = state.picker.query.trim().toLowerCase();
+    const chosen = s.kind === 'item' ? [s.current] : s.kind === 'itemList' ? idsOf(s.current) : countsOf(s.current).map(c => c.id);
+    const matches = state.items.list.filter(item => !q || item.name.toLowerCase().indexOf(q) >= 0 || String(item.id) === q);
+    const none = s.kind === 'item' && !q ? [{ id: 0, name: word('none'), icon: null, cat: -1 }] : [];
+    const shown = none.concat(matches.slice(0, PICKER_LIMIT));
+    const line = item => '<div class="ipk-item' + (chosen.indexOf(String(item.id)) >= 0 ? ' selected' : '') + '" data-act="pickItem" data-id="' + item.id + '">' +
+      (item.icon ? '<img class="ico-sq" src="' + esc(item.icon) + '" alt="">' : '<span class="ico-sq"></span>') + esc(item.name) + (item.cat >= 0 ? '<i>' + esc(categoryName(item.cat)) + '</i>' : '') + '</div>';
+    const more = matches.length > PICKER_LIMIT ? '<div class="ipk-more">' + esc(word('moreItems')(matches.length - PICKER_LIMIT)) + '</div>' : '';
+
+    return shown.length ? shown.map(line).join('') + more : '<div class="ipk-more">' + esc(word('noItemMatches')) + '</div>';
+  }
+
+  function categoryControl(s) {
+    const options = [{ id: 0, name: word('none') }].concat(state.items.categories);
+    const items = options.map(c => '<div class="dd-item' + (String(c.id) === s.current ? ' selected' : '') + '" data-value="' + c.id + '">' + esc(c.name) + '</div>').join('');
+
+    return '<div class="dd"><div class="dd-trigger"><span>' + esc(categoryName(s.current)) + '</span><span class="dd-arrow"></span></div><div class="dd-list">' + items + '</div></div>';
+  }
+
+  function openPicker(row) {
+    state.picker = { id: settingId(row.mod, row.setting), query: '' };
+    render();
+  }
+
+  function closePicker() {
+    if (!state.picker) return;
+
+    state.picker = null;
+    root.querySelectorAll('.ipk-panel').forEach(panel => panel.remove());
+  }
+
+  // A single item closes the picker; a list keeps it open, with the keyboard in its search box, to add more.
+  function pickItem(row, id) {
+    const s = row.setting;
+
+    if (s.kind === 'item') {
+      closePicker();
+      write(row, id);
+
+      return;
+    }
+
+    focusPicker();
+
+    if (s.kind === 'itemList') {
+      const ids = idsOf(s.current);
+
+      if (ids.indexOf(id) < 0) write(row, ids.concat([id]).join(','));
+
+      return;
+    }
+
+    const counts = countsOf(s.current);
+
+    if (!counts.some(c => c.id === id)) write(row, countsText(counts.concat([{ id: id, count: '1' }])));
+  }
+
+  function dropItem(row, index) {
+    const s = row.setting;
+
+    if (s.kind === 'itemList') write(row, idsOf(s.current).filter((id, i) => i !== index).join(','));
+    else write(row, countsText(countsOf(s.current).filter((c, i) => i !== index)));
+  }
+
+  function setItemCount(row, index, count) {
+    const counts = countsOf(row.setting.current);
+
+    if (counts[index]) counts[index].count = count.trim();
+
+    write(row, countsText(counts));
+  }
+
+  // A redraw replaces the picker's search box; give it the keyboard back so typing carries on.
+  function focusPicker() {
+    const find = state.picker ? pane.querySelector('.ipk-find') : null;
+
+    if (!find || document.activeElement === find) return;
+
+    find.focus();
+    find.setSelectionRange(find.value.length, find.value.length);
+  }
+
 
   function numberControl(s) {
     if (s.min === null || s.max === null) return '<input class="num wide" data-input="number" value="' + esc(s.current) + '">';
@@ -908,17 +1152,26 @@
     return '<div class="dd"><div class="dd-trigger"><span>' + esc(s.current) + '</span><span class="dd-arrow"></span></div><div class="dd-list">' + items + '</div></div>';
   }
 
-  // Every other hotkey setting, in any mod, set to exactly this key.
   function conflicts(m, s) {
     if (!s.current || s.current === 'None') return [];
 
+    return keyUsers(s.current, m, s);
+  }
+
+  // Every hotkey setting, in any mod, set to exactly these keys, and every running mod's fixed hotkey on them, but self.
+  function keyUsers(keys, m, self) {
     const others = [];
+    const name = (mod, label) => (mod === m ? label : nameOf(mod) + ' (' + label + ')');
 
     for (const mod of mods()) {
       for (const other of mod.settings) {
-        if (other.kind !== 'hotkey' || other.current !== s.current || (mod === m && other === s)) continue;
+        if (other.kind === 'hotkey' && other.current === keys && other !== self) others.push(name(mod, other.label));
+      }
 
-        others.push(mod === m ? other.label : nameOf(mod) + ' (' + other.label + ')');
+      if (!mod.loaded || !mod.hotkeys) continue;
+
+      for (const fixed of mod.hotkeys) {
+        if (fixed.keys === keys && fixed !== self) others.push(name(mod, state.lang === 'zh' ? fixed.zh : fixed.en));
       }
     }
 
@@ -937,6 +1190,16 @@
 
     $('.status-dot').classList.toggle('warn', waiting || restarts > 0);
     $('.ft-t').innerHTML = changedText + restartText + updateText;
+    renderCopyButton();
+  }
+
+  function renderCopyButton() {
+    const button = $('[data-act="copyList"]');
+
+    button.textContent = word(state.copied === null ? 'copyList' : state.copied ? 'copied' : 'copyFailed');
+    button.title = word('copyHint');
+    button.classList.toggle('ok', state.copied === true);
+    button.classList.toggle('bad', state.copied === false);
   }
 
   // ===== What the player does =====
@@ -971,6 +1234,8 @@
     const actName = act ? act.dataset.act : '';
 
     if (state.binding && actName !== 'bind') cancelBinding();
+
+    if (state.picker && !target.closest('.ipk-panel') && actName !== 'pick') closePicker();
 
     if (actName === 'close') {
       hide();
@@ -1020,15 +1285,33 @@
       return;
     }
 
+    const fold = target.closest('[data-fold]');
+
+    if (fold) {
+      state.openAdvanced[fold.dataset.fold] = !state.openAdvanced[fold.dataset.fold];
+      render();
+
+      return;
+    }
+
     if (actName === 'showCfg') send('showCfg', [state.selected]);
     else if (actName === 'link') send('link', [state.selected, act.dataset.kind]);
     else if (actName === 'update') send('update', [state.selected]);
     else if (actName === 'install') send('install', [state.selected]);
     else if (actName === 'needs') send('needs', [state.selected]);
+    else if (actName === 'copyList') send('copyList');
     else if (actName === 'resetMod') resetMod();
     else if (actName === 'reset' && row) resetRow(row);
     else if (actName === 'bind' && row) bind(row, act);
-    else pickOption(target, row);
+    else if (actName === 'pick' && row) togglePicker(row);
+    else if (actName === 'pickItem' && row) pickItem(row, act.dataset.id);
+    else if (actName === 'dropItem' && row) dropItem(row, Number(act.dataset.index));
+    else if (!target.closest('.ipk-panel')) pickOption(target, row);
+  }
+
+  function togglePicker(row) {
+    if (state.picker && state.picker.id === settingId(row.mod, row.setting)) closePicker();
+    else openPicker(row);
   }
 
   function select(guid) {
@@ -1071,7 +1354,7 @@
 
     if (item && row) {
       dd.classList.remove('open');
-      write(row, row.setting.options[Number(item.dataset.option)]);
+      write(row, item.dataset.value !== undefined ? item.dataset.value : row.setting.options[Number(item.dataset.option)]);
     } else if (dd) {
       dd.classList.toggle('open');
     }
@@ -1091,6 +1374,7 @@
 
     if (target.dataset.input === 'toggle') write(row, target.checked ? 'true' : 'false');
     else if (target.dataset.input === 'range' || target.dataset.input === 'number' || target.dataset.input === 'text') write(row, target.value);
+    else if (target.dataset.input === 'count') setItemCount(row, Number(target.dataset.index), target.value);
   }
 
   function onInput(e) {
@@ -1099,6 +1383,16 @@
     if (target === searchBox) {
       state.query = searchBox.value.trim();
       render();
+
+      return;
+    }
+
+    if (target.classList.contains('ipk-find')) {
+      const row = rowOf(target);
+
+      state.picker.query = target.value;
+
+      if (row) target.parentElement.querySelector('.ipk-list').innerHTML = pickerItems(row.setting);
 
       return;
     }
@@ -1123,6 +1417,9 @@
       searchBox.value = '';
       state.query = '';
       render();
+    } else if (e.target.classList.contains('ipk-find')) {
+      closePicker();
+      syncTyping();
     } else {
       e.target.blur();
     }
@@ -1166,6 +1463,7 @@
     root.classList.remove('on');
     state.binding = null;
     closeDropdowns(null);
+    closePicker();
 
     if (document.activeElement && root.contains(document.activeElement)) document.activeElement.blur();
 
@@ -1185,6 +1483,8 @@
     state.binding = null;
     state.modNote = null;
     state.notesAsked = {};
+    state.picker = null;
+    state.copied = null;
 
     if (!modByGuid(state.selected)) state.selected = view.mods.length ? (view.mods.find(m => m.loaded) || view.mods[0]).guid : null;
 
@@ -1252,6 +1552,35 @@
     state.icons = map || {};
 
     if (root.classList.contains('on')) render();
+  }
+
+  function banners(map) {
+    state.banners = map || {};
+
+    if (root.classList.contains('on')) render();
+  }
+
+  // The game's item table, in the game's language, for the item and category controls. Sent before the screen opens.
+  function items(table) {
+    const byId = {};
+
+    for (const item of table.items) byId[String(item.id)] = item;
+
+    state.items = { list: table.items, byId: byId, categories: table.categories };
+
+    if (root.classList.contains('on')) render();
+  }
+
+  let copiedTimer = 0;
+
+  function copied(isCopied) {
+    state.copied = !!isCopied;
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => {
+      state.copied = null;
+      renderCopyButton();
+    }, COPIED_MS);
+    renderCopyButton();
   }
 
   // ===== MODS buttons in the game's own menus =====
@@ -1341,6 +1670,6 @@
   setInterval(addMenuButtons, MENU_POLL_MS);
   addMenuButtons();
 
-  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, icons: icons };
+  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, icons: icons, banners: banners, items: items, copied: copied };
   sendReady();
 })();
