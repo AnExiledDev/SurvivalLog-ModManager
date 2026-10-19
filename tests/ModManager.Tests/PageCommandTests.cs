@@ -77,11 +77,14 @@ public class PageCommandTests
     {
         Assert.Equal(new PageCommand.Notes("g"), PageCommand.Parse("slmod|modmanager|notes|g"));
         Assert.Equal(new PageCommand.OpenUpdate("g"), PageCommand.Parse("slmod|modmanager|update|g"));
+        Assert.Equal(new PageCommand.Changelog("g"), PageCommand.Parse("slmod|modmanager|changelog|g"));
     }
 
     [Theory]
     [InlineData("slmod|modmanager|update|g|https%3A%2F%2Fevil.example")]
     [InlineData("slmod|modmanager|notes")]
+    [InlineData("slmod|modmanager|changelog")]
+    [InlineData("slmod|modmanager|changelog|g|https%3A%2F%2Fevil.example")]
     [InlineData("slmod|othermod|open")]
     [InlineData("slmod|modmanager|switch|g|yes")]
     [InlineData("slmod|modmanager|link|g|https%3A%2F%2Fevil.example")]

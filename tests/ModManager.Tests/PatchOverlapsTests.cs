@@ -35,9 +35,10 @@ public class PatchOverlapsTests
     [InlineData(PatchEffect.RunsAfter, PatchEffect.RunsAfter, PatchRisk.Harmless)]
     [InlineData(PatchEffect.CanSkip, PatchEffect.RunsAfter, PatchRisk.MayClash)]
     [InlineData(PatchEffect.RunsBefore, PatchEffect.Rewrites, PatchRisk.MayClash)]
-    [InlineData(PatchEffect.CanSkip, PatchEffect.CanSkip, PatchRisk.LikelyClash)]
-    [InlineData(PatchEffect.Rewrites, PatchEffect.CanSkip, PatchRisk.LikelyClash)]
-    public void Adding_code_is_harmless_and_each_mod_that_can_skip_or_rewrite_the_method_raises_the_risk(PatchEffect mine, PatchEffect theirs, PatchRisk risk)
+    [InlineData(PatchEffect.CanSkip, PatchEffect.CanSkip, PatchRisk.MayClash)]
+    [InlineData(PatchEffect.Rewrites, PatchEffect.CanSkip, PatchRisk.MayClash)]
+    [InlineData(PatchEffect.Rewrites, PatchEffect.Rewrites, PatchRisk.LikelyClash)]
+    public void Adding_code_is_harmless_skipping_may_clash_and_only_two_rewrites_are_likely_to(PatchEffect mine, PatchEffect theirs, PatchRisk risk)
     {
         Assert.Equal(risk, PatchOverlaps.RiskOf(new[] { mine }, new[] { theirs }));
     }
@@ -59,13 +60,20 @@ public class PatchOverlapsTests
         {
             Method("Hotkeys.Update", ("com.a", PatchEffect.RunsAfter), ("com.b", PatchEffect.RunsAfter), ("com.c", PatchEffect.RunsAfter)),
             Method("Bag.Add", ("com.a", PatchEffect.RunsAfter), ("com.b", PatchEffect.RunsAfter)),
-            Method("Player.TakeDamage", ("com.a", PatchEffect.CanSkip), ("com.c", PatchEffect.CanSkip)),
+            Method("Player.TakeDamage", ("com.a", PatchEffect.Rewrites), ("com.c", PatchEffect.Rewrites)),
         });
 
         Assert.Equal(new[] { "com.c", "com.b" }, overlaps["com.a"].Select(overlap => overlap.Guid));
         Assert.Equal(PatchRisk.LikelyClash, overlaps["com.a"][0].Risk);
         Assert.Equal(new[] { "Player.TakeDamage", "Hotkeys.Update" }, overlaps["com.a"][0].Methods.Select(method => method.Method));
         Assert.Equal(PatchRisk.Harmless, overlaps["com.a"][1].Risk);
+    }
+
+    [Fact]
+    public void A_mod_that_skips_and_also_rewrites_is_likely_to_clash_with_another_rewrite()
+    {
+        Assert.Equal(PatchRisk.LikelyClash, PatchOverlaps.RiskOf(new[] { PatchEffect.CanSkip, PatchEffect.Rewrites }, new[] { PatchEffect.Rewrites }));
+        Assert.Equal(PatchRisk.MayClash, PatchOverlaps.RiskOf(new[] { PatchEffect.CanSkip, PatchEffect.Rewrites }, new[] { PatchEffect.CanSkip }));
     }
 
     [Fact]

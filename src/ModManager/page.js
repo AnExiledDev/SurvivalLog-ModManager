@@ -54,12 +54,15 @@
       relNeededBy: 'NEEDED BY', relUsedBy: 'USED BY (OPTIONAL)', hasVersion: (have, range) => have + ', needs ' + range,
       relStopsThem: 'Needs this mod, so it will not start while this one is off',
       relStatus: { missing: 'not installed', on: 'on', off: 'off', wrongVersion: 'wrong version' },
-      tabSettings: 'Settings', tabConflicts: 'Conflicts', thisMod: 'This mod',
+      tabSettings: 'Settings', tabConflicts: 'Conflicts', tabChangelog: 'Changelog', thisMod: 'This mod',
+      changelogNote: 'The published changelog. It can be ahead of the version you have.',
+      changelogLoading: 'Loading the changelog.', changelogEmpty: 'The changelog is empty.',
+      changelogFailed: 'Could not load the changelog. The CHANGELOG link above opens it in your browser.',
       conflictsIntro: 'Other mods that patch the same game code as this one. It is a guide for where to look when mods misbehave together, not proof of a problem. If two mods act up while both are on, try turning one off.',
       risk: { likely: 'LIKELY TO CLASH', may: 'MAY CLASH', harmless: 'PROBABLY HARMLESS' },
       riskWhy: {
-        likely: 'Both mods can skip or rewrite the same game code, so one may undo what the other does.',
-        may: 'One mod can skip or rewrite the game code and the other adds to it. They often work together, but the addition may not get what it expects.',
+        likely: 'Both mods rewrite the same game code, so one may break what the other expects to find.',
+        may: 'At least one mod can skip or rewrite the game code. They usually work together, but one may change what the other expects.',
         harmless: 'Both mods only add their own code before or after the game code. That rarely causes trouble.'
       },
       effect: { before: 'runs before it', after: 'runs after it', skip: 'can skip it', rewrite: 'rewrites it' },
@@ -123,12 +126,15 @@
       relNeededBy: '被这些模组需要', relUsedBy: '可被这些模组使用（可选）', hasVersion: (have, range) => have + '，需要 ' + range,
       relStopsThem: '它需要本模组，本模组关闭时它不会启动',
       relStatus: { missing: '未安装', on: '已开启', off: '已关闭', wrongVersion: '版本不符' },
-      tabSettings: '设置', tabConflicts: '冲突', thisMod: '本模组',
+      tabSettings: '设置', tabConflicts: '冲突', tabChangelog: '更新日志', thisMod: '本模组',
+      changelogNote: '这是已发布的更新日志，可能比你安装的版本更新。',
+      changelogLoading: '正在加载更新日志。', changelogEmpty: '更新日志是空的。',
+      changelogFailed: '无法加载更新日志。上方的「更新日志」链接可以在浏览器中打开它。',
       conflictsIntro: '与本模组修改了相同游戏代码的其他模组。这只是模组一起出问题时的排查线索，不代表一定有问题。如果两个模组同时开启时出现异常，试着关闭其中一个。',
       risk: { likely: '很可能冲突', may: '可能冲突', harmless: '大概无害' },
       riskWhy: {
-        likely: '两个模组都能跳过或改写同一段游戏代码，一方可能会抵消另一方的效果。',
-        may: '一个模组能跳过或改写这段游戏代码，另一个只是在其上添加内容。它们通常可以一起使用，但添加的部分可能得不到预期的结果。',
+        likely: '两个模组都改写了同一段游戏代码，一方可能会破坏另一方所依赖的内容。',
+        may: '至少有一个模组能跳过或改写这段游戏代码。它们通常可以一起使用，但一方可能会改变另一方所预期的结果。',
         harmless: '两个模组都只是在这段游戏代码之前或之后加入自己的代码，很少引起问题。'
       },
       effect: { before: '在它之前运行', after: '在它之后运行', skip: '可以跳过它', rewrite: '改写了它' },
@@ -165,12 +171,13 @@
     rows: [],
     modNote: null,
     notesAsked: {},
+    changelogAsked: {},
     icons: {},
     banners: {},
     items: null,
     picker: null,
     openAdvanced: {},
-    conflicts: false,
+    side: '',
     rail: {},
     copied: null,
     showLibraries: false
@@ -462,7 +469,7 @@
 #slmm .rel[data-mod]:hover { border-color: var(--amber); color: #fff; }
 #slmm .rel i { font-style: normal; font-family: var(--mono); font-size: .72rem; color: #777; margin-left: 6px; }
 #slmm .rel u { text-decoration: none; font-family: var(--mono); font-size: .72rem; color: #9a8a60; margin-left: 6px; }
-#slmm .tab-cf { margin-left: auto; }
+#slmm .tab:not(.tab-x) + .tab-x { margin-left: auto; }
 #slmm .tab .rd { width: 7px; height: 7px; border-radius: 50%; }
 #slmm .rd.likely { background: var(--red); }
 #slmm .rd.may { background: #e8813a; }
@@ -472,8 +479,19 @@
 #slmm .railed .tab { padding: 8px 18px 8px 30px; font-size: .88rem; letter-spacing: 1.5px; justify-content: flex-start; }
 #slmm .railed .tab.on { background: rgba(235,163,8,0.07); }
 #slmm .railed .tab.on::after { left: 0; right: auto; top: 5px; bottom: 5px; width: 3px; height: auto; }
-#slmm .railed .tab-cf { margin: 10px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
-#slmm .railed .sets, #slmm .railed .cf { padding-left: 30px; }
+#slmm .railed .tab:not(.tab-x) + .tab-x { margin: 10px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
+#slmm .railed .sets, #slmm .railed .cf, #slmm .railed .cl { padding-left: 30px; }
+#slmm .cl { padding: 18px 40px 40px; max-width: 860px; color: #bbb; font-size: .92rem; line-height: 1.5; }
+#slmm .cl-note { color: #888; margin-bottom: 14px; }
+#slmm .cl-h { font-family: var(--mono); color: var(--teal); letter-spacing: 1px; margin: 18px 0 6px; }
+#slmm .cl-h.h1 { font-size: 1.05rem; color: var(--amber); }
+#slmm .cl-h.h2 { font-size: .95rem; }
+#slmm .cl-h.h3 { font-size: .85rem; color: #ccc; }
+#slmm .cl-li { position: relative; padding-left: 16px; margin: 3px 0; word-break: break-word; }
+#slmm .cl-li::before { content: '-'; position: absolute; left: 2px; color: #777; }
+#slmm .cl-p { margin: 6px 0; word-break: break-word; }
+#slmm .cl code { font-family: var(--mono); font-size: .85em; color: #ddd; background: rgba(255,255,255,0.06); padding: 0 4px; border-radius: 2px; }
+#slmm .cl b { color: #eee; }
 #slmm .cf { padding: 18px 40px 40px; }
 #slmm .cf-intro { font-size: .92rem; color: #999; line-height: 1.5; max-width: 760px; }
 #slmm .cf-sum { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
@@ -789,7 +807,7 @@
 
     if (names.indexOf(state.tab) < 0) state.tab = '';
 
-    if (!m.patchOverlaps.length) state.conflicts = false;
+    if (state.side === 'conflicts' && !m.patchOverlaps.length || state.side === 'changelog' && m.changelog.kind === 'none') state.side = '';
 
     const railKey = m.guid + '\n' + state.lang;
     const top = hero(m) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m);
@@ -797,6 +815,7 @@
 
     morph(pane, top + (state.rail[railKey] ? '<div class="railed">' + tabs(m, names) + '<div>' + body + '</div></div>' : tabs(m, names) + body));
     askForNotes(m);
+    askForChangelog(m);
 
     if (!state.rail[railKey] && tabsWrap()) {
       state.rail[railKey] = true;
@@ -819,6 +838,14 @@
 
     state.notesAsked[m.guid] = true;
     send('notes', [m.guid]);
+  }
+
+  // A changelog is fetched the first time its tab is opened.
+  function askForChangelog(m) {
+    if (state.side !== 'changelog' || m.changelog.kind !== 'notAsked' || state.changelogAsked[m.guid]) return;
+
+    state.changelogAsked[m.guid] = true;
+    send('changelog', [m.guid]);
   }
 
   // A mod whose switch now points the other way from how the game started it.
@@ -984,6 +1011,42 @@
     return html + '</div>';
   }
 
+  function changelogBody(m) {
+    const log = m.changelog;
+    const note = '<div class="cl-note">' + esc(word('changelogNote')) + '</div>';
+    const line = (text, title) => '<div class="cl"><div class="upd-line"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(text) + '</div></div>';
+
+    switch (log.kind) {
+      case 'ready': return log.text.trim() ? '<div class="cl">' + note + markdown(log.text) + '</div>' : line(word('changelogEmpty'), '');
+      case 'failed': return line(word('changelogFailed'), log.reason);
+      default: return line(word('changelogLoading'), '');
+    }
+  }
+
+  // Enough markdown for a changelog: headings, bullets (nested by indent) and paragraphs. Everything is escaped first.
+  function markdown(text) {
+    const html = [];
+
+    for (const raw of text.split('\n')) {
+      const heading = /^(#{1,6})\s+(.*)$/.exec(raw);
+      const bullet = /^(\s*)[-*+]\s+(.*)$/.exec(raw);
+
+      if (heading) html.push('<div class="cl-h h' + Math.min(heading[1].length, 3) + '">' + inline(heading[2].replace(/\s+#+\s*$/, '')) + '</div>');
+      else if (bullet) html.push('<div class="cl-li" style="margin-left:' + Math.min(Math.floor(bullet[1].length / 2), 4) * 16 + 'px">' + inline(bullet[2]) + '</div>');
+      else if (raw.trim() && !/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(raw)) html.push('<div class="cl-p">' + inline(raw.trim()) + '</div>');
+    }
+
+    return html.join('');
+  }
+
+  // Code spans, bold, and links shown as their text; the page opens no address from a changelog.
+  function inline(text) {
+    return esc(text)
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+  }
+
   function otherName(o) {
     const other = modByGuid(o.guid);
 
@@ -1086,23 +1149,29 @@
     return buttons.length ? '<div class="links">' + buttons.join('') + '</div>' : '';
   }
 
-  // A tab per settings section once there are two, and a Conflicts tab when other mods patch the same game code.
+  // A tab per settings section once there are two, then a Changelog tab when the mod names one the page can show,
+  // and a Conflicts tab when other mods patch the same game code.
   function tabs(m, names) {
     const hasConflicts = m.patchOverlaps.length > 0;
+    const hasChangelog = m.changelog.kind !== 'none';
 
-    if (names.length < 2 && !hasConflicts) return '';
+    if (names.length < 2 && !hasConflicts && !hasChangelog) return '';
 
-    const tab = (name, label, members) => '<div class="tab' + (!state.conflicts && state.tab === name ? ' on' : '') + '" data-tab="' + esc(name) + '">' + esc(label) + ' <i>' + members.length + '</i>' + (members.some(isChanged) ? '<span class="cd"></span>' : '') + '</div>';
+    const tab = (name, label, members) => '<div class="tab' + (!state.side && state.tab === name ? ' on' : '') + '" data-tab="' + esc(name) + '">' + esc(label) + ' <i>' + members.length + '</i>' + (members.some(isChanged) ? '<span class="cd"></span>' : '') + '</div>';
+    const sideTab = (side, inner) => '<div class="tab tab-x' + (state.side === side ? ' on' : '') + '" data-side="' + side + '">' + inner + '</div>';
     const shown = shownSettings(m);
     const sectionTabs = names.length < 2 ? '' : names.map(n => tab(n, n, shown.filter(s => s.section === n))).join('');
     const worst = ['likely', 'may', 'harmless'].find(risk => m.patchOverlaps.some(o => o.risk === risk));
-    const conflictsTab = hasConflicts ? '<div class="tab tab-cf' + (state.conflicts ? ' on' : '') + '" data-conflicts="1">' + esc(word('tabConflicts')) + ' <i>' + m.patchOverlaps.length + '</i><span class="rd ' + worst + '"></span></div>' : '';
+    const changelogTab = hasChangelog ? sideTab('changelog', esc(word('tabChangelog'))) : '';
+    const conflictsTab = hasConflicts ? sideTab('conflicts', esc(word('tabConflicts')) + ' <i>' + m.patchOverlaps.length + '</i><span class="rd ' + worst + '"></span>') : '';
 
-    return '<div class="tabs">' + tab('', word(names.length < 2 ? 'tabSettings' : 'tabAll'), shown) + sectionTabs + conflictsTab + '</div>';
+    return '<div class="tabs">' + tab('', word(names.length < 2 ? 'tabSettings' : 'tabAll'), shown) + sectionTabs + changelogTab + conflictsTab + '</div>';
   }
 
   function paneBody(m, names) {
-    if (state.conflicts) return conflictsBody(m);
+    if (state.side === 'conflicts') return conflictsBody(m);
+
+    if (state.side === 'changelog') return changelogBody(m);
 
     if (m.state === 'off') return notice('', word('offTitle'), word('offBody'));
 
@@ -1522,14 +1591,16 @@
 
     if (tab) {
       state.tab = tab.dataset.tab;
-      state.conflicts = false;
+      state.side = '';
       render();
 
       return;
     }
 
-    if (target.closest('[data-conflicts]')) {
-      state.conflicts = true;
+    const side = target.closest('[data-side]');
+
+    if (side) {
+      state.side = side.dataset.side;
       render();
 
       return;
@@ -1572,7 +1643,7 @@
     state.selected = guid;
     state.query = '';
     state.tab = '';
-    state.conflicts = false;
+    state.side = '';
     searchBox.value = '';
     render();
     pane.scrollTop = 0;

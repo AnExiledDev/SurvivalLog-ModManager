@@ -27,14 +27,15 @@ Open it with F10, or with the Mods button in the Esc menu or on the title screen
 - **Release notes since your version**: a mod's page shows the notes of every release since the version you have, newest first, not only the latest one.
 - **Roll back**: when an update replaced an older version, ROLL BACK TO (version) on the mod's page puts the old files back for the next game start. The newer files are kept in the backups folder too.
 - **Conflicts tab**: a mod's page lists the other mods that patch the same parts of the game, which parts, and what each mod does there. Each is marked by how likely the two are to get in each other's way:
-  - **Likely to clash**: both mods can skip or rewrite that game code, so one may undo what the other does.
-  - **May clash**: one mod can skip or rewrite it and the other adds to it. They often work together, but the addition may not get what it expects.
+  - **Likely to clash**: both mods rewrite that game code, so one may break what the other expects to find.
+  - **May clash**: at least one mod can skip or rewrite it. Skipping is how most mods change a game rule, so this is common, and they usually work together.
   - **Probably harmless**: both only add their own code before or after the game's. That rarely causes trouble.
 
   It is a guide for where to look when two mods misbehave while both are on, not proof of a problem.
+- **Changelog tab**: a mod whose CHANGELOG link points to a GitHub file page (`github.com/owner/repo/blob/branch/CHANGELOG.md`) or to any https `.md` or `.txt` file gets a CHANGELOG tab. It loads the changelog the first time you open the tab and shows it on the page, with headings, bullets, bold and code. It is the published file, so it can be ahead of the version you have.
 - **Many sections**: a mod with too many sections for one row of tabs lists them down the left side of its settings.
 
-The Mod Manager adds nothing to your save and does not edit game files. It writes the .cfg files of the mods whose settings you change, moves the DLLs of mods you turn on or off, and replaces the files of mods you update. Its only network use is GitHub: the update check, which asks for the latest release of each mod that names a repository, and the download when you click INSTALL UPDATE.
+The Mod Manager adds nothing to your save and does not edit game files. It writes the .cfg files of the mods whose settings you change, moves the DLLs of mods you turn on or off, and replaces the files of mods you update. Its only network use is the update check, which asks GitHub for the latest release of each mod that names a repository, the download when you click INSTALL UPDATE, and a mod's changelog when you open its CHANGELOG tab.
 
 ## Known issues and limits
 

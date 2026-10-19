@@ -145,6 +145,9 @@ internal sealed class ModsSession
             case PageCommand.Notes notes:
                 FetchNotes(notes.Guid);
                 break;
+            case PageCommand.Changelog changelog:
+                FetchChangelog(changelog.Guid);
+                break;
             case PageCommand.OpenUpdate openUpdate:
                 Open(UpdateFor(openUpdate.Guid)?.PageUrl);
                 break;
@@ -329,6 +332,14 @@ internal sealed class ModsSession
         if (_catalog.Mod(guid) is not { } mod || UpdateFor(guid) is not { } release) return;
 
         _checks.FetchNotes(release, mod.Version);
+        RefreshOpen();
+    }
+
+    private void FetchChangelog(string guid)
+    {
+        if (_catalog.Mod(guid) is not { } mod || Changelogs.TextUri(mod.Info.Link(LinkKind.Changelog)?.Url) is not { } changelog) return;
+
+        _checks.FetchChangelog(changelog);
         RefreshOpen();
     }
 

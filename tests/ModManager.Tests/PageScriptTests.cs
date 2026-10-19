@@ -186,6 +186,21 @@ public class PageScriptTests
         Assert.Equal("none", none.RootElement.GetProperty("rollback").GetProperty("kind").GetString());
     }
 
+    [Fact]
+    public void A_changelog_sends_its_state_with_the_text_or_why_it_failed()
+    {
+        using var ready = JsonDocument.Parse(PageScript.ModJson(Loaded() with { Changelog = new ChangelogState.Ready("## 1.0\n- \"First\" <b>") }));
+        using var failed = JsonDocument.Parse(PageScript.ModJson(Loaded() with { Changelog = new ChangelogState.Failed("offline") }));
+        using var asked = JsonDocument.Parse(PageScript.ModJson(Loaded() with { Changelog = new ChangelogState.NotAsked() }));
+        using var none = JsonDocument.Parse(PageScript.ModJson(Loaded()));
+
+        Assert.Equal("ready", ready.RootElement.GetProperty("changelog").GetProperty("kind").GetString());
+        Assert.Equal("## 1.0\n- \"First\" <b>", ready.RootElement.GetProperty("changelog").GetProperty("text").GetString());
+        Assert.Equal("offline", failed.RootElement.GetProperty("changelog").GetProperty("reason").GetString());
+        Assert.Equal("notAsked", asked.RootElement.GetProperty("changelog").GetProperty("kind").GetString());
+        Assert.Equal("none", none.RootElement.GetProperty("changelog").GetProperty("kind").GetString());
+    }
+
     [Theory]
     [InlineData("none")]
     [InlineData("checking")]

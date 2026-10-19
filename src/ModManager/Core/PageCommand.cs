@@ -50,6 +50,9 @@ public abstract record PageCommand
     /// <summary>Fetch the notes of the release this mod can update to. The page asks when it first shows the update.</summary>
     public sealed record Notes(string Guid) : PageCommand;
 
+    /// <summary>Fetch the mod's changelog. The page asks when the player first opens its CHANGELOG tab.</summary>
+    public sealed record Changelog(string Guid) : PageCommand;
+
     /// <summary>Open the page of the release this mod can update to. The address comes from GitHub's own redirect.</summary>
     public sealed record OpenUpdate(string Guid) : PageCommand;
 
@@ -97,6 +100,7 @@ public abstract record PageCommand
         ("switch", 3) when parts[2] is "0" or "1" => new Switch(parts[1], parts[2] == "1"),
         ("link", 3) when LinkKindOf(parts[2]) is { } kind => new OpenLink(parts[1], kind),
         ("notes", 2) => new Notes(parts[1]),
+        ("changelog", 2) => new Changelog(parts[1]),
         ("update", 2) => new OpenUpdate(parts[1]),
         ("install", 2) => new Install(parts[1]),
         ("installAll", 1) => new InstallAll(),

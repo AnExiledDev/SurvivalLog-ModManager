@@ -5,7 +5,8 @@
 - INSTALL ALL UPDATES at the top of the "Updates" filter installs every available update at once.
 - ROLL BACK TO (version): after an update, put the files it replaced back for the next start.
 - A mod's page shows the release notes of every release since your version, not only the latest.
-- A mod's page has a CONFLICTS tab listing the other mods that change the same game code, which parts, and what each mod does there. Each is marked LIKELY TO CLASH, MAY CLASH or PROBABLY HARMLESS, riskiest first.
+- A mod's page has a CONFLICTS tab listing the other mods that change the same game code, which parts, and what each mod does there. Each is marked LIKELY TO CLASH (both rewrite the game code), MAY CLASH (one can skip or rewrite it) or PROBABLY HARMLESS, riskiest first.
+- A mod that links its changelog gets a CHANGELOG tab next to CONFLICTS, which shows the changelog on the mod's page.
 - A mod's page shows the version range of each mod it needs, and marks an installed version outside that range as wrong version.
 - A mod's page lists the mods that need it (NEEDED BY) and the ones that can use it (USED BY (OPTIONAL)). A mod that needs it turns red while it is off.
 - A mod with too many sections for one row of tabs lists them down the left side of its settings instead.

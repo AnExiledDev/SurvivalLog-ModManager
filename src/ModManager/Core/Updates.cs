@@ -349,8 +349,12 @@ public sealed class UpdateBook
     private readonly Dictionary<string, NotesState> _notes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, InstallState> _installs = new(StringComparer.Ordinal);
     private readonly Dictionary<string, RollbackState> _rollbacks = new(StringComparer.Ordinal);
+    private readonly Dictionary<Uri, ChangelogState> _changelogs = new();
 
     public void Record(string repository, LatestRelease latest) => _latest[repository] = latest;
+
+    /// <summary>Changelogs are kept for the session whether or not update checks run again.</summary>
+    public void Record(Uri changelog, ChangelogState state) => _changelogs[changelog] = state;
 
     /// <param name="installedVersion">Notes list the releases since this version, so two installs of one repository can differ.</param>
     public void Record(LatestRelease.Found release, string installedVersion, NotesState notes) => _notes[NotesKey(release, installedVersion)] = notes;
@@ -369,6 +373,14 @@ public sealed class UpdateBook
 
     /// <summary>True once every check started has an answer; false while none were started.</summary>
     public bool IsSettled => _latest.Count > 0 && _latest.Values.All(latest => latest is not LatestRelease.Checking);
+
+    /// <param name="changelog">Where the mod's changelog is as text, or null when it names none the screen can read.</param>
+    public ChangelogState ChangelogOf(Uri? changelog)
+    {
+        if (changelog == null) return new ChangelogState.None();
+
+        return _changelogs.TryGetValue(changelog, out var state) ? state : new ChangelogState.NotAsked();
+    }
 
     public InstallState InstallOf(string guid) => _installs.TryGetValue(guid, out var install) ? install : new InstallState.None();
 

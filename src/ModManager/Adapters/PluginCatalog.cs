@@ -222,6 +222,7 @@ internal sealed class PluginCatalog
     {
         Install = _updates.InstallOf(mod.Guid),
         Rollback = mod.State is ModState.Loaded ? _updates.RollbackOf(mod.Guid, _backupVersions(mod.Guid), mod.Version) : new RollbackState.None(),
+        Changelog = _updates.ChangelogOf(Changelogs.TextUri(mod.Info.Link(LinkKind.Changelog)?.Url)),
         IsForOtherGame = !Core.GameVersion.IsMadeFor(mod.Info.GameVersions, GameVersion),
     };
 

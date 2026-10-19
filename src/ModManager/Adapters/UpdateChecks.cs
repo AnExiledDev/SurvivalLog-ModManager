@@ -67,6 +67,18 @@ internal sealed class UpdateChecks
         _ = Notes(run, release, installedVersion);
     }
 
+    /// <summary>
+    /// Fetches a changelog once per session; asking again while it loads, or after, does nothing. The answer is kept
+    /// when update checks stop or start again, since it does not depend on them.
+    /// </summary>
+    public void FetchChangelog(Uri changelog)
+    {
+        if (_book.ChangelogOf(changelog) is not ChangelogState.NotAsked) return;
+
+        _book.Record(changelog, new ChangelogState.Loading());
+        _ = Changelog(changelog);
+    }
+
     /// <summary>Main thread: records every answer that came in since the last call. True when anything changed.</summary>
     public bool TakeFinished()
     {
@@ -111,6 +123,18 @@ internal sealed class UpdateChecks
         });
     }
 
+    private async Task Changelog(Uri changelog)
+    {
+        var state = Changelogs.From(await Limited(() => Send(new HttpRequestMessage(HttpMethod.Get, changelog), true)).ConfigureAwait(false));
+
+        _finished.Enqueue(() =>
+        {
+            _book.Record(changelog, state);
+
+            if (state is ChangelogState.Failed failed) _log("could not load the changelog " + changelog + ": " + failed.Reason);
+        });
+    }
+
     private void Finish(int run, Action record) => _finished.Enqueue(() =>
     {
         if (run == _run) record();
@@ -144,6 +168,8 @@ internal sealed class UpdateChecks
     /// <summary>Every failure becomes an answer: nothing thrown here may reach the game.</summary>
     private async Task<HttpAnswer> Send(HttpRequestMessage request, bool isBodyWanted)
     {
+        var host = request.RequestUri?.Host ?? "the server";
+
         try
         {
             using (request)
@@ -156,11 +182,11 @@ internal sealed class UpdateChecks
         }
         catch (TaskCanceledException)
         {
-            return new HttpAnswer.Unreachable("GitHub did not answer within " + Timeout.TotalSeconds + " seconds");
+            return new HttpAnswer.Unreachable(host + " did not answer within " + Timeout.TotalSeconds + " seconds");
         }
         catch (Exception ex)
         {
-            return new HttpAnswer.Unreachable("could not reach GitHub: " + ex.Message);
+            return new HttpAnswer.Unreachable("could not reach " + host + ": " + ex.Message);
         }
     }
 

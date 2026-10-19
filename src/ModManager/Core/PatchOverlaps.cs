@@ -26,10 +26,13 @@ public enum PatchRisk
     /// <summary>Both only add code before or after the method.</summary>
     Harmless,
 
-    /// <summary>One can skip or rewrite the method, the other adds to it.</summary>
+    /// <summary>
+    /// At least one can skip or rewrite the method. Skipping is how most mods change a game rule, and two that skip
+    /// usually skip in different cases, so this alone is not counted as likely.
+    /// </summary>
     MayClash,
 
-    /// <summary>Both can skip or rewrite the method, so one may undo the other.</summary>
+    /// <summary>Both rewrite the method's code, so one may break what the other expects to find.</summary>
     LikelyClash,
 }
 
@@ -58,7 +61,7 @@ public sealed record PatchOverlap(string Guid, PatchRisk Risk, IReadOnlyList<Sha
 
 /// <summary>
 /// Which mods change the same game code, and whether that is likely to matter. Adding code before or after a method
-/// rarely clashes; two mods that can each skip or rewrite it often do. This is a guide for where to look, not proof.
+/// rarely clashes; two mods that both rewrite it often do. This is a guide for where to look, not proof.
 /// </summary>
 public static class PatchOverlaps
 {
@@ -84,14 +87,9 @@ public static class PatchOverlaps
 
     public static PatchRisk RiskOf(IReadOnlyCollection<PatchEffect> mine, IReadOnlyCollection<PatchEffect> theirs)
     {
-        var changes = (mine.Any(Changes) ? 1 : 0) + (theirs.Any(Changes) ? 1 : 0);
+        if (mine.Contains(PatchEffect.Rewrites) && theirs.Contains(PatchEffect.Rewrites)) return PatchRisk.LikelyClash;
 
-        return changes switch
-        {
-            0 => PatchRisk.Harmless,
-            1 => PatchRisk.MayClash,
-            _ => PatchRisk.LikelyClash,
-        };
+        return mine.Any(Changes) || theirs.Any(Changes) ? PatchRisk.MayClash : PatchRisk.Harmless;
     }
 
     private static bool Changes(PatchEffect effect) => effect is PatchEffect.CanSkip or PatchEffect.Rewrites;

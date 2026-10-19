@@ -94,6 +94,7 @@ public static class PageScript
         json.Append(",\"patchOverlaps\":").Append(List(mod.PatchOverlaps, OverlapJson));
         json.Append(",\"install\":").Append(InstallJson(mod.Install));
         json.Append(",\"rollback\":").Append(RollbackJson(mod.Rollback));
+        json.Append(",\"changelog\":").Append(ChangelogJson(mod.Changelog));
         json.Append(",\"switch\":").Append(SwitchJson(mod.Switch));
         json.Append(",\"update\":").Append(UpdateJson(mod.Update));
         json.Append(",\"hotkeys\":").Append(List(mod.Info.Hotkeys, hotkey => "{\"keys\":" + Str(hotkey.Keys) + ",\"en\":" + Str(hotkey.Label.English) + ",\"zh\":" + Str(hotkey.Label.Chinese) + "}"));
@@ -257,6 +258,16 @@ public static class PageScript
         NotesState.Busy => "{\"kind\":\"busy\"}",
         NotesState.Failed failed => "{\"kind\":\"failed\",\"reason\":" + Str(failed.Reason) + "}",
         _ => throw new ArgumentOutOfRangeException(nameof(notes), notes, null),
+    };
+
+    private static string ChangelogJson(ChangelogState changelog) => changelog switch
+    {
+        ChangelogState.None => "{\"kind\":\"none\"}",
+        ChangelogState.NotAsked => "{\"kind\":\"notAsked\"}",
+        ChangelogState.Loading => "{\"kind\":\"loading\"}",
+        ChangelogState.Ready ready => "{\"kind\":\"ready\",\"text\":" + Str(ready.Text) + "}",
+        ChangelogState.Failed failed => "{\"kind\":\"failed\",\"reason\":" + Str(failed.Reason) + "}",
+        _ => throw new ArgumentOutOfRangeException(nameof(changelog), changelog, null),
     };
 
     private static string RollbackJson(RollbackState rollback) => rollback switch

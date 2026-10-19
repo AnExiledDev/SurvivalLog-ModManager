@@ -73,6 +73,9 @@ public sealed record ModEntry(string Guid, string Name, string Version, string F
     /// <summary>Whether the mod can go back to the files its last update replaced. Only loaded mods offer it.</summary>
     public RollbackState Rollback { get; init; } = new RollbackState.None();
 
+    /// <summary>The changelog for the mod's CHANGELOG tab; None when it names no changelog the screen can read.</summary>
+    public ChangelogState Changelog { get; init; } = new ChangelogState.None();
+
     /// <summary>The other mods that patch some of the same game methods.</summary>
     public IReadOnlyList<PatchOverlap> PatchOverlaps { get; init; } = Array.Empty<PatchOverlap>();
 
