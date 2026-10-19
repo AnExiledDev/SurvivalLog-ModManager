@@ -102,6 +102,39 @@ public class ModSwitchTests
     }
 
     [Fact]
+    public void A_mod_whose_update_is_downloading_or_waiting_for_a_restart_cannot_be_switched()
+    {
+        var allowed = new ModSwitch.Allowed(true, Array.Empty<string>());
+
+        var whileInstalling = SwitchPlanner.HoldWhileFilesChange(allowed, new InstallState.Installing(), new RollbackState.None());
+        var afterInstall = SwitchPlanner.HoldWhileFilesChange(allowed, new InstallState.Installed("v1.1.0"), new RollbackState.Available("1.0.0"));
+        var afterRollback = SwitchPlanner.HoldWhileFilesChange(allowed, new InstallState.None(), new RollbackState.Done("1.0.0"));
+
+        Assert.Equal(new ModSwitch.Held(true), whileInstalling);
+        Assert.Equal(new ModSwitch.Held(true), afterInstall);
+        Assert.Equal(new ModSwitch.Held(true), afterRollback);
+    }
+
+    [Fact]
+    public void A_failed_install_or_rollback_changed_no_files_so_the_switch_stays_free()
+    {
+        var allowed = new ModSwitch.Allowed(false, new[] { "Child" });
+
+        Assert.Same(allowed, SwitchPlanner.HoldWhileFilesChange(allowed, new InstallState.Failed("no zip"), new RollbackState.Failed("1.0.0", "disk full")));
+        Assert.Same(allowed, SwitchPlanner.HoldWhileFilesChange(allowed, new InstallState.None(), new RollbackState.None()));
+    }
+
+    [Fact]
+    public void A_locked_or_immovable_mod_keeps_its_reason_during_an_update()
+    {
+        var locked = new ModSwitch.Locked(true, Array.Empty<string>());
+        var unavailable = new ModSwitch.Unavailable();
+
+        Assert.Same(locked, SwitchPlanner.HoldWhileFilesChange(locked, new InstallState.Installing(), new RollbackState.None()));
+        Assert.Same(unavailable, SwitchPlanner.HoldWhileFilesChange(unavailable, new InstallState.Installed("v2"), new RollbackState.None()));
+    }
+
+    [Fact]
     public void The_plugins_folder_itself_is_not_a_DLL_to_move()
     {
         Assert.Null(Folders.OffPath(Plugins));

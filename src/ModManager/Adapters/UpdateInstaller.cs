@@ -91,59 +91,13 @@ internal sealed class UpdateInstaller
         var backup = _shelf.FolderOf(mod.Guid, version);
         var aside = _shelf.FolderOf(mod.Guid, diskVersion);
         var (steps, problem) = RollbackPlan.For(Path.GetDirectoryName(dllPath) ?? ".", Path.GetFileName(dllPath), backup, _shelf.FilesIn(backup), _shelf.InstalledFiles(mod.Guid, diskVersion), aside);
-        var result = steps == null ? new RollbackState.Failed(version, problem ?? "there is nothing to roll back") : Restore(steps, version);
+        var result = steps == null ? new RollbackState.Failed(version, problem ?? "there is nothing to roll back") : FileSwap.Restore(DiskFiles.Instance, steps, version);
 
         _book.Record(mod.Guid, result);
 
         if (result is RollbackState.Done) _book.Record(mod.Guid, new InstallState.None());
 
         _log(result is RollbackState.Failed failed ? "could not roll " + mod.Guid + " back to " + version + ": " + failed.Reason : "rolled " + mod.Guid + " back to " + version + "; it is used from the next start, the files it replaced are in " + aside);
-    }
-
-    /// <summary>The backup is copied in beside the targets first, so a full disk changes nothing.</summary>
-    private static RollbackState Restore(RollbackSteps steps, string version)
-    {
-        var written = new List<string>();
-        var setAside = new List<FileStep>();
-        var placed = new List<string>();
-
-        try
-        {
-            foreach (var copy in steps.CopyBack)
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(copy.To) ?? ".");
-                File.Copy(copy.From, copy.To + ".rollback", true);
-                written.Add(copy.To + ".rollback");
-            }
-
-            foreach (var step in steps.SetAside.Where(step => File.Exists(step.From)))
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(step.To) ?? ".");
-
-                if (File.Exists(step.To)) File.Delete(step.To);
-
-                File.Move(step.From, step.To);
-                setAside.Add(step);
-            }
-
-            foreach (var copy in steps.CopyBack)
-            {
-                File.Move(copy.To + ".rollback", copy.To);
-                placed.Add(copy.To);
-            }
-        }
-        catch (Exception ex)
-        {
-            foreach (var target in placed) TryDelete(target);
-
-            foreach (var step in setAside) TryRun(() => File.Move(step.To, step.From));
-
-            foreach (var temporary in written) TryDelete(temporary);
-
-            return new RollbackState.Failed(version, ex.Message);
-        }
-
-        return new RollbackState.Done(version);
     }
 
     private async Task<InstallState> Install(string guid, LatestRelease.Found release, string dllPath, bool isSharedFolder, string backup)
@@ -168,61 +122,14 @@ internal sealed class UpdateInstaller
         if (files == null) return new InstallState.Failed(placeProblem ?? "nothing to install");
 
         var modFolder = Path.GetDirectoryName(dllPath) ?? ".";
+        var entryOf = files.ToDictionary(file => file.Target, file => file.EntryName);
 
-        Replace(zip, files, modFolder, backup);
+        FileSwap.Replace(DiskFiles.Instance, files.Select(file => file.Target).ToList(), (target, temporary) => zip.Entries.First(entry => entry.FullName == entryOf[target]).ExtractToFile(temporary, true), modFolder, backup);
 
         // Without the list a rollback still restores the replaced files; it only leaves files the update added.
         TryRun(() => _shelf.RecordInstalled(guid, release.Tag, files.Select(file => Path.GetRelativePath(modFolder, file.Target))));
 
         return new InstallState.Installed(release.Tag);
-    }
-
-    /// <summary>All new files are written beside their targets first, so a full disk or a bad entry changes nothing.</summary>
-    private static void Replace(ZipArchive zip, IReadOnlyList<PlacedFile> files, string modFolder, string backup)
-    {
-        var written = new List<string>();
-        var kept = new List<(string Target, string Backup)>();
-        var placed = new List<string>();
-
-        try
-        {
-            foreach (var file in files)
-            {
-                var temporary = file.Target + ".new";
-
-                Directory.CreateDirectory(Path.GetDirectoryName(file.Target) ?? ".");
-                zip.Entries.First(entry => entry.FullName == file.EntryName).ExtractToFile(temporary, true);
-                written.Add(temporary);
-            }
-
-            foreach (var file in files.Where(file => File.Exists(file.Target)))
-            {
-                var copy = Path.Combine(backup, Path.GetRelativePath(modFolder, file.Target));
-
-                Directory.CreateDirectory(Path.GetDirectoryName(copy) ?? ".");
-
-                if (File.Exists(copy)) File.Delete(copy);
-
-                File.Move(file.Target, copy);
-                kept.Add((file.Target, copy));
-            }
-
-            foreach (var file in files)
-            {
-                File.Move(file.Target + ".new", file.Target);
-                placed.Add(file.Target);
-            }
-        }
-        catch
-        {
-            foreach (var target in placed) TryDelete(target);
-
-            foreach (var (target, copy) in kept) TryRun(() => File.Move(copy, target));
-
-            foreach (var temporary in written) TryDelete(temporary);
-
-            throw;
-        }
     }
 
     private async Task<(byte[] Body, string? Problem)> Get(Uri uri)
@@ -278,8 +185,6 @@ internal sealed class UpdateInstaller
         }
     }
 
-    private static void TryDelete(string path) => TryRun(() => File.Delete(path));
-
     private static void TryRun(Action action)
     {
         try
@@ -288,7 +193,7 @@ internal sealed class UpdateInstaller
         }
         catch
         {
-            // Best effort: restoring after a failure, or writing the list of installed files.
+            // Best effort: without the list of installed files a rollback still works.
         }
     }
 }

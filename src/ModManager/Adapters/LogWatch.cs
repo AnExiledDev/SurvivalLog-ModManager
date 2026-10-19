@@ -29,6 +29,7 @@ internal sealed class LogWatch : ILogListener
     private readonly string _startLine;
     private readonly Action<string> _log;
     private int _waitingCount;
+    private int _lost;
     private int _fileTries;
     private bool _hasReadEarlier;
 
@@ -55,6 +56,7 @@ internal sealed class LogWatch : ILogListener
             if (Interlocked.Increment(ref _waitingCount) > MaxWaiting)
             {
                 Interlocked.Decrement(ref _waitingCount);
+                Interlocked.Increment(ref _lost);
 
                 return;
             }
@@ -79,6 +81,8 @@ internal sealed class LogWatch : ILogListener
             Interlocked.Decrement(ref _waitingCount);
             Book.Add(logged);
         }
+
+        Book.AddLost(Interlocked.Exchange(ref _lost, 0));
     }
 
     public void Dispose()

@@ -247,13 +247,20 @@ internal sealed class PluginCatalog
         return Finish(new ModEntry(plugin.Guid, plugin.Name, plugin.Version, Path.GetFileName(off.Path), new ModState.Off(), info, modSwitch, _updates.StateOf(info.UpdateRepository, plugin.Version)));
     }
 
-    private ModEntry Finish(ModEntry mod) => mod with
+    private ModEntry Finish(ModEntry mod)
     {
-        Install = _updates.InstallOf(mod.Guid),
-        Rollback = mod.State is ModState.Loaded ? _updates.RollbackOf(mod.Guid, _backupVersions(mod.Guid), mod.Version) : new RollbackState.None(),
-        Changelog = _updates.ChangelogOf(Changelogs.TextUri(mod.Info.Link(LinkKind.Changelog)?.Url)),
-        IsForOtherGame = !Core.GameVersion.IsMadeFor(mod.Info.GameVersions, GameVersion),
-    };
+        var install = _updates.InstallOf(mod.Guid);
+        var rollback = mod.State is ModState.Loaded ? _updates.RollbackOf(mod.Guid, _backupVersions(mod.Guid), mod.Version) : new RollbackState.None();
+
+        return mod with
+        {
+            Switch = SwitchPlanner.HoldWhileFilesChange(mod.Switch, install, rollback),
+            Install = install,
+            Rollback = rollback,
+            Changelog = _updates.ChangelogOf(Changelogs.TextUri(mod.Info.Link(LinkKind.Changelog)?.Url)),
+            IsForOtherGame = !Core.GameVersion.IsMadeFor(mod.Info.GameVersions, GameVersion),
+        };
+    }
 
     /// <summary>Reads the range the way BepInEx does; a range or version it cannot read is not held against the mod.</summary>
     private static bool IsInRange(string version, string range)

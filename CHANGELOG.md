@@ -13,6 +13,11 @@
 - A mod with too many sections for one row of tabs lists them down the left side of its settings instead.
 - Changing the view redraws only what changed, so the screen no longer flashes and replays its fade-in on every click.
 - Fixed: a mod with an optional dependency lost its name, description, links and relations on the Mods screen, because its dependency could not be read.
+- Fixed: a mod could be turned off while its update was downloading, which left its old and new DLLs in different folders and blocked ROLL BACK. While an update downloads, and after an install or rollback until the next start, the mod's switch is locked.
+- Fixed: during a burst of errors too fast to read, the count of errors not shown left out the ones that were skipped.
+- Update checks and changelogs read at most 4 MB from a server, so a broken changelog link cannot fill the game's memory.
+- The Mod Manager's own entry shows its name in Chinese, the game version it was made for, and a link to this changelog.
+- The Chinese description of the open key names the 「模组」 button as the game shows it in Chinese.
 
 ## 0.5.0
 
@@ -32,7 +37,6 @@
 - Shared libraries sit in a folded "Libraries" group at the bottom of the list.
 - Mods can opt out of update checks, and a mod's GitHub repository is found from its `RepositoryUrl` when it does not name one.
 - The title-screen button reads "Mods", to match the other buttons there.
-- The Mod Manager's own entry shows its name in Chinese and the game version it was made for.
 - Needs Exiled's Toolkit 0.4.0 or later.
 
 ## 0.3.0

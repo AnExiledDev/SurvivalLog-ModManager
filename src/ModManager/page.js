@@ -31,7 +31,7 @@
       groupOff: 'Off', offSub: 'off', statusOff: 'OFF', statusRequired: 'REQUIRED', pipRestart: 'RESTART',
       switchOnHint: 'turning it off applies next start', switchOffHint: 'turning it on applies next start',
       offNext: 'off from the next start', onNext: 'on from the next start',
-      lockedSelf: 'this is the Mod Manager', lockedNeeded: 'the Mod Manager needs it', cannotMove: 'its DLL is outside the plugins folder',
+      lockedSelf: 'this is the Mod Manager', lockedNeeded: 'the Mod Manager needs it', cannotMove: 'its DLL is outside the plugins folder', heldUntilRestart: 'its files change at the next start; restart first',
       by: 'by', neededBy: list => 'Needed by ' + list, linkNexus: 'NEXUS', linkGithub: 'GITHUB', linkWebsite: 'WEBSITE',
       offTitle: 'Turned off.', offBody: 'Its DLL is in a folder BepInEx skips, so it did not start and its settings cannot be shown. Its settings file is kept.',
       pendingOffTitle: 'Off from the next start.', pendingOffBody: 'It keeps running until you restart the game.',
@@ -109,7 +109,7 @@
       groupOff: '已关闭', offSub: '已关闭', statusOff: '已关闭', statusRequired: '必需', pipRestart: '重启',
       switchOnHint: '关闭将在下次启动时生效', switchOffHint: '开启将在下次启动时生效',
       offNext: '下次启动时关闭', onNext: '下次启动时开启',
-      lockedSelf: '这就是模组管理器', lockedNeeded: '模组管理器需要它', cannotMove: '它的 DLL 不在 plugins 文件夹中',
+      lockedSelf: '这就是模组管理器', lockedNeeded: '模组管理器需要它', cannotMove: '它的 DLL 不在 plugins 文件夹中', heldUntilRestart: '它的文件将在下次启动时更换，请先重启游戏',
       by: '作者', neededBy: list => '被以下模组需要：' + list, linkNexus: 'NEXUS', linkGithub: 'GITHUB', linkWebsite: '网站',
       offTitle: '已关闭。', offBody: '它的 DLL 在 BepInEx 会跳过的文件夹中，所以没有启动，也无法显示设置。它的设置文件会保留。',
       pendingOffTitle: '下次启动时关闭。', pendingOffBody: '在重启游戏之前它会继续运行。',
@@ -247,7 +247,7 @@
 
   // Whether the mod will run from the next start, which is when what it needs has to be there.
   function isOnNext(m) {
-    if (m.switch.kind === 'allowed') return m.switch.next;
+    if (m.switch.kind === 'allowed' || m.switch.kind === 'held') return m.switch.next;
 
     return m.switch.kind === 'locked' || m.state !== 'off';
   }
@@ -955,6 +955,8 @@
 
         return box(stateWord(m), small, !m.loaded, toggle(sw.next, false), '');
       }
+      case 'held':
+        return box(stateWord(m), word('heldUntilRestart'), !m.loaded, toggle(sw.next, true), '');
       case 'locked':
         return box(word('statusRequired'), word(sw.self ? 'lockedSelf' : 'lockedNeeded'), false, toggle(true, true), sw.neededBy.length ? word('neededBy')(sw.neededBy.join(', ')) : '');
       default:

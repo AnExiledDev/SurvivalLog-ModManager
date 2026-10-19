@@ -243,6 +243,7 @@ public static class PageScript
     {
         ModSwitch.Allowed allowed => "{\"kind\":\"allowed\",\"next\":" + Bool(allowed.IsOnNextStart) + ",\"stops\":" + List(allowed.AlsoStops, Str) + "}",
         ModSwitch.Locked locked => "{\"kind\":\"locked\",\"self\":" + Bool(locked.IsModManager) + ",\"neededBy\":" + List(locked.NeededBy, Str) + "}",
+        ModSwitch.Held held => "{\"kind\":\"held\",\"next\":" + Bool(held.IsOnNextStart) + "}",
         ModSwitch.Unavailable => "{\"kind\":\"none\"}",
         _ => throw new ArgumentOutOfRangeException(nameof(modSwitch), modSwitch, null),
     };

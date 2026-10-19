@@ -45,10 +45,19 @@ public sealed class ProblemBook
     /// <summary>Goes up with every event kept, so a screen that is open knows when to redraw.</summary>
     public int Version { get; private set; }
 
-    /// <summary>New kinds of problem seen after the cap was reached.</summary>
+    /// <summary>New kinds of problem seen after the cap was reached, and events lost unread in a storm.</summary>
     public int Dropped { get; private set; }
 
     public IReadOnlyList<Problem> All() => _problems.OrderByDescending(problem => problem.LastSeen).ToList();
+
+    /// <summary>Events lost before they could be read, in a storm too fast to queue. They are not shown, so they count.</summary>
+    public void AddLost(int count)
+    {
+        if (count <= 0) return;
+
+        Dropped += count;
+        Version++;
+    }
 
     public void Add(LoggedEvent logged)
     {

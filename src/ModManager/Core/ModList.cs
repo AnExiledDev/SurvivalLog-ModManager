@@ -92,6 +92,7 @@ public sealed record ModEntry(string Guid, string Name, string Version, string F
     public bool IsOnNextStart => Switch switch
     {
         ModSwitch.Allowed allowed => allowed.IsOnNextStart,
+        ModSwitch.Held held => held.IsOnNextStart,
         ModSwitch.Locked => true,
         _ => State is not ModState.Off,
     };

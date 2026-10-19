@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using ModManager.Core;
@@ -17,6 +19,9 @@ internal sealed class UpdateChecks
 {
     private const int AtOnce = 4;
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>A changelog link can name any https server, so an answer is read only this far; GitHub's answers are far smaller.</summary>
+    private const int MaxBodyChars = 4 * 1024 * 1024;
 
     private readonly HttpClient _client;
     private readonly SemaphoreSlim _slots = new(AtOnce);
@@ -175,7 +180,7 @@ internal sealed class UpdateChecks
             using (request)
             using (var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false))
             {
-                var body = isBodyWanted ? await response.Content.ReadAsStringAsync().ConfigureAwait(false) : "";
+                var body = isBodyWanted ? await ReadCapped(response.Content).ConfigureAwait(false) : "";
 
                 return new HttpAnswer.Answered((int)response.StatusCode, response.Headers.Location?.OriginalString, body);
             }
@@ -188,6 +193,19 @@ internal sealed class UpdateChecks
         {
             return new HttpAnswer.Unreachable("could not reach " + host + ": " + ex.Message);
         }
+    }
+
+    private static async Task<string> ReadCapped(HttpContent content)
+    {
+        using var stream = await content.ReadAsStreamAsync().ConfigureAwait(false);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var body = new StringBuilder();
+        var chunk = new char[16 * 1024];
+        int read;
+
+        while (body.Length < MaxBodyChars && (read = await reader.ReadAsync(chunk, 0, Math.Min(chunk.Length, MaxBodyChars - body.Length)).ConfigureAwait(false)) > 0) body.Append(chunk, 0, read);
+
+        return body.ToString();
     }
 
     private static string Describe(LatestRelease latest) => latest switch

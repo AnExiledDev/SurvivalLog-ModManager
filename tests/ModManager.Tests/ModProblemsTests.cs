@@ -74,6 +74,19 @@ public class ModProblemsTests
     }
 
     [Fact]
+    public void Events_lost_in_a_storm_count_as_not_shown_and_redraw_the_screen()
+    {
+        var book = new ProblemBook();
+
+        book.AddLost(12);
+        book.AddLost(0);
+
+        Assert.Equal(12, book.Dropped);
+        Assert.Equal(1, book.Version);
+        Assert.Empty(book.All());
+    }
+
+    [Fact]
     public void Every_kept_event_moves_the_version_so_an_open_screen_redraws()
     {
         var book = new ProblemBook();

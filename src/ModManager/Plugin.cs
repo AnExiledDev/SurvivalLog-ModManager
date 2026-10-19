@@ -24,7 +24,7 @@ public sealed class Plugin : BasePlugin
     {
         var openKey = Config.Bind("Menu", "OpenKey", KeyCode.F10,
             "The key that opens and closes the Mods screen. The Mods button in the Esc menu and on the title screen opens it too. Default: F10.\n" +
-            "打开和关闭「模组」界面的按键。Esc 菜单和标题画面中的「MODS」按钮也能打开它。默认 F10。");
+            "打开和关闭「模组」界面的按键。Esc 菜单和标题画面中的「模组」按钮也能打开它。默认 F10。");
         var checkForUpdates = Config.Bind("Updates", "CheckForUpdates", true,
             "Each time the game starts, ask GitHub whether mods that name a GitHub repository have a newer release. Only GitHub is contacted, and no account or key is needed. Default: on.\n" +
             "每次启动游戏时，向 GitHub 查询标明了 GitHub 仓库的模组是否有新版本。只会连接 GitHub，不需要账号或密钥。默认开启。");

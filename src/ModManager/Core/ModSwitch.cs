@@ -22,6 +22,12 @@ public abstract record ModSwitch
     /// <summary>Turning it off would stop the Mod Manager too, and with it the way to turn it back on.</summary>
     public sealed record Locked(bool IsModManager, IReadOnlyList<string> NeededBy) : ModSwitch;
 
+    /// <summary>
+    /// An update or rollback is replacing its files this session, so moving its DLL now could leave the old and new
+    /// copies in different folders. The switch waits for the next game start.
+    /// </summary>
+    public sealed record Held(bool IsOnNextStart) : ModSwitch;
+
     /// <summary>Its DLL is not in the plugins folder or a folder for turned-off plugins, so there is nothing to move.</summary>
     public sealed record Unavailable : ModSwitch;
 }
@@ -39,6 +45,12 @@ public static class SwitchPlanner
 
         return new ModSwitch.Allowed(isOnNextStart, names);
     }
+
+    /// <summary>A switch that could move the DLL is held while an install runs or waits for the next start, or after a rollback.</summary>
+    public static ModSwitch HoldWhileFilesChange(ModSwitch modSwitch, InstallState install, RollbackState rollback) =>
+        modSwitch is ModSwitch.Allowed allowed && (install is InstallState.Installing or InstallState.Installed || rollback is RollbackState.Done)
+            ? new ModSwitch.Held(allowed.IsOnNextStart)
+            : modSwitch;
 
     /// <summary>Every other plugin that will not start without the target: those that need it (directly or through another), and those in the same DLL.</summary>
     public static IReadOnlyList<PluginNode> StopsWith(PluginNode target, IReadOnlyList<PluginNode> plugins)

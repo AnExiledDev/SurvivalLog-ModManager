@@ -45,8 +45,8 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 - The Mod Manager and Exiled's Toolkit cannot be turned off here, since the screen needs them. Delete their DLLs to remove them.
 - A mod whose DLL is outside `BepInEx\plugins` cannot be turned on, off or updated here.
 - Update checks only cover mods that name a GitHub repository. INSTALL UPDATE needs the release to carry a .zip that holds the mod's DLL; otherwise use GET UPDATE and install it yourself.
-- An installed update is used from the next game start. Turning the mod off in the same session is refused until then.
-- A rollback is used from the next game start too, and one rollback per mod per session is allowed. A rollback only offers versions the Mod Manager backed up when it installed an update.
+- An installed update is used from the next game start. While it downloads, and from then until the next start, the mod cannot be turned on or off here.
+- A rollback is used from the next game start too, and locks the switch the same way. One rollback per mod per session is allowed. A rollback only offers versions the Mod Manager backed up when it installed an update.
 - The Conflicts tab only sees patches made with Harmony, which is what BepInEx mods use. It judges risk by the kind of patch, not by what the code inside does.
 - GitHub allows 60 requests an hour without an account. Past that, release notes and installs say to try again within the hour; the update itself is still shown.
 
@@ -76,7 +76,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.18902 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.4.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.6.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
@@ -84,6 +84,14 @@ Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.4.0 started`. If it says 
 - A mod's info values that do not fit are logged with the key and the reason.
 
 The same lines are in `BepInEx\mod-manager.log`, which survives restarts.
+
+## Feedback and bug reports
+
+Found a bug, have an idea, or something feels off? Come say so on the Core Directive Discord: https://discord.gg/trTsyxUFqg . You can also post in the Posts tab of the mod's Nexus Mods page. When reporting a bug, attach `BepInEx\LogOutput.log` and `BepInEx\mod-manager.log`, or use COPY MOD LIST on the Mods screen and paste the list.
+
+To reach me directly, message `exiled.dev` on Discord; you can find me in the [official Survival Log Discord](https://discord.gg/MZGg4gQAUe). I'm also on X as [@AnExiledDev](https://x.com/AnExiledDev).
+
+A Survival Log wiki with detailed documentation for all of my mods is coming soon.
 
 ## For mod authors
 

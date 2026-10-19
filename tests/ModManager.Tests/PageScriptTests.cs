@@ -139,6 +139,18 @@ public class PageScriptTests
     }
 
     [Fact]
+    public void A_held_switch_tells_the_page_where_the_mod_stands_next_start()
+    {
+        var held = new ModEntry("g", "Mod", "1.0", "Mod.dll", new ModState.Loaded(System.Array.Empty<Setting>()), ModInfo.None, new ModSwitch.Held(true), NotChecked);
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(held));
+
+        Assert.Equal("held", json.RootElement.GetProperty("switch").GetProperty("kind").GetString());
+        Assert.True(json.RootElement.GetProperty("switch").GetProperty("next").GetBoolean());
+        Assert.True(held.IsOnNextStart);
+    }
+
+    [Fact]
     public void An_update_sends_its_tag_and_notes_but_never_the_release_address()
     {
         var notes = new NotesState.Ready(new[] { new ReleaseNote("v1.2.0", "Fixed things."), new ReleaseNote("v1.1.0", "New map.") });
