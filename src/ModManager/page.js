@@ -51,7 +51,9 @@
       pipOtherGame: 'VERSION', otherGameTitle: 'Made for another game version.',
       otherGameBody: (built, game) => 'It was made for ' + built + (game ? ' and this game is ' + game : '') + '. It may not work as expected.',
       relNeeds: 'NEEDS', relWorksWith: 'WORKS WITH (OPTIONAL)', relNot: 'DOES NOT WORK WITH',
-      relStatus: { missing: 'not installed', on: 'on', off: 'off' },
+      relNeededBy: 'NEEDED BY', relUsedBy: 'USED BY (OPTIONAL)', hasVersion: (have, range) => have + ', needs ' + range,
+      relStopsThem: 'Needs this mod, so it will not start while this one is off',
+      relStatus: { missing: 'not installed', on: 'on', off: 'off', wrongVersion: 'wrong version' },
       tabSettings: 'Settings', tabConflicts: 'Conflicts', thisMod: 'This mod',
       conflictsIntro: 'Other mods that patch the same game code as this one. It is a guide for where to look when mods misbehave together, not proof of a problem. If two mods act up while both are on, try turning one off.',
       risk: { likely: 'LIKELY TO CLASH', may: 'MAY CLASH', harmless: 'PROBABLY HARMLESS' },
@@ -63,7 +65,7 @@
       effect: { before: 'runs before it', after: 'runs after it', skip: 'can skip it', rewrite: 'rewrites it' },
       sharedCount: n => n === 1 ? '1 shared' : n + ' shared',
       moreMethods: n => 'and ' + n + ' more',
-      needsProblem: list => 'It needs these, which are off or not installed, so it will not start: ' + list + '.',
+      needsProblem: list => 'It needs these, which are off, not installed or the wrong version, so it will not start: ' + list + '.',
       clashProblem: list => 'It does not work with these, which are on, so it will not start: ' + list + '.',
       turnOnNeeds: 'TURN ON WHAT IT NEEDS',
       installUpdate: 'INSTALL UPDATE', tryAgain: 'TRY AGAIN', installing: 'Installing the update.',
@@ -118,7 +120,9 @@
       pipOtherGame: '版本', otherGameTitle: '为其他游戏版本制作。',
       otherGameBody: (built, game) => '它是为 ' + built + ' 制作的' + (game ? '，当前游戏是 ' + game : '') + '。它可能无法正常工作。',
       relNeeds: '需要', relWorksWith: '可配合（可选）', relNot: '不兼容',
-      relStatus: { missing: '未安装', on: '已开启', off: '已关闭' },
+      relNeededBy: '被这些模组需要', relUsedBy: '可被这些模组使用（可选）', hasVersion: (have, range) => have + '，需要 ' + range,
+      relStopsThem: '它需要本模组，本模组关闭时它不会启动',
+      relStatus: { missing: '未安装', on: '已开启', off: '已关闭', wrongVersion: '版本不符' },
       tabSettings: '设置', tabConflicts: '冲突', thisMod: '本模组',
       conflictsIntro: '与本模组修改了相同游戏代码的其他模组。这只是模组一起出问题时的排查线索，不代表一定有问题。如果两个模组同时开启时出现异常，试着关闭其中一个。',
       risk: { likely: '很可能冲突', may: '可能冲突', harmless: '大概无害' },
@@ -130,7 +134,7 @@
       effect: { before: '在它之前运行', after: '在它之后运行', skip: '可以跳过它', rewrite: '改写了它' },
       sharedCount: n => '共用 ' + n + ' 处',
       moreMethods: n => '另外 ' + n + ' 处',
-      needsProblem: list => '它需要的以下模组已关闭或未安装，所以它不会启动：' + list + '。',
+      needsProblem: list => '它需要的以下模组已关闭、未安装或版本不符，所以它不会启动：' + list + '。',
       clashProblem: list => '它与以下已开启的模组不兼容，所以它不会启动：' + list + '。',
       turnOnNeeds: '开启它需要的模组',
       installUpdate: '安装更新', tryAgain: '重试', installing: '正在安装更新。',
@@ -457,6 +461,7 @@
 #slmm .rel[data-mod] { cursor: pointer; }
 #slmm .rel[data-mod]:hover { border-color: var(--amber); color: #fff; }
 #slmm .rel i { font-style: normal; font-family: var(--mono); font-size: .72rem; color: #777; margin-left: 6px; }
+#slmm .rel u { text-decoration: none; font-family: var(--mono); font-size: .72rem; color: #9a8a60; margin-left: 6px; }
 #slmm .tab-cf { margin-left: auto; }
 #slmm .tab .rd { width: 7px; height: 7px; border-radius: 50%; }
 #slmm .rd.likely { background: var(--red); }
@@ -847,22 +852,36 @@
     return '<div class="notice warn"><span class="ico">!</span><div><b>' + esc(word('otherGameTitle')) + '</b> ' + esc(word('otherGameBody')(m.builtFor.join(' / '), state.view.game)) + '</div></div>';
   }
 
-  // What the mod declares it needs, works with, or clashes with, and whether each will be there at the next start.
+  // What the mod declares it needs, works with, or clashes with, and the mods that need or use it in turn, each with whether it will be there at the next start.
   function relations(m) {
-    if (!m.relations.length) return '';
+    if (!m.relations.length && !m.dependents.length) return '';
 
-    const kinds = [['needs', 'relNeeds'], ['worksWith', 'relWorksWith'], ['doesNotWorkWith', 'relNot']];
     const isBad = r => (r.kind === 'needs' && r.status !== 'on') || (r.kind === 'doesNotWorkWith' && r.status === 'on');
-    const chip = r => '<span class="rel' + (isBad(r) && isOnNext(m) ? ' bad' : '') + '"' + (r.status === 'missing' ? '' : ' data-mod="' + esc(r.guid) + '"') + '>' + esc(relationName(r)) + '<i>' + esc(word('relStatus')[r.status]) + '</i></span>';
+    const stopsDependent = r => r.kind === 'needs' && r.status === 'on' && !isOnNext(m);
+    const groups = [
+      [m.relations, 'needs', 'relNeeds', r => isBad(r) && isOnNext(m), () => ''],
+      [m.relations, 'worksWith', 'relWorksWith', () => false, () => ''],
+      [m.relations, 'doesNotWorkWith', 'relNot', r => isBad(r) && isOnNext(m), () => ''],
+      [m.dependents, 'needs', 'relNeededBy', stopsDependent, r => stopsDependent(r) ? word('relStopsThem') : ''],
+      [m.dependents, 'worksWith', 'relUsedBy', () => false, () => '']
+    ];
     let html = '';
 
-    for (const [kind, label] of kinds) {
-      const members = m.relations.filter(r => r.kind === kind);
+    for (const [list, kind, label, bad, title] of groups) {
+      const members = list.filter(r => r.kind === kind);
 
-      if (members.length) html += '<div class="rel-h">' + esc(word(label)) + '</div><div class="rel-items">' + members.map(chip).join('') + '</div>';
+      if (members.length) html += '<div class="rel-h">' + esc(word(label)) + '</div><div class="rel-items">' + members.map(r => relationChip(r, bad(r), title(r))).join('') + '</div>';
     }
 
     return '<div class="rels">' + html + '</div>';
+  }
+
+  // The other mod's name, the version range it must be in (with the installed version when outside it), and its state.
+  function relationChip(r, isBad, title) {
+    const other = modByGuid(r.guid);
+    const range = !r.range ? '' : '<u>' + esc(r.status === 'wrongVersion' && other ? word('hasVersion')(other.version, r.range) : r.range) + '</u>';
+
+    return '<span class="rel' + (isBad ? ' bad' : '') + '"' + (title ? ' title="' + esc(title) + '"' : '') + (r.status === 'missing' ? '' : ' data-mod="' + esc(r.guid) + '"') + '>' + esc(relationName(r)) + range + '<i>' + esc(word('relStatus')[r.status]) + '</i></span>';
   }
 
   // The Conflicts tab: other mods whose Harmony patches change the same game methods, grouped by how likely they are to clash.

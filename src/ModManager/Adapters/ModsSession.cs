@@ -290,6 +290,7 @@ internal sealed class ModsSession
         var turnedOn = new List<string>();
         var failed = new List<string>();
         var missing = new List<string>();
+        var wrongVersion = new List<string>();
         var visited = new HashSet<string> { guid };
         var waiting = new Queue<string>(new[] { guid });
 
@@ -297,15 +298,16 @@ internal sealed class ModsSession
         {
             if (_catalog.Mod(waiting.Dequeue()) is not { } mod) continue;
 
-            var (turnOn, notInstalled) = RelationResolver.Needed(mod.Relations);
+            var needed = RelationResolver.Needed(mod.Relations);
 
-            missing.AddRange(notInstalled.Where(name => !missing.Contains(name)));
+            missing.AddRange(needed.Missing.Where(name => !missing.Contains(name)));
+            wrongVersion.AddRange(needed.WrongVersion.Where(name => !wrongVersion.Contains(name)));
 
-            foreach (var needed in turnOn.Where(visited.Add))
+            foreach (var other in needed.TurnOn.Where(visited.Add))
             {
-                var name = _catalog.Mod(needed)?.DisplayName ?? needed;
+                var name = _catalog.Mod(other)?.DisplayName ?? other;
 
-                if (_catalog.Switch(needed, true).IsWarning)
+                if (_catalog.Switch(other, true).IsWarning)
                 {
                     failed.Add(name);
 
@@ -313,13 +315,13 @@ internal sealed class ModsSession
                 }
 
                 turnedOn.Add(name);
-                waiting.Enqueue(needed);
+                waiting.Enqueue(other);
             }
         }
 
-        var isWarning = failed.Count > 0 || missing.Count > 0;
+        var isWarning = failed.Count > 0 || missing.Count > 0 || wrongVersion.Count > 0;
 
-        _page.Run(PageScript.Replace(View(), new ModNote(guid, isWarning, NeedsNotes.TurnedOn(turnedOn, missing, failed))));
+        _page.Run(PageScript.Replace(View(), new ModNote(guid, isWarning, NeedsNotes.TurnedOn(turnedOn, missing, failed, wrongVersion))));
     }
 
     private void FetchNotes(string guid)

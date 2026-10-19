@@ -65,6 +65,9 @@ public sealed record ModEntry(string Guid, string Name, string Version, string F
     /// <summary>The mods it needs, works with, or does not work with, and whether each will be there at the next start.</summary>
     public IReadOnlyList<Relation> Relations { get; init; } = Array.Empty<Relation>();
 
+    /// <summary>The other mods that need it or can use it, and whether each runs at the next start.</summary>
+    public IReadOnlyList<Relation> Dependents { get; init; } = Array.Empty<Relation>();
+
     public InstallState Install { get; init; } = new InstallState.None();
 
     /// <summary>Whether the mod can go back to the files its last update replaced. Only loaded mods offer it.</summary>

@@ -285,6 +285,25 @@ public class PageScriptTests
     }
 
     [Fact]
+    public void A_mod_sends_the_version_range_it_needs_and_the_mods_that_depend_on_it()
+    {
+        var mod = Loaded() with
+        {
+            Relations = new[] { new Relation(RelationKind.Needs, "t", "Toolkit", RelationStatus.WrongVersion, false, ">=0.4.0"), new Relation(RelationKind.WorksWith, "s", "Stacking", RelationStatus.On, true) },
+            Dependents = new[] { new Relation(RelationKind.Needs, "c", "Crafting", RelationStatus.On, false) },
+        };
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(mod));
+        var root = json.RootElement;
+
+        Assert.Equal("wrongVersion", root.GetProperty("relations")[0].GetProperty("status").GetString());
+        Assert.Equal(">=0.4.0", root.GetProperty("relations")[0].GetProperty("range").GetString());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("relations")[1].GetProperty("range").ValueKind);
+        Assert.Equal("c", root.GetProperty("dependents")[0].GetProperty("guid").GetString());
+        Assert.Equal("needs", root.GetProperty("dependents")[0].GetProperty("kind").GetString());
+    }
+
+    [Fact]
     public void A_mod_without_a_category_sends_null()
     {
         using var json = JsonDocument.Parse(PageScript.ModJson(Loaded()));

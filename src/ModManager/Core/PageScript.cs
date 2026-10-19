@@ -90,6 +90,7 @@ public static class PageScript
         json.Append(",\"builtFor\":").Append(List(mod.Info.GameVersions, Str));
         json.Append(",\"otherGame\":").Append(Bool(mod.IsForOtherGame));
         json.Append(",\"relations\":").Append(List(mod.Relations, RelationJson));
+        json.Append(",\"dependents\":").Append(List(mod.Dependents, RelationJson));
         json.Append(",\"patchOverlaps\":").Append(List(mod.PatchOverlaps, OverlapJson));
         json.Append(",\"install\":").Append(InstallJson(mod.Install));
         json.Append(",\"rollback\":").Append(RollbackJson(mod.Rollback));
@@ -203,10 +204,11 @@ public static class PageScript
             RelationStatus.Missing => "missing",
             RelationStatus.On => "on",
             RelationStatus.Off => "off",
+            RelationStatus.WrongVersion => "wrongVersion",
             _ => throw new ArgumentOutOfRangeException(nameof(relation), relation.Status, null),
         };
 
-        return "{\"kind\":" + Str(kind) + ",\"guid\":" + Str(relation.Guid) + ",\"name\":" + Str(relation.Name) + ",\"status\":" + Str(status) + ",\"canTurnOn\":" + Bool(relation.CanTurnOn) + "}";
+        return "{\"kind\":" + Str(kind) + ",\"guid\":" + Str(relation.Guid) + ",\"name\":" + Str(relation.Name) + ",\"status\":" + Str(status) + ",\"canTurnOn\":" + Bool(relation.CanTurnOn) + ",\"range\":" + (relation.Range == null ? "null" : Str(relation.Range)) + "}";
     }
 
     private static string InstallJson(InstallState install) => install switch

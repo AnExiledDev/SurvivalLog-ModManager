@@ -19,7 +19,7 @@ Open it with F10, or with the Mods button in the Esc menu or on the title screen
 - **English and Chinese**: the screen follows the game's language, and the language switch at the top changes it. Mod names and descriptions written in both languages show the matching one.
 - **Open the .cfg folder**: a button opens Explorer with the mod's .cfg file selected.
 - **Turn mods on or off**: the switch at the top of a mod's page moves its DLL out of `BepInEx\plugins` into `BepInEx\disabled-plugins` (or back). The change applies at the next game start, and the screen marks mods waiting for a restart. Turned-off mods stay in the list under "Off", and their settings files are kept. Turning a mod off also lists the mods that need it, since they will not start either. Mods in `BepInEx\plugins-disabled` are listed too and can be turned back on.
-- **What a mod needs**: a mod's page lists the mods it needs, the ones it works with when present, and the ones it does not work with, each marked on, off or not installed. When something it needs is off, a TURN ON WHAT IT NEEDS button turns those on for the next start, along with whatever they need in turn, and names any that are not installed.
+- **What a mod needs**: a mod's page lists the mods it needs, the ones it works with when present, and the ones it does not work with, each marked on, off, not installed or wrong version, with the version range it asks for. It also lists the mods that need it or can use it, so you can see what turning it off affects. When something it needs is off, a TURN ON WHAT IT NEEDS button turns those on for the next start, along with whatever they need in turn, and names any that are not installed.
 - **Game version check**: a mod can name the game version it was made for. When the game is a different version, the mod gets a VERSION mark in the list and a warning on its page.
 - **Mod info and links**: a mod can give its name, a short description, its author, a category, and links to its Nexus Mods page, GitHub repository, website and a page for reporting problems. The link buttons open them in your browser.
 - **Update checks**: each time the game starts, the Mod Manager asks GitHub whether mods that name a GitHub repository have a newer release. Mods with an update get an UPDATE mark in the list and an "Updates" filter, and one message says how many mods have updates (click it to see them). A mod's page shows the new version, the release notes, an INSTALL UPDATE button and a GET UPDATE button that opens the release page in your browser.
@@ -201,11 +201,12 @@ The screen reads your plugin's BepInEx attributes, so declare them as you would 
 
 ```csharp
 [BepInDependency("com.dev.survivallog.exiledtoolkit")]                                         // needs
+[BepInDependency("com.dev.survivallog.exiledtoolkit", ">=0.4.0")]                              // needs this version or later
 [BepInDependency("com.other.mod", BepInDependency.DependencyFlags.SoftDependency)]             // works with
 [BepInIncompatibility("com.old.mod")]                                                          // does not work with
 ```
 
-Hard dependencies are listed as NEEDS, and TURN ON WHAT IT NEEDS turns them on. Soft ones are listed as WORKS WITH (OPTIONAL). Incompatibilities are listed as DOES NOT WORK WITH and turn red while that mod is on.
+Hard dependencies are listed as NEEDS, and TURN ON WHAT IT NEEDS turns them on. A version range shows next to the mod's name, and an installed version outside it is marked wrong version, since BepInEx will not start your mod then. Soft ones are listed as WORKS WITH (OPTIONAL). Incompatibilities are listed as DOES NOT WORK WITH and turn red while that mod is on. The other mod's page lists yours under NEEDED BY or USED BY (OPTIONAL).
 
 ### Updates
 

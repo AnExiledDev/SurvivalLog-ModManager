@@ -85,9 +85,10 @@ internal static class PluginFileReader
             switch (attribute.AttributeType.FullName)
             {
                 case DependencyAttribute:
-                    var isSoft = attribute.ConstructorArguments.Count > 1 && FlagsOf(attribute.ConstructorArguments[1].Value) is { } flags && (flags & SoftFlag) != 0;
+                    var second = attribute.ConstructorArguments.Count > 1 ? attribute.ConstructorArguments[1].Value : null;
+                    var isSoft = FlagsOf(second) is { } flags && (flags & SoftFlag) != 0;
 
-                    relations.Add(new DeclaredRelation(isSoft ? RelationKind.WorksWith : RelationKind.Needs, guid));
+                    relations.Add(new DeclaredRelation(isSoft ? RelationKind.WorksWith : RelationKind.Needs, guid, second as string is { Length: > 0 } range ? range : null));
                     break;
                 case IncompatibilityAttribute:
                     relations.Add(new DeclaredRelation(RelationKind.DoesNotWorkWith, guid));

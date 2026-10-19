@@ -57,10 +57,12 @@ internal sealed class PluginCatalog
         var nodes = Nodes();
         var mods = Plugins().Select(plugin => Entry(plugin, nodes)).Concat(OffAtStart().Select(OffEntry)).ToList();
         var overlaps = PatchOverlaps.Find(SharedPatches());
+        var declaredBy = mods.Select(mod => mod.Guid).Distinct().ToDictionary(guid => guid, DeclaredOf);
 
         return ModList.SortByName(mods.Select(mod => mod with
         {
-            Relations = RelationResolver.Resolve(DeclaredOf(mod.Guid), mods),
+            Relations = RelationResolver.Resolve(declaredBy[mod.Guid], mods, IsInRange),
+            Dependents = RelationResolver.Dependents(mod.Guid, declaredBy, mods),
             PatchOverlaps = overlaps.TryGetValue(mod.Guid, out var shared) ? shared : Array.Empty<PatchOverlap>(),
         }));
     }
@@ -222,6 +224,19 @@ internal sealed class PluginCatalog
         Rollback = mod.State is ModState.Loaded ? _updates.RollbackOf(mod.Guid, _backupVersions(mod.Guid), mod.Version) : new RollbackState.None(),
         IsForOtherGame = !Core.GameVersion.IsMadeFor(mod.Info.GameVersions, GameVersion),
     };
+
+    /// <summary>Reads the range the way BepInEx does; a range or version it cannot read is not held against the mod.</summary>
+    private static bool IsInRange(string version, string range)
+    {
+        try
+        {
+            return new SemanticVersioning.Range(range, true).IsSatisfied(version, true);
+        }
+        catch (Exception)
+        {
+            return true;
+        }
+    }
 
     private IReadOnlyList<DeclaredRelation> DeclaredOf(string guid) =>
         StartPathOf(guid) is { } path ? FilesOf(path).FirstOrDefault(plugin => plugin.Guid == guid)?.Relations ?? Array.Empty<DeclaredRelation>() : Array.Empty<DeclaredRelation>();
