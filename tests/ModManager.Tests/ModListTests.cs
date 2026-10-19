@@ -86,5 +86,5 @@ public class ModListTests
         Assert.Equal(new[] { "Alpha", "beta", "zeta" }, ModList.SortByName(mods).Select(m => m.Name));
     }
 
-    private static ModEntry Mod(string guid, string name) => new(guid, name, "1.0", guid + ".dll", new ModState.NotLoaded());
+    private static ModEntry Mod(string guid, string name) => new(guid, name, "1.0", guid + ".dll", new ModState.NotLoaded(), ModInfo.None, new ModSwitch.Unavailable());
 }

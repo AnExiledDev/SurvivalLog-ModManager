@@ -26,7 +26,17 @@
       alsoUsed: list => 'Also used by ' + list + '.', readOnly: 'Read only',
       footerNone: 'No changes this session. Everything saves the moment you change it.',
       footerSome: n => '<b>' + n + '</b> ' + (n === 1 ? 'setting' : 'settings') + ' changed this session, saved. <em>Some mods only read settings at start: restart the game if a change does not show.</em>',
-      menuButton: 'Mods'
+      menuButton: 'Mods',
+      groupOff: 'Off', offSub: 'off', statusOff: 'OFF', statusRequired: 'REQUIRED', pipRestart: 'RESTART',
+      switchOnHint: 'turning it off applies next start', switchOffHint: 'turning it on applies next start',
+      offNext: 'off from the next start', onNext: 'on from the next start',
+      lockedSelf: 'this is the Mod Manager', lockedNeeded: 'the Mod Manager needs it', cannotMove: 'its DLL is outside the plugins folder',
+      by: 'by', neededBy: list => 'Needed by ' + list, linkNexus: 'NEXUS', linkGithub: 'GITHUB', linkWebsite: 'WEBSITE',
+      offTitle: 'Turned off.', offBody: 'Its DLL is in a folder BepInEx skips, so it did not start and its settings cannot be shown. Its settings file is kept.',
+      pendingOffTitle: 'Off from the next start.', pendingOffBody: 'It keeps running until you restart the game.',
+      pendingOnTitle: 'On from the next start.', pendingOnBody: 'Restart the game to start it.',
+      alsoStops: list => 'These need it and will not start either: ' + list + '.',
+      footerRestart: n => (n === 1 ? '1 mod turns' : n + ' mods turn') + ' on or off at the next start.'
     },
     zh: {
       loaded: '已加载', settings: '项设置', toggle: '切换', close: '关闭', search: '搜索所有设置',
@@ -43,7 +53,17 @@
       alsoUsed: list => '也被 ' + list + ' 使用。', readOnly: '只读',
       footerNone: '本次没有修改。每项设置一改就会保存。',
       footerSome: n => '本次修改了 <b>' + n + '</b> 项设置，已保存。<em>有些模组只在启动时读取设置：如果修改没有生效，请重启游戏。</em>',
-      menuButton: '模组'
+      menuButton: '模组',
+      groupOff: '已关闭', offSub: '已关闭', statusOff: '已关闭', statusRequired: '必需', pipRestart: '重启',
+      switchOnHint: '关闭将在下次启动时生效', switchOffHint: '开启将在下次启动时生效',
+      offNext: '下次启动时关闭', onNext: '下次启动时开启',
+      lockedSelf: '这就是模组管理器', lockedNeeded: '模组管理器需要它', cannotMove: '它的 DLL 不在 plugins 文件夹中',
+      by: '作者', neededBy: list => '被以下模组需要：' + list, linkNexus: 'NEXUS', linkGithub: 'GITHUB', linkWebsite: '网站',
+      offTitle: '已关闭。', offBody: '它的 DLL 在 BepInEx 会跳过的文件夹中，所以没有启动，也无法显示设置。它的设置文件会保留。',
+      pendingOffTitle: '下次启动时关闭。', pendingOffBody: '在重启游戏之前它会继续运行。',
+      pendingOnTitle: '下次启动时开启。', pendingOnBody: '重启游戏后它就会启动。',
+      alsoStops: list => '以下模组需要它，也不会启动：' + list + '。',
+      footerRestart: n => n + ' 个模组将在下次启动时开启或关闭。'
     }
   };
 
@@ -58,8 +78,11 @@
     pending: null,
     notes: {},
     isTyping: false,
-    rows: []
+    rows: [],
+    modNote: null
   };
+
+  const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite' };
 
   // ===== Talking to the C# side =====
 
@@ -192,9 +215,14 @@
 #slmm .gen .gt { font-family: var(--display); font-size: 3.6rem; color: #fff; letter-spacing: 2px; line-height: 1; text-shadow: 0 4px 12px rgba(0,0,0,0.6); max-width: 820px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #slmm .gen .gs { font-size: 1.1rem; color: #bbb; margin-top: 10px; }
 #slmm .hero-side { position: absolute; right: 30px; top: 22px; z-index: 2; }
-#slmm .status { background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.12); padding: 10px 18px; border-radius: 3px; font-family: var(--mono); font-size: .82rem; letter-spacing: 2px; color: var(--teal); text-align: right; }
-#slmm .status.off { color: #999; }
-#slmm .status small { display: block; font-size: .72rem; color: #777; letter-spacing: 1px; margin-top: 2px; }
+#slmm .en-switch { display: flex; align-items: center; gap: 14px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.12); padding: 10px 14px 10px 18px; border-radius: 3px; }
+#slmm .en-switch.pend { border-color: rgba(235,163,8,0.55); }
+#slmm .en-switch .lbl { font-family: var(--mono); font-size: .82rem; letter-spacing: 2px; color: var(--teal); text-align: right; }
+#slmm .en-switch .lbl.off { color: #999; }
+#slmm .en-switch .lbl small { display: block; font-size: .72rem; color: #777; letter-spacing: 1px; margin-top: 2px; }
+#slmm .en-switch.pend .lbl small { color: var(--amber); }
+#slmm .setting-toggle.locked { opacity: .4; pointer-events: none; }
+#slmm .desc { padding: 10px 40px 0; color: #b8b8b8; font-size: 1.02rem; line-height: 1.6; max-width: 1050px; white-space: pre-line; }
 #slmm .meta { display: flex; align-items: center; gap: 18px; padding: 16px 40px 0; flex-wrap: wrap; }
 #slmm .meta .id { font-family: var(--mono); font-size: .82rem; color: #777; letter-spacing: .5px; }
 #slmm .meta .id b { color: #bbb; font-weight: 400; }
@@ -272,6 +300,10 @@
 #slmm .notice { margin: 22px 40px 0; padding: 16px 18px; border: 1px dashed rgba(255,255,255,0.15); color: #999; font-size: .95rem; line-height: 1.6; display: flex; gap: 14px; align-items: flex-start; }
 #slmm .notice b { color: #ddd; }
 #slmm .notice .ico { font-family: var(--mono); color: var(--amber); font-size: 1.1rem; }
+#slmm .notice.ok { border-color: rgba(143,199,191,0.45); }
+#slmm .notice.ok .ico { color: var(--teal); }
+#slmm .notice.warn { border-color: rgba(255,90,90,0.5); color: #c98a8a; }
+#slmm .notice.warn .ico { color: var(--red); }
 #slmm .empty { padding: 70px 40px; text-align: center; color: #777; }
 #slmm .empty .big { font-family: var(--display); font-size: 2rem; color: #555; letter-spacing: 3px; margin-bottom: 10px; }
 
@@ -376,7 +408,7 @@
 
   function renderList() {
     const shown = visibleMods();
-    const groups = [[word('groupLoaded'), shown.filter(m => m.loaded)], [word('groupNotLoaded'), shown.filter(m => !m.loaded)]];
+    const groups = [[word('groupLoaded'), shown.filter(m => m.state === 'loaded')], [word('groupNotLoaded'), shown.filter(m => m.state === 'notLoaded')], [word('groupOff'), shown.filter(m => m.state === 'off')]];
     const problems = state.view ? state.view.problems : [];
     let html = '';
     let delay = 0;
@@ -400,9 +432,11 @@
 
   function modRow(m, delay) {
     const changed = m.settings.filter(isChanged).length;
-    const sub = m.loaded ? esc(m.version) + ' &middot; ' + esc(m.settings.length ? word('settingCount')(m.settings.length) : word('noSettings')) : esc(word('notLoadedSub'));
+    const sub = m.loaded ? esc(m.version) + ' &middot; ' + esc(m.settings.length ? word('settingCount')(m.settings.length) : word('noSettings')) : esc(word(m.state === 'off' ? 'offSub' : 'notLoadedSub'));
     const isSelected = m.guid === state.selected && !state.query;
-    const pips = (changed ? '<span class="pip chg">' + changed + '</span>' : '') + (m.loaded ? '' : '<span class="pip offp">OFF</span>');
+    const pips = (changed ? '<span class="pip chg">' + changed + '</span>' : '') +
+      (m.state === 'off' ? '<span class="pip offp">' + esc(word('statusOff')) + '</span>' : '') +
+      (isPending(m) ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : '');
 
     return '<div class="mod' + (isSelected ? ' sel' : '') + (m.loaded ? '' : ' off') + '" data-mod="' + esc(m.guid) + '" style="animation-delay:' + delay + 'ms">' +
       '<div class="mono" style="' + monoStyle(m.name) + '">' + esc(initials(m.name)) + '</div>' +
@@ -429,7 +463,18 @@
 
     if (names.indexOf(state.tab) < 0) state.tab = '';
 
-    pane.innerHTML = hero(m) + meta(m) + links(m) + tabs(m, names) + paneBody(m, names);
+    pane.innerHTML = hero(m) + meta(m) + about(m) + links(m) + tabs(m, names) + modNotices(m) + paneBody(m, names);
+  }
+
+  // A mod whose switch now points the other way from how the game started it.
+  function isPending(m) {
+    return m.switch.kind === 'allowed' && m.switch.next !== (m.state !== 'off');
+  }
+
+  function stateWord(m) {
+    if (m.state === 'off') return word('statusOff');
+
+    return m.loaded ? word('statusLoaded') : word('statusNotLoaded');
   }
 
   function hero(m) {
@@ -438,17 +483,68 @@
     return '<div class="hero"><div class="gen" style="--hue-a:hsla(' + hue(m.name) + ',50%,35%,.45)">' +
       '<div class="big" style="' + monoStyle(m.name) + '">' + esc(initials(m.name)) + '</div>' +
       '<div><div class="gt">' + esc(m.name) + '</div><div class="gs">' + esc(sub) + '</div></div></div>' +
-      '<div class="hero-side"><div class="status' + (m.loaded ? '' : ' off') + '">' + esc(m.loaded ? word('statusLoaded') : word('statusNotLoaded')) + '<small>' + esc(word('sinceStart')) + '</small></div></div></div>';
+      '<div class="hero-side">' + enSwitch(m) + '</div></div>';
+  }
+
+  // The on/off switch: where the mod's DLL is now, which is what the next start uses.
+  function enSwitch(m) {
+    const sw = m.switch;
+    const toggle = (isOn, isLocked) => '<label class="setting-toggle' + (isLocked ? ' locked' : '') + '"><input type="checkbox" data-switch="1"' + (isOn ? ' checked' : '') + (isLocked ? ' disabled' : '') + '><span class="track"></span><span class="knob"></span></label>';
+    const box = (label, small, isOff, extra, title) => '<div class="en-switch' + (isPending(m) ? ' pend' : '') + '"' + (title ? ' title="' + esc(title) + '"' : '') + '><div class="lbl' + (isOff ? ' off' : '') + '">' + esc(label) + '<small>' + esc(small) + '</small></div>' + extra + '</div>';
+
+    switch (sw.kind) {
+      case 'allowed': {
+        const small = isPending(m) ? word(sw.next ? 'onNext' : 'offNext') : word('sinceStart');
+
+        return box(stateWord(m), small, !m.loaded, toggle(sw.next, false), '');
+      }
+      case 'locked':
+        return box(word('statusRequired'), word(sw.self ? 'lockedSelf' : 'lockedNeeded'), false, toggle(true, true), sw.neededBy.length ? word('neededBy')(sw.neededBy.join(', ')) : '');
+      default:
+        return box(stateWord(m), word('cannotMove'), !m.loaded, '', '');
+    }
   }
 
   function meta(m) {
     const file = m.file ? '<span class="id"><b>' + esc(m.file) + '</b></span>' : '';
+    const author = m.author ? '<span class="id">' + esc(word('by')) + ' <b>' + esc(m.author) + '</b></span>' : '';
 
-    return '<div class="meta"><span class="id">v<b>' + esc(m.version) + '</b></span><span class="id"><b>' + esc(m.guid) + '</b></span>' + file + '</div>';
+    return '<div class="meta"><span class="id">v<b>' + esc(m.version) + '</b></span>' + author + '<span class="id"><b>' + esc(m.guid) + '</b></span>' + file + '</div>';
+  }
+
+  function about(m) {
+    if (!m.about) return '';
+
+    const text = state.lang === 'zh' && m.about.zh ? m.about.zh : m.about.en;
+
+    return text ? '<div class="desc">' + esc(text) + '</div>' : '';
+  }
+
+  // The note from the last switch flip on this mod, or else what the next start will do.
+  function modNotices(m) {
+    const note = state.modNote && state.modNote.guid === m.guid ? state.modNote : null;
+
+    if (note) return notice(note.warn ? 'warn' : 'ok', '', state.lang === 'zh' ? note.zh : note.en);
+
+    if (!isPending(m)) return '';
+
+    if (m.switch.next) return notice('', word('pendingOnTitle'), word('pendingOnBody'));
+
+    const stops = m.switch.stops.length ? ' ' + word('alsoStops')(m.switch.stops.join(', ')) : '';
+
+    return notice('', word('pendingOffTitle'), word('pendingOffBody') + stops);
+  }
+
+  function notice(kind, title, body) {
+    return '<div class="notice' + (kind ? ' ' + kind : '') + '"><span class="ico">&#x23FB;</span><div>' + (title ? '<b>' + esc(title) + '</b> ' : '') + esc(body) + '</div></div>';
   }
 
   function links(m) {
     const buttons = [];
+
+    for (const kind of m.links) {
+      if (LINK_WORDS[kind]) buttons.push('<div class="key-btn" data-act="link" data-kind="' + esc(kind) + '">' + esc(word(LINK_WORDS[kind])) + ' &#x2197;</div>');
+    }
 
     if (m.loaded) buttons.push('<div class="key-btn" data-act="showCfg">' + esc(word('openCfg')) + '</div>');
 
@@ -466,7 +562,9 @@
   }
 
   function paneBody(m, names) {
-    if (!m.loaded) return '<div class="notice"><span class="ico">&#x23FB;</span><div><b>' + esc(word('notLoadedTitle')) + '</b> ' + esc(word('notLoadedBody')) + '</div></div>';
+    if (m.state === 'off') return notice('', word('offTitle'), word('offBody'));
+
+    if (!m.loaded) return notice('', word('notLoadedTitle'), word('notLoadedBody'));
 
     if (!m.settings.length) return '<div class="empty"><div class="big">' + esc(word('noSettingsTitle')) + '</div>' + esc(word('noSettingsBody')) + '</div>';
 
@@ -594,9 +692,11 @@
 
   function renderFooter() {
     const changed = mods().reduce((sum, m) => sum + m.settings.filter(isChangedThisSession).length, 0);
+    const restarts = mods().filter(isPending).length;
+    const restartText = restarts ? ' <em>' + esc(word('footerRestart')(restarts)) + '</em>' : '';
 
-    $('.status-dot').classList.toggle('warn', changed > 0);
-    $('.ft-t').innerHTML = changed ? word('footerSome')(changed) : esc(word('footerNone'));
+    $('.status-dot').classList.toggle('warn', changed > 0 || restarts > 0);
+    $('.ft-t').innerHTML = (changed ? word('footerSome')(changed) : esc(word('footerNone'))) + restartText;
   }
 
   // ===== What the player does =====
@@ -674,6 +774,7 @@
     }
 
     if (actName === 'showCfg') send('showCfg', [state.selected]);
+    else if (actName === 'link') send('link', [state.selected, act.dataset.kind]);
     else if (actName === 'resetMod') resetMod();
     else if (actName === 'reset' && row) resetRow(row);
     else if (actName === 'bind' && row) bind(row, act);
@@ -681,6 +782,8 @@
   }
 
   function select(guid) {
+    if (guid !== state.selected) state.modNote = null;
+
     state.selected = guid;
     state.query = '';
     state.tab = '';
@@ -727,6 +830,12 @@
   function onChange(e) {
     const target = e.target;
     const row = rowOf(target);
+
+    if (target.dataset.switch && state.selected) {
+      send('switch', [state.selected, target.checked ? '1' : '0']);
+
+      return;
+    }
 
     if (!row) return;
 
@@ -823,6 +932,7 @@
     state.notes = {};
     state.pending = null;
     state.binding = null;
+    state.modNote = null;
 
     if (!modByGuid(state.selected)) state.selected = view.mods.length ? (view.mods.find(m => m.loaded) || view.mods[0]).guid : null;
 
@@ -847,6 +957,19 @@
     state.binding = null;
     render();
     state.pending = null;
+  }
+
+  // A switch flip can change more than one mod, so the whole list comes back; the selection and language stay.
+  function replace(view, note) {
+    if (!state.view) return;
+
+    state.view = view;
+    state.modNote = note;
+    state.binding = null;
+
+    if (!modByGuid(state.selected)) state.selected = view.mods.length ? view.mods[0].guid : null;
+
+    render();
   }
 
   function bindEnded() {
@@ -941,6 +1064,6 @@
   setInterval(addMenuButtons, MENU_POLL_MS);
   addMenuButtons();
 
-  window.__modmanager = { open: open, update: update, close: hide, bindEnded: bindEnded };
+  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded };
   sendReady();
 })();

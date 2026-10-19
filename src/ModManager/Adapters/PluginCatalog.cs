@@ -22,19 +22,74 @@ internal sealed class PluginCatalog
     private static readonly string[] KeyNames = Enum.GetNames(typeof(KeyCode));
 
     private readonly StartValues _startValues = new();
+    private readonly PluginFolders _folders;
+    private readonly string _selfGuid;
     private readonly Action<string> _log;
     private readonly HashSet<string> _reportedFailures = new();
+    private readonly Dictionary<string, IReadOnlyList<PluginFile>> _files = new(StringComparer.OrdinalIgnoreCase);
 
-    public PluginCatalog(Action<string> log)
+    /// <summary>Where each DLL moved this session, by where it was when the game started.</summary>
+    private readonly Dictionary<string, string> _moves = new(StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyList<(string Path, PluginFile Plugin)>? _offAtStart;
+
+    public PluginCatalog(PluginFolders folders, string selfGuid, Action<string> log)
     {
+        _folders = folders;
+        _selfGuid = selfGuid;
         _log = log;
     }
 
-    public IReadOnlyList<ModEntry> Mods() => ModList.SortByName(Plugins().Select(Entry));
+    public IReadOnlyList<ModEntry> Mods()
+    {
+        var nodes = Nodes();
+
+        return ModList.SortByName(Plugins().Select(plugin => Entry(plugin, nodes)).Concat(OffAtStart().Select(OffEntry)));
+    }
 
     public IReadOnlyList<string> Problems() => IL2CPPChainloader.Instance.DependencyErrors.ToList();
 
-    public ModEntry? Mod(string guid) => Find(guid) is { } plugin ? Entry(plugin) : null;
+    public ModEntry? Mod(string guid)
+    {
+        if (Find(guid) is { } plugin) return Entry(plugin, Nodes());
+
+        return OffAtStart().Where(off => off.Plugin.Guid == guid).Select(OffEntry).FirstOrDefault();
+    }
+
+    public ModLink? Link(string guid, LinkKind kind) => Mod(guid)?.Info.Link(kind);
+
+    /// <summary>Moves the mod's DLL into or out of the plugins folder; BepInEx reads the folder at the next start.</summary>
+    public ModNote Switch(string guid, bool isOn)
+    {
+        var mod = Mod(guid);
+        var startPath = StartPathOf(guid);
+
+        if (mod?.Switch is not ModSwitch.Allowed allowed || startPath == null) return new ModNote(guid, true, SwitchNotes.CannotSwitch());
+
+        var current = CurrentPath(startPath);
+        var target = isOn == _folders.IsOn(current) ? null : isOn ? _folders.OnPath(current) : _folders.OffPath(current);
+
+        if (target != null)
+        {
+            if (File.Exists(target)) return new ModNote(guid, true, SwitchNotes.TargetTaken(target));
+
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(target) ?? ".");
+                File.Move(current, target);
+                _moves[startPath] = target;
+                _log((isOn ? "turned on " : "turned off ") + guid + " from the next start: moved " + current + " to " + target);
+            }
+            catch (Exception ex)
+            {
+                _log("could not move " + current + " to " + target + ": " + ex.Message);
+
+                return new ModNote(guid, true, SwitchNotes.MoveFailed(ex.Message));
+            }
+        }
+
+        return new ModNote(guid, false, SwitchNotes.Moved(mod.State is not ModState.Off, isOn, allowed.AlsoStops));
+    }
 
     public ConfigFile? ConfigOf(string guid) => Find(guid)?.Instance is BasePlugin plugin ? plugin.Config : null;
 
@@ -56,12 +111,90 @@ internal sealed class PluginCatalog
 
     private static PluginInfo? Find(string guid) => IL2CPPChainloader.Instance.Plugins.TryGetValue(guid, out var plugin) ? plugin : null;
 
-    private ModEntry Entry(PluginInfo plugin)
+    private static IReadOnlyList<PluginNode> Nodes() =>
+        Plugins().Select(plugin => new PluginNode(
+            plugin.Metadata.GUID,
+            plugin.Metadata.Name,
+            plugin.Location ?? "",
+            plugin.Dependencies.Where(dependency => (dependency.Flags & BepInDependency.DependencyFlags.HardDependency) != 0).Select(dependency => dependency.DependencyGUID).ToList()))
+            .ToList();
+
+    private ModEntry Entry(PluginInfo plugin, IReadOnlyList<PluginNode> nodes)
     {
         var guid = plugin.Metadata.GUID;
+        var location = plugin.Location;
         ModState state = plugin.Instance is BasePlugin loaded ? new ModState.Loaded(ModList.Arrange(guid, Found(guid, loaded.Config), _startValues)) : new ModState.NotLoaded();
+        ModSwitch modSwitch = location != null && _folders.IsOn(location) && nodes.FirstOrDefault(node => node.Guid == guid) is { } node
+            ? SwitchPlanner.ForLoaded(node, nodes, _selfGuid, _folders.IsOn(CurrentPath(location)))
+            : new ModSwitch.Unavailable();
 
-        return new ModEntry(guid, plugin.Metadata.Name, plugin.Metadata.Version.ToString(), Path.GetFileName(plugin.Location ?? ""), state);
+        return new ModEntry(guid, plugin.Metadata.Name, plugin.Metadata.Version.ToString(), Path.GetFileName(location ?? ""), state, InfoOf(guid, location), modSwitch);
+    }
+
+    private ModEntry OffEntry((string Path, PluginFile Plugin) off)
+    {
+        var plugin = off.Plugin;
+        var modSwitch = new ModSwitch.Allowed(_folders.IsOn(CurrentPath(off.Path)), Array.Empty<string>());
+
+        return new ModEntry(plugin.Guid, plugin.Name, plugin.Version, Path.GetFileName(off.Path), new ModState.Off(), Info(plugin), modSwitch);
+    }
+
+    /// <summary>Plugins found in the folders for turned-off plugins, read once: the list stays as it was at the start, while their files may move.</summary>
+    private IReadOnlyList<(string Path, PluginFile Plugin)> OffAtStart()
+    {
+        if (_offAtStart != null) return _offAtStart;
+
+        var found = new List<(string Path, PluginFile Plugin)>();
+
+        foreach (var folder in _folders.OffFolders.Where(Directory.Exists))
+        {
+            foreach (var path in Directory.EnumerateFiles(folder, "*.dll", SearchOption.AllDirectories))
+            {
+                found.AddRange(FilesOf(path).Select(plugin => (path, plugin)));
+            }
+        }
+
+        var loaded = Plugins().Select(plugin => plugin.Metadata.GUID).ToHashSet();
+
+        _offAtStart = found.Where(off => !loaded.Contains(off.Plugin.Guid)).GroupBy(off => off.Plugin.Guid).Select(group => group.First()).ToList();
+
+        return _offAtStart;
+    }
+
+    private string? StartPathOf(string guid) => Find(guid)?.Location ?? OffAtStart().Where(off => off.Plugin.Guid == guid).Select(off => off.Path).FirstOrDefault();
+
+    private string CurrentPath(string startPath) => _moves.TryGetValue(startPath, out var moved) ? moved : startPath;
+
+    private ModInfo InfoOf(string guid, string? location) =>
+        location != null && FilesOf(location).FirstOrDefault(plugin => plugin.Guid == guid) is { } plugin ? Info(plugin) : ModInfo.None;
+
+    private ModInfo Info(PluginFile plugin)
+    {
+        var read = ModInfoReader.Read(plugin.Metadata);
+
+        foreach (var ignored in read.Ignored) ReportOnce(plugin.Guid + "/info/" + ignored, "ignored part of the Mods screen info of " + plugin.Guid + ": " + ignored);
+
+        return read.Info;
+    }
+
+    /// <summary>Read once per DLL, by where it was at the start; a DLL that can't be read just has no info.</summary>
+    private IReadOnlyList<PluginFile> FilesOf(string path)
+    {
+        if (_files.TryGetValue(path, out var known)) return known;
+
+        try
+        {
+            known = PluginFileReader.Read(CurrentPath(path));
+        }
+        catch (Exception ex)
+        {
+            ReportOnce(path, "could not read " + path + ": " + ex.Message);
+            known = Array.Empty<PluginFile>();
+        }
+
+        _files[path] = known;
+
+        return known;
     }
 
     /// <summary>One setting that can't be read is skipped (and logged once) rather than hiding the whole mod.</summary>

@@ -40,9 +40,12 @@ public abstract record ModState
 
     /// <summary>BepInEx found the plugin but never started it (a load error); its settings were never read.</summary>
     public sealed record NotLoaded : ModState;
+
+    /// <summary>Its DLL was in a folder for turned-off plugins when the game started, so BepInEx never saw it.</summary>
+    public sealed record Off : ModState;
 }
 
-public sealed record ModEntry(string Guid, string Name, string Version, string FileName, ModState State);
+public sealed record ModEntry(string Guid, string Name, string Version, string FileName, ModState State, ModInfo Info, ModSwitch Switch);
 
 /// <summary>Everything the Mods screen shows when it opens.</summary>
 public sealed record ModsView(IReadOnlyList<ModEntry> Mods, IReadOnlyList<string> Problems, bool IsChinese, string OpenKey);

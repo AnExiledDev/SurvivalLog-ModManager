@@ -41,6 +41,12 @@ public abstract record PageCommand
 
     public sealed record ShowConfigFile(string Guid) : PageCommand;
 
+    /// <summary>Turn a mod on or off from the next game start.</summary>
+    public sealed record Switch(string Guid, bool IsOn) : PageCommand;
+
+    /// <summary>Open one of the mod's links. The page names the kind only; the address comes from the mod's own info.</summary>
+    public sealed record OpenLink(string Guid, LinkKind Kind) : PageCommand;
+
     public sealed record Unknown(string Text) : PageCommand;
 
     public static PageCommand Parse(string message)
@@ -67,6 +73,27 @@ public abstract record PageCommand
         ("bindCancel", 1) => new BindCancel(),
         ("focus", 2) when parts[1] is "0" or "1" => new Focus(parts[1] == "1"),
         ("showCfg", 2) => new ShowConfigFile(parts[1]),
+        ("switch", 3) when parts[2] is "0" or "1" => new Switch(parts[1], parts[2] == "1"),
+        ("link", 3) when LinkKindOf(parts[2]) is { } kind => new OpenLink(parts[1], kind),
         _ => null,
     };
+
+    /// <summary>The page's name for each kind of link, shared by both directions so they cannot drift apart.</summary>
+    public static string LinkName(LinkKind kind) => kind switch
+    {
+        LinkKind.Nexus => "nexus",
+        LinkKind.GitHub => "github",
+        LinkKind.Website => "website",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+    };
+
+    private static LinkKind? LinkKindOf(string name)
+    {
+        foreach (LinkKind kind in Enum.GetValues(typeof(LinkKind)))
+        {
+            if (LinkName(kind) == name) return kind;
+        }
+
+        return null;
+    }
 }

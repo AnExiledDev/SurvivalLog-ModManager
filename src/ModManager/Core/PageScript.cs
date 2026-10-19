@@ -9,6 +9,9 @@ namespace ModManager.Core;
 /// <summary>A note shown under one setting after a write: why a value was changed or refused.</summary>
 public sealed record SettingNote(SettingId Id, bool IsWarning, BilingualText Text);
 
+/// <summary>A note shown on a mod's page after the player flipped its switch: what happens next, or why it could not be done.</summary>
+public sealed record ModNote(string Guid, bool IsWarning, BilingualText Text);
+
 /// <summary>The script calls sent to the Mods page, with their data written as JSON (which is also valid JavaScript).</summary>
 public static class PageScript
 {
@@ -20,6 +23,9 @@ public static class PageScript
     public static string Open(ModsView view) => Call("open", ViewJson(view));
 
     public static string Update(ModEntry mod, SettingNote? note) => Call("update", ModJson(mod) + "," + (note == null ? "null" : NoteJson(note)));
+
+    /// <summary>Redraws everything while the screen stays open, after a change that touches more than one mod.</summary>
+    public static string Replace(ModsView view, ModNote? note) => Call("replace", ViewJson(view) + "," + (note == null ? "null" : ModNoteJson(note)));
 
     public static string Close() => Call("close", "");
 
@@ -48,6 +54,11 @@ public static class PageScript
         json.Append(",\"version\":").Append(Str(mod.Version));
         json.Append(",\"file\":").Append(Str(mod.FileName));
         json.Append(",\"loaded\":").Append(Bool(mod.State is ModState.Loaded));
+        json.Append(",\"state\":").Append(Str(StateName(mod.State)));
+        json.Append(",\"author\":").Append(mod.Info.Author == null ? "null" : Str(mod.Info.Author));
+        json.Append(",\"about\":").Append(mod.Info.Description is { } about ? "{\"en\":" + Str(about.English) + ",\"zh\":" + Str(about.Chinese) + "}" : "null");
+        json.Append(",\"links\":").Append(List(mod.Info.Links, link => Str(PageCommand.LinkName(link.Kind))));
+        json.Append(",\"switch\":").Append(SwitchJson(mod.Switch));
         json.Append(",\"settings\":").Append(List(settings, SettingJson));
 
         return json.Append('}').ToString();
@@ -96,6 +107,25 @@ public static class PageScript
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
         }
     }
+
+    private static string StateName(ModState state) => state switch
+    {
+        ModState.Loaded => "loaded",
+        ModState.NotLoaded => "notLoaded",
+        ModState.Off => "off",
+        _ => throw new ArgumentOutOfRangeException(nameof(state), state, null),
+    };
+
+    private static string SwitchJson(ModSwitch modSwitch) => modSwitch switch
+    {
+        ModSwitch.Allowed allowed => "{\"kind\":\"allowed\",\"next\":" + Bool(allowed.IsOnNextStart) + ",\"stops\":" + List(allowed.AlsoStops, Str) + "}",
+        ModSwitch.Locked locked => "{\"kind\":\"locked\",\"self\":" + Bool(locked.IsModManager) + ",\"neededBy\":" + List(locked.NeededBy, Str) + "}",
+        ModSwitch.Unavailable => "{\"kind\":\"none\"}",
+        _ => throw new ArgumentOutOfRangeException(nameof(modSwitch), modSwitch, null),
+    };
+
+    private static string ModNoteJson(ModNote note) =>
+        "{\"guid\":" + Str(note.Guid) + ",\"warn\":" + Bool(note.IsWarning) + ",\"en\":" + Str(note.Text.English) + ",\"zh\":" + Str(note.Text.Chinese) + "}";
 
     private static string NoteJson(SettingNote note) =>
         "{\"section\":" + Str(note.Id.Section) + ",\"key\":" + Str(note.Id.Key) + ",\"warn\":" + Bool(note.IsWarning) + ",\"en\":" + Str(note.Text.English) + ",\"zh\":" + Str(note.Text.Chinese) + "}";

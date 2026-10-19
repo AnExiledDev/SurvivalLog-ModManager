@@ -52,7 +52,28 @@ public class PageCommandTests
     }
 
     [Theory]
+    [InlineData("slmod|modmanager|switch|g|1", true)]
+    [InlineData("slmod|modmanager|switch|g|0", false)]
+    public void A_switch_names_the_mod_and_where_it_should_be_next_start(string message, bool isOn)
+    {
+        Assert.Equal(new PageCommand.Switch("g", isOn), PageCommand.Parse(message));
+    }
+
+    [Theory]
+    [InlineData("nexus", LinkKind.Nexus)]
+    [InlineData("github", LinkKind.GitHub)]
+    [InlineData("website", LinkKind.Website)]
+    public void A_link_names_the_mod_and_which_of_its_links(string kind, LinkKind expected)
+    {
+        Assert.Equal(new PageCommand.OpenLink("g", expected), PageCommand.Parse("slmod|modmanager|link|g|" + kind));
+        Assert.Equal(kind, PageCommand.LinkName(expected));
+    }
+
+    [Theory]
     [InlineData("slmod|othermod|open")]
+    [InlineData("slmod|modmanager|switch|g|yes")]
+    [InlineData("slmod|modmanager|link|g|https%3A%2F%2Fevil.example")]
+    [InlineData("slmod|modmanager|link|g|Nexus")]
     [InlineData("slmod|modmanager|set|g|S|K")]
     [InlineData("slmod|modmanager|focus|yes")]
     [InlineData("slmod|modmanager|explode")]

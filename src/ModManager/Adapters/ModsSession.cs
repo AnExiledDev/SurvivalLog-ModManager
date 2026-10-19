@@ -95,6 +95,12 @@ internal sealed class ModsSession
             case PageCommand.ShowConfigFile show:
                 ShowConfigFile(show.Guid);
                 break;
+            case PageCommand.Switch flip:
+                _page.Run(PageScript.Replace(View(), _catalog.Switch(flip.Guid, flip.IsOn)));
+                break;
+            case PageCommand.OpenLink link:
+                OpenLink(link.Guid, link.Kind);
+                break;
             case PageCommand.Unknown unknown:
                 _log("unknown message from the Mods page: " + unknown.Text);
                 break;
@@ -109,9 +115,11 @@ internal sealed class ModsSession
         else Open();
     }
 
+    private ModsView View() => new(_catalog.Mods(), _catalog.Problems(), GameLanguage.IsChinese(), _openKey().ToString());
+
     private void Open()
     {
-        var view = new ModsView(_catalog.Mods(), _catalog.Problems(), GameLanguage.IsChinese(), _openKey().ToString());
+        var view = View();
 
         _page.Install();
 
@@ -217,6 +225,24 @@ internal sealed class ModsSession
         var mod = _catalog.Mod(guid);
 
         if (mod != null) _page.Run(PageScript.Update(mod, note));
+    }
+
+    /// <summary>The address is taken from the mod's own info, which only holds checked web addresses.</summary>
+    private void OpenLink(string guid, LinkKind kind)
+    {
+        var url = _catalog.Link(guid, kind)?.Url;
+
+        if (url == null) return;
+
+        try
+        {
+            Application.OpenURL(url);
+            _log("opened " + url);
+        }
+        catch (Exception ex)
+        {
+            _log("could not open " + url + ": " + ex.Message);
+        }
     }
 
     /// <summary>Opens the config folder with the mod's file selected; a .cfg has no program to open it on most machines.</summary>
