@@ -35,6 +35,7 @@ Open it with F10, or with the Mods button in the Esc menu or on the title screen
   It is a guide for where to look when two mods misbehave while both are on, not proof of a problem.
 - **Changelog tab**: a mod whose CHANGELOG link points to a GitHub file page (`github.com/owner/repo/blob/branch/CHANGELOG.md`) or to any https `.md` or `.txt` file gets a CHANGELOG tab. It loads the changelog the first time you open the tab and shows it on the page, with headings, bullets, bold and code. It is the published file, so it can be ahead of the version you have.
 - **Many sections**: a mod with too many sections for one row of tabs lists them down the left side of its settings.
+- **Tabs from other mods**: a mod can add its own tab to its page, with a page of its own (New Loop Plus adds TALENTS, an editor for its loop rewards). Esc first closes whatever that page has open, then the screen.
 
 The Mod Manager adds nothing to your save and does not edit game files. It writes the .cfg files of the mods whose settings you change, moves the DLLs of mods you turn on or off, and replaces the files of mods you update. Its only network use is the update check, which asks GitHub for the latest release of each mod that names a repository, the download when you click INSTALL UPDATE, and a mod's changelog when you open its CHANGELOG tab.
 
@@ -76,7 +77,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.18902 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.6.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.7.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
@@ -217,6 +218,35 @@ The screen reads your plugin's BepInEx attributes, so declare them as you would 
 ```
 
 Hard dependencies are listed as NEEDS, and TURN ON WHAT IT NEEDS turns them on. A version range shows next to the mod's name, and an installed version outside it is marked wrong version, since BepInEx will not start your mod then. Soft ones are listed as WORKS WITH (OPTIONAL). Incompatibilities are listed as DOES NOT WORK WITH and turn red while that mod is on. The other mod's page lists yours under NEEDED BY or USED BY (OPTIONAL).
+
+### Your own tab
+
+A mod with more to show than settings can add a tab to its own page. The tab is plain JavaScript in the game's web page, so it needs no reference to the Mod Manager either: inject your script the way you inject any page script (Exiled's Toolkit `WebPages`, or `ExecuteJavaScript`), and in it add your tab to a list the Mod Manager reads each time it draws:
+
+```js
+(window.__modmanagerTabs = window.__modmanagerTabs || []).push({
+  guid: 'com.you.bettermap',            // your BepInPlugin GUID: the tab shows on your mod's page
+  id: 'markers',                        // unique within your mod
+  title: { en: 'Markers', zh: '标记' },
+  show(el, ctx) {                       // draw into el
+    if (!el.firstChild || el.dataset.lang !== ctx.lang) {
+      el.dataset.lang = ctx.lang;
+      el.innerHTML = '<div class="my-page">...</div>';
+    }
+    ctx.footer('3 markers', false);     // text (HTML) for the footer while your tab is on; true lights the warning dot
+  },
+  hide() {},                            // the player left the tab or closed the screen
+  escape() { return false; },           // Esc pressed: return true if you closed something of your own
+});
+if (window.__modmanager) window.__modmanager.tabsChanged();
+```
+
+- The order of loading does not matter: if the Mod Manager starts after your script, it finds your tab when it draws.
+- `show` runs on every redraw while your tab is on, so keep it cheap. `el` keeps what you drew across redraws, but it can be a new empty node (after a switch of layout), so draw again whenever it is empty. `ctx.lang` is `en` or `zh`, the screen's language.
+- Clicks, changes and typing inside `el` are yours; the Mod Manager ignores them. Text boxes (`input` and `textarea`) take the keyboard from the game while they have focus, as on the rest of the screen. Esc in a text box leaves the box unless your own key handler calls `preventDefault()`.
+- Talk to your mod through your own messages (`window.vuplex.postMessage`) and your own handler on the C# side.
+- While your tab is on, your page's header is smaller and the mod info above the tabs is hidden, to give your page room.
+- A tab that throws an error is skipped; the screen keeps working.
 
 ### Updates
 

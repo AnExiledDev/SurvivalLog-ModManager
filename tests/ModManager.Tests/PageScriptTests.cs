@@ -431,4 +431,14 @@ public class PageScriptTests
         Assert.Equal(JsonValueKind.Null, items[1].GetProperty("icon").ValueKind);
         Assert.Equal("Food", json.RootElement.GetProperty("categories")[0].GetProperty("name").GetString());
     }
+
+    [Fact]
+    public void Esc_goes_to_the_page_so_a_tab_another_mod_added_can_use_it_before_the_screen_closes()
+    {
+        var script = PageScript.Escape();
+
+        Assert.Contains(".escape(", script);
+        Assert.DoesNotContain(".close(", script);
+        Assert.StartsWith("window.__modmanager&&", script);
+    }
 }

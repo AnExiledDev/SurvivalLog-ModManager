@@ -104,7 +104,7 @@ internal sealed class ModsSession
         if (_keyboard.IsClaimed || frame <= _typingEndedAtFrame + FramesAfterTyping) return;
 
         if (Input.GetKeyDown(_openKey())) Toggle();
-        else if (_isOpen && Input.GetKeyDown(KeyCode.Escape)) Close();
+        else if (_isOpen && Input.GetKeyDown(KeyCode.Escape) && !_page.Run(PageScript.Escape())) Close();
     }
 
     private void Handle(PageCommand command, int frame)

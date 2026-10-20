@@ -193,7 +193,9 @@
     side: '',
     rail: {},
     copied: null,
-    showLibraries: false
+    showLibraries: false,
+    ownShown: null,
+    ownFooter: null
   };
 
   const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite', issues: 'linkIssues', changelog: 'linkChangelog' };
@@ -384,6 +386,12 @@
 #slmm .gen .gt { font-family: var(--display); font-size: 3.6rem; color: #fff; letter-spacing: 2px; line-height: 1; text-shadow: 0 4px 12px rgba(0,0,0,0.6); max-width: 820px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #slmm .gen .gs { font-size: 1.1rem; color: #bbb; margin-top: 10px; }
 #slmm .hero-side { position: absolute; right: 30px; top: 22px; z-index: 2; }
+#slmm .hero.compact { height: 92px; }
+#slmm .hero.compact .gen { gap: 18px; padding: 0 30px; }
+#slmm .hero.compact .gen .big { width: 60px; height: 60px; font-size: 1.5rem; }
+#slmm .hero.compact .gen .gt { font-size: 2.1rem; max-width: 640px; }
+#slmm .hero.compact .gen .gs { display: none; }
+#slmm .hero.compact .hero-side { top: 50%; transform: translateY(-50%); }
 #slmm .en-switch { display: flex; align-items: center; gap: 14px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.12); padding: 10px 14px 10px 18px; border-radius: 3px; }
 #slmm .en-switch.pend { border-color: rgba(235,163,8,0.55); }
 #slmm .en-switch .lbl { font-family: var(--mono); font-size: .82rem; letter-spacing: 2px; color: var(--teal); text-align: right; }
@@ -688,6 +696,8 @@
       return;
     }
 
+    if (have.hasAttribute('data-own')) return;
+
     syncAttributes(have, want);
 
     if (have.tagName === 'INPUT') {
@@ -709,8 +719,9 @@
     }
   }
 
+  // A tab another mod adds is keyed by data-own, so its node, and whatever the mod drew in it, survives a redraw.
   function keyOf(node) {
-    return node.nodeType === 1 ? node.getAttribute('data-mod') : null;
+    return node.nodeType === 1 ? node.getAttribute('data-mod') || node.getAttribute('data-own') : null;
   }
 
   function isSameKind(have, want) {
@@ -857,12 +868,14 @@
 
   function renderPane() {
     if (state.page === 'errors') {
+      showOwnTab(null, null);
       morph(pane, otherErrorsPage());
 
       return;
     }
 
     if (state.query) {
+      showOwnTab(null, null);
       renderSearch();
 
       return;
@@ -871,6 +884,7 @@
     const m = modByGuid(state.selected);
 
     if (!m) {
+      showOwnTab(null, null);
       morph(pane, '');
 
       return;
@@ -882,11 +896,15 @@
 
     if (state.side === 'conflicts' && !m.patchOverlaps.length || state.side === 'changelog' && m.changelog.kind === 'none' || state.side === 'errors' && !hasErrors(m)) state.side = '';
 
+    if (isOwnSide(state.side) && !ownTabOf(m, state.side)) state.side = '';
+
+    const ownTab = ownTabOf(m, state.side);
     const railKey = m.guid + '\n' + state.lang;
-    const top = hero(m) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m);
+    const top = ownTab ? hero(m, true) : hero(m, false) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m);
     const body = modNotices(m) + paneBody(m, names);
 
     morph(pane, top + (state.rail[railKey] ? '<div class="railed">' + tabs(m, names) + '<div>' + body + '</div></div>' : tabs(m, names) + body));
+    showOwnTab(m, ownTab);
     askForNotes(m);
     askForChangelog(m);
 
@@ -932,11 +950,12 @@
     return m.loaded ? word('statusLoaded') : word('statusNotLoaded');
   }
 
-  function hero(m) {
+  // Compact while another mod's tab is on, so its page gets the room.
+  function hero(m, isCompact) {
     const sub = m.loaded ? (m.settings.length ? word('found') : word('foundNone')) : '';
     const banner = state.banners[m.guid];
 
-    return '<div class="hero">' + (banner ? '<img class="banner" src="' + esc(banner) + '" alt="">' : '') +
+    return '<div class="hero' + (isCompact ? ' compact' : '') + '">' + (banner ? '<img class="banner" src="' + esc(banner) + '" alt="">' : '') +
       '<div class="gen' + (banner ? ' on-banner' : '') + '" style="--hue-a:hsla(' + hue(m.name) + ',50%,35%,.45)">' +
       badge(m, 'big') +
       '<div><div class="gt">' + esc(nameOf(m)) + '</div><div class="gs">' + esc(sub) + '</div></div></div>' +
@@ -1243,21 +1262,26 @@
     const hasConflicts = m.patchOverlaps.length > 0;
     const hasChangelog = m.changelog.kind !== 'none';
 
-    if (names.length < 2 && !hasConflicts && !hasChangelog && !hasErrors(m)) return '';
+    const own = ownTabs(m);
+
+    if (names.length < 2 && !hasConflicts && !hasChangelog && !hasErrors(m) && !own.length) return '';
 
     const tab = (name, label, members) => '<div class="tab' + (!state.side && state.tab === name ? ' on' : '') + '" data-tab="' + esc(name) + '">' + esc(label) + ' <i>' + members.length + '</i>' + (members.some(isChanged) ? '<span class="cd"></span>' : '') + '</div>';
-    const sideTab = (side, inner) => '<div class="tab tab-x' + (state.side === side ? ' on' : '') + '" data-side="' + side + '">' + inner + '</div>';
+    const sideTab = (side, inner) => '<div class="tab tab-x' + (state.side === side ? ' on' : '') + '" data-side="' + esc(side) + '">' + inner + '</div>';
     const shown = shownSettings(m);
     const sectionTabs = names.length < 2 ? '' : names.map(n => tab(n, n, shown.filter(s => s.section === n))).join('');
     const worst = ['likely', 'may', 'harmless'].find(risk => m.patchOverlaps.some(o => o.risk === risk));
+    const ownTabsHtml = own.map(t => sideTab(OWN_SIDE + t.id, esc(ownTitle(t)))).join('');
     const changelogTab = hasChangelog ? sideTab('changelog', esc(word('tabChangelog'))) : '';
     const conflictsTab = hasConflicts ? sideTab('conflicts', esc(word('tabConflicts')) + ' <i>' + m.patchOverlaps.length + '</i><span class="rd ' + worst + '"></span>') : '';
     const errorsTab = hasErrors(m) ? sideTab('errors', esc(word('tabErrors')) + ' <i>' + m.errors.length + '</i><span class="rd ' + (m.errors.some(e => e.level === 'error') ? 'likely' : 'may') + '"></span>') : '';
 
-    return '<div class="tabs">' + tab('', word(names.length < 2 ? 'tabSettings' : 'tabAll'), shown) + sectionTabs + changelogTab + conflictsTab + errorsTab + '</div>';
+    return '<div class="tabs">' + tab('', word(names.length < 2 ? 'tabSettings' : 'tabAll'), shown) + sectionTabs + ownTabsHtml + changelogTab + conflictsTab + errorsTab + '</div>';
   }
 
   function paneBody(m, names) {
+    if (isOwnSide(state.side)) return '<div class="own-tab" data-own="' + esc(m.guid + '\n' + state.side.slice(OWN_SIDE.length)) + '"></div>';
+
     if (state.side === 'conflicts') return conflictsBody(m);
 
     if (state.side === 'changelog') return changelogBody(m);
@@ -1589,9 +1613,10 @@
     const updateText = updates ? ' <em>' + esc(word('footerUpdates')(updates)) + '</em>' : '';
 
     const changedText = changed ? word('footerSome')(changed) + (waiting ? ' <em>' + esc(word('footerRestartHint')) + '</em>' : '') : esc(word('footerNone'));
+    const own = state.ownShown && state.ownFooter;
 
-    $('.status-dot').classList.toggle('warn', waiting || restarts > 0);
-    morph($('.ft-t'), changedText + restartText + updateText);
+    $('.status-dot').classList.toggle('warn', own ? own.isWarn : waiting || restarts > 0);
+    morph($('.ft-t'), own ? own.html : changedText + restartText + updateText);
     renderCopyButton();
   }
 
@@ -1638,6 +1663,8 @@
     if (state.binding && actName !== 'bind') cancelBinding();
 
     if (state.picker && !target.closest('.ipk-panel') && actName !== 'pick') closePicker();
+
+    if (target.closest('[data-own]')) return;
 
     if (actName === 'close') {
       hide();
@@ -1788,6 +1815,9 @@
 
   function onChange(e) {
     const target = e.target;
+
+    if (target.closest('[data-own]')) return;
+
     const row = rowOf(target);
 
     if (target.dataset.switch && state.selected) {
@@ -1805,6 +1835,8 @@
 
   function onInput(e) {
     const target = e.target;
+
+    if (target.closest('[data-own]')) return;
 
     if (target === searchBox) {
       state.query = searchBox.value.trim();
@@ -1835,7 +1867,7 @@
 
   // The keyboard reaches this page only while a text field has focus; Esc there leaves the field, not the screen.
   function onKeyDown(e) {
-    if (e.key !== 'Escape' || !isTextField(e.target)) return;
+    if (e.key !== 'Escape' || e.defaultPrevented || !isTextField(e.target)) return;
 
     e.preventDefault();
 
@@ -1852,7 +1884,9 @@
   }
 
   function isTextField(el) {
-    return !!el && el.tagName === 'INPUT' && el.type !== 'checkbox' && el.type !== 'range' && root.contains(el);
+    const isField = !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' && el.type !== 'checkbox' && el.type !== 'range');
+
+    return isField && root.contains(el);
   }
 
   // Tells the C# side when a field takes or loses the keyboard. A redraw can drop the focused field without a blur.
@@ -1887,6 +1921,7 @@
 
   function hide() {
     root.classList.remove('on');
+    showOwnTab(null, null);
     state.binding = null;
     closeDropdowns(null);
     closePicker();
@@ -1894,6 +1929,72 @@
     if (document.activeElement && root.contains(document.activeElement)) document.activeElement.blur();
 
     syncTyping();
+  }
+
+  // ===== Tabs other mods add =====
+
+  // A mod adds a tab to its own page by pushing { guid, id, title: { en, zh }, show(el, ctx), hide(), escape() } onto
+  // window.__modmanagerTabs, then calling window.__modmanager.tabsChanged() when Mod Manager is already there. show runs
+  // on every redraw while the tab is on; el may be a fresh empty node, which the tab fills again. The tab talks to its
+  // own mod through its own messages; Mod Manager only gives it room, the footer and Esc.
+  const OWN_SIDE = 'own:';
+  const isOwnSide = side => side.indexOf(OWN_SIDE) === 0;
+
+  function ownTabs(m) {
+    const all = Array.isArray(window.__modmanagerTabs) ? window.__modmanagerTabs : [];
+
+    return all.filter(t => t && t.guid === m.guid && typeof t.id === 'string' && t.id && typeof t.show === 'function');
+  }
+
+  function ownTabOf(m, side) {
+    return isOwnSide(side) ? ownTabs(m).find(t => OWN_SIDE + t.id === side) || null : null;
+  }
+
+  function ownTitle(t) {
+    const title = t.title || {};
+
+    return (state.lang === 'zh' && title.zh) || title.en || t.id;
+  }
+
+  // A tab that throws is the other mod's bug; the screen carries on without it.
+  function callTab(tab, method, args) {
+    try {
+      return typeof tab[method] === 'function' ? tab[method].apply(tab, args || []) : undefined;
+    } catch (e) {
+      return undefined;
+    }
+  }
+
+  function showOwnTab(m, tab) {
+    const key = tab ? m.guid + '\n' + tab.id : null;
+    const shown = state.ownShown;
+
+    if (shown && shown.key !== key) {
+      state.ownShown = null;
+      state.ownFooter = null;
+      callTab(shown.tab, 'hide');
+    }
+
+    const host = tab ? pane.querySelector('[data-own]') : null;
+
+    if (!host) return;
+
+    state.ownShown = { key: key, tab: tab };
+    callTab(tab, 'show', [host, ownContext(key)]);
+  }
+
+  function ownContext(key) {
+    const isCurrent = () => !!state.ownShown && state.ownShown.key === key;
+
+    return {
+      lang: state.lang,
+      footer: (html, isWarn) => {
+        if (!isCurrent()) return;
+
+        state.ownFooter = { html: String(html || ''), isWarn: !!isWarn };
+        renderFooter();
+      }
+    };
   }
 
   // ===== Calls from the C# side =====
@@ -1971,6 +2072,22 @@
   function bindEnded() {
     state.binding = null;
     render();
+  }
+
+  // Esc while no field has the keyboard: the tab on show may use it first, to close something of its own.
+  function escape() {
+    if (!root.classList.contains('on')) return;
+
+    const shown = state.ownShown;
+
+    if (shown && callTab(shown.tab, 'escape') === true) return;
+
+    hide();
+    send('close');
+  }
+
+  function tabsChanged() {
+    if (root.classList.contains('on')) render();
   }
 
   // Icons come once per page, apart from the view: they are large and do not change while the game runs.
@@ -2096,6 +2213,6 @@
   setInterval(addMenuButtons, MENU_POLL_MS);
   addMenuButtons();
 
-  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, icons: icons, banners: banners, items: items, copied: copied };
+  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, escape: escape, tabsChanged: tabsChanged, icons: icons, banners: banners, items: items, copied: copied };
   sendReady();
 })();

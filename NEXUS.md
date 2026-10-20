@@ -18,6 +18,7 @@ Mod Manager adds a Mods screen to Survival Log. It lists every BepInEx mod you h
 [*][b]Update checks and installs[/b]: at each start it asks GitHub which mods have a newer release and shows one message saying how many. INSTALL UPDATE downloads the new version and puts it in place for the next start, keeping the old files. INSTALL ALL UPDATES does every mod at once, the page shows the notes of every release since yours, and ROLL BACK puts the old version back if the new one gives you trouble.[/*]
 [*][b]Conflicts tab[/b]: each mod's page lists the other mods that patch the same parts of the game, marked LIKELY TO CLASH, MAY CLASH or PROBABLY HARMLESS, so you know where to look first when two mods misbehave together.[/*]
 [*][b]Changelog tab[/b]: a mod that links its changelog gets a CHANGELOG tab that shows it right on the mod's page.[/*]
+[*][b]Tabs from other mods[/b]: a mod can add a tab with its own page to its entry. New Loop Plus adds TALENTS, an editor for its loop rewards.[/*]
 [*][b]Game version warning[/b]: a mod made for another game version is marked.[/*]
 [/list]
 
@@ -87,6 +88,7 @@ Mod Manager 为 Survival Log 加入一个模组界面。它列出你安装的每
 [*][b]检查并安装更新[/b]：每次启动时向 GitHub 查询哪些模组有新版本，并用一条消息告诉你有几个。「安装更新」会下载新版本，下次启动时生效，旧文件会保留。「安装全部更新」可一次更新所有模组，页面会显示你的版本之后每次发布的更新说明；如果新版本有问题，「退回」可以换回旧版本。[/*]
 [*][b]「冲突」页[/b]：每个模组的页面会列出修改了游戏相同部分的其他模组，并标出「很可能冲突」「可能冲突」或「大概无害」，两个模组一起出问题时可以先从这里查起。[/*]
 [*][b]「更新日志」页[/b]：链接了更新日志的模组会多出一个「更新日志」页，直接在模组页面上显示它。[/*]
+[*][b]其他模组的页签[/b]：模组可以在自己的条目中加入一个带有自己页面的页签。New Loop Plus 加入了「天赋」页签，用来编辑它的轮回奖励。[/*]
 [*][b]游戏版本提醒[/b]：为其他游戏版本制作的模组会被标记。[/*]
 [/list]
 

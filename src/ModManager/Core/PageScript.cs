@@ -53,6 +53,9 @@ public static class PageScript
 
     public static string Close() => Call("close", "");
 
+    /// <summary>Esc while nothing is being typed: a tab another mod added may use it first, else the page asks to close.</summary>
+    public static string Escape() => Call("escape", "");
+
     /// <summary>Ends a key capture the player cancelled or that found nothing to write.</summary>
     public static string BindEnded() => Call("bindEnded", "");
 

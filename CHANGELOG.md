@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0
+
+- Mods can add a tab of their own to their page on the Mods screen, with any page they like (New Loop Plus uses it to edit its loop rewards). See "Your own tab" under "For mod authors" in the README.
+- Text boxes with several lines take the keyboard the same way one-line boxes do.
+
 ## 0.6.0
 
 - INSTALL ALL UPDATES at the top of the "Updates" filter installs every available update at once.
