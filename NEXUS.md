@@ -43,7 +43,7 @@ Works in English and Chinese.
 [list]
 [*]Survival Log 1.1.18902. A game update can break it until the mod is updated.[/*]
 [*][url=https://www.nexusmods.com/survivallog/mods/12]BepInEx for Survival Log[/url]. Install it first.[/*]
-[*][url=https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit]Exiled's Toolkit[/url] 0.4.0 or later. The Mods screen does not open without it.[/*]
+[*][url=https://www.nexusmods.com/survivallog/mods/61]Exiled's Toolkit[/url] 0.4.0 or later. The Mods screen does not open without it.[/*]
 [/list]
 
 [size=5]Installation[/size]
@@ -111,7 +111,7 @@ Mod Manager 不会向存档添加任何内容，也不会修改游戏文件。�
 [list]
 [*]Survival Log 1.1.18902。游戏更新后模组可能暂时失效，直到模组更新为止。[/*]
 [*][url=https://www.nexusmods.com/survivallog/mods/12]BepInEx for Survival Log[/url]，请先安装。[/*]
-[*][url=https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit]Exiled's Toolkit[/url] 0.4.0 或更高版本。没有它，模组界面无法打开。[/*]
+[*][url=https://www.nexusmods.com/survivallog/mods/61]Exiled's Toolkit[/url] 0.4.0 或更高版本。没有它，模组界面无法打开。[/*]
 [/list]
 
 [size=5]安装[/size]

@@ -38,6 +38,7 @@
     <AssemblyMetadata Include="ModManager.Name" Value="Mod Manager&#10;模组管理器" />
     <AssemblyMetadata Include="ModManager.Author" Value="AnExiledDev" />
     <AssemblyMetadata Include="ModManager.GitHub" Value="AnExiledDev/SurvivalLog-ModManager" />
+    <AssemblyMetadata Include="ModManager.NexusId" Value="73" />
     <AssemblyMetadata Include="ModManager.Changelog" Value="https://github.com/AnExiledDev/SurvivalLog-ModManager/blob/main/CHANGELOG.md" />
     <AssemblyMetadata Include="ModManager.Category" Value="Tools" />
     <AssemblyMetadata Include="ModManager.GameVersion" Value="1.1.19131" />
