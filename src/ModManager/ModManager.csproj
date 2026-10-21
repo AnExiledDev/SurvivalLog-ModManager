@@ -40,7 +40,7 @@
     <AssemblyMetadata Include="ModManager.GitHub" Value="AnExiledDev/SurvivalLog-ModManager" />
     <AssemblyMetadata Include="ModManager.Changelog" Value="https://github.com/AnExiledDev/SurvivalLog-ModManager/blob/main/CHANGELOG.md" />
     <AssemblyMetadata Include="ModManager.Category" Value="Tools" />
-    <AssemblyMetadata Include="ModManager.GameVersion" Value="1.1.18902" />
+    <AssemblyMetadata Include="ModManager.GameVersion" Value="1.1.19131" />
     <AssemblyMetadata Include="ModManager.Settings" Value="Live" />
     <AssemblyMetadata Include="ModManager.Description" Value="Lists every installed mod, turns mods on or off, and changes their settings in-game.&#10;列出所有已安装的模组，可开启或关闭模组，并在游戏内修改它们的设置。" />
   </ItemGroup>

@@ -262,6 +262,8 @@ When the game updates and your mod still works, say so without a new release: pu
 - A game version listed for your mod's version counts the same as one named in `ModManager.GameVersion`. Players whose game is in neither get the grey VERSION mark.
 - The screen reads the file at each game start along with the update checks (from `raw.githubusercontent.com`, which needs no account), and keeps a copy in `BepInEx\mod-manager\game-versions` for starts without a connection or with update checks off. `ModManager.GitHub` must be set, and `ModManager.CheckForUpdates` must not be `false`.
 - Lines that cannot be read are written to `BepInEx\mod-manager.log` and the rest are used. Delete the file and the screen forgets the list at the next start.
+- On a game version that is in neither list, the grey mark turns red once your mod logs an error (`LogError` or `LogFatal`) this session. Log a Harmony patch that fails to apply with `LogError`, so players can tell a mod that broke with the game update from one that only has not been checked yet.
+- When a game update comes out, add the new game version to the line for each version of your mod that still works on it.
 
 ### Updates
 
