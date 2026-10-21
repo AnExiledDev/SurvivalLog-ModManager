@@ -78,6 +78,7 @@ internal sealed class ModsSession
         {
             // On the first frame rather than in Load, so plugins that load after this one are in the list.
             _hasStarted = true;
+            _checks.LoadSavedGameVersions(UpdateRepositories());
 
             if (_isCheckingForUpdates()) CheckForUpdates(true);
         }
@@ -190,11 +191,13 @@ internal sealed class ModsSession
     /// <summary>Starts or stops the update checks, at the start and whenever the player changes the setting.</summary>
     public void CheckForUpdates(bool isOn)
     {
-        if (isOn) _checks.Start(_catalog.Mods().Select(mod => mod.Info.UpdateRepository).OfType<string>());
+        if (isOn) _checks.Start(UpdateRepositories());
         else _checks.Stop();
 
         if (_isOpen) _page.Run(PageScript.Refresh(View()));
     }
+
+    private IEnumerable<string> UpdateRepositories() => _catalog.Mods().Select(mod => mod.Info.UpdateRepository).OfType<string>();
 
     private LatestRelease.Found? UpdateFor(string guid) => _catalog.Mod(guid) is { } mod ? _updates.UpdateFor(mod.Info.UpdateRepository, mod.Version) : null;
 

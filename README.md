@@ -21,7 +21,7 @@ Open it with F10, or with the Mods button in the Esc menu or on the title screen
 - **Open the .cfg folder**: a button opens Explorer with the mod's .cfg file selected.
 - **Turn mods on or off**: the switch at the top of a mod's page moves its DLL out of `BepInEx\plugins` into `BepInEx\disabled-plugins` (or back). The change applies at the next game start, and the screen marks mods waiting for a restart. Turned-off mods stay in the list under "Off", and their settings files are kept. Turning a mod off also lists the mods that need it, since they will not start either. Mods in `BepInEx\plugins-disabled` are listed too and can be turned back on.
 - **What a mod needs**: a mod's page lists the mods it needs, the ones it works with when present, and the ones it does not work with, each marked on, off, not installed or wrong version, with the version range it asks for. It also lists the mods that need it or can use it, so you can see what turning it off affects. When something it needs is off, a TURN ON WHAT IT NEEDS button turns those on for the next start, along with whatever they need in turn, and names any that are not installed.
-- **Game version check**: a mod can name the game version it was made for. When the game is a different version, the mod gets a VERSION mark in the list and a warning on its page.
+- **Game version check**: a mod can name the game version it was made for, and its author can later list more game versions it works on (see "Game versions it works on"). When the game is none of them, the mod gets a grey VERSION mark and a note on its page that it may still work. Once it logs errors this session, the mark turns red and the page says it may need an update.
 - **Mod info and links**: a mod can give its name, a short description, its author, a category, and links to its Nexus Mods page, GitHub repository, website and a page for reporting problems. The link buttons open them in your browser.
 - **Update checks**: each time the game starts, the Mod Manager asks GitHub whether mods that name a GitHub repository have a newer release. Mods with an update get an UPDATE mark in the list and an "Updates" filter, and one message says how many mods have updates (click it to see them). A mod's page shows the new version, the release notes, an INSTALL UPDATE button and a GET UPDATE button that opens the release page in your browser.
 - **Install updates**: INSTALL UPDATE downloads the release's zip from GitHub and puts the new files in place for the next game start. The running game keeps the version it loaded. The old files are kept in `BepInEx\mod-manager\backups`, and a failed install puts them back. INSTALL ALL UPDATES at the top of the "Updates" filter installs every update at once.
@@ -67,7 +67,7 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 
 ## Uninstall
 
-Delete `ModManager.dll` from the `BepInEx\plugins` folder. For a clean slate, also delete `BepInEx\config\com.dev.survivallog.modmanager.cfg`, `BepInEx\mod-manager.log` and the `BepInEx\mod-manager` folder (old files kept by updates). Settings you changed with it stay in the other mods' .cfg files.
+Delete `ModManager.dll` from the `BepInEx\plugins` folder. For a clean slate, also delete `BepInEx\config\com.dev.survivallog.modmanager.cfg`, `BepInEx\mod-manager.log` and the `BepInEx\mod-manager` folder (old files kept by updates, and saved game version lists). Settings you changed with it stay in the other mods' .cfg files.
 
 ## Configuration
 
@@ -131,7 +131,7 @@ Or in code: `[assembly: AssemblyMetadata("ModManager.NexusId", "47")]`. Only the
 | `ModManager.Category` | One of `Gameplay`, `Balance`, `QualityOfLife`, `Interface`, `Visuals`, `Audio`, `Cheats`, `Tools`. Case, spaces, `-` and `_` do not matter. The screen shows it in the player's language. |
 | `ModManager.Icon` | The name of an embedded resource in your DLL: a PNG or JPEG, up to 256 KB, square (64x64 or larger looks best). See "Icon" below. |
 | `ModManager.Library` | `true` for a mod that only exists for other mods to use. It goes in the folded "Libraries" group. Default `false`. |
-| `ModManager.GameVersion` | The game version your mod was made for, such as `1.1.18902`, or `1.1` for every 1.1 build. Up to 10, separated by commas. Leave it out and the mod is never flagged. |
+| `ModManager.GameVersion` | The game version your mod was made for, such as `1.1.18902`, or `1.1` for every 1.1 build. Up to 10, separated by commas. Leave it out and the mod is never flagged. Game versions you check later go in `game-versions.txt` (see "Game versions it works on"), so they need no new release. |
 | `ModManager.Settings` | `Live` when your settings take effect at once, `Restart` when they take effect at the next start. Covers every setting the tags below do not. Leave it out and changed settings say MAY NEED RESTART. |
 | `ModManager.NexusId` | The number at the end of your mod's Nexus Mods address, `nexusmods.com/survivallog/mods/<number>`. |
 | `ModManager.GitHub` | `owner/repository`. Shows a GitHub link and turns on update checks and installs (see "Updates"). |
@@ -247,6 +247,21 @@ if (window.__modmanager) window.__modmanager.tabsChanged();
 - Talk to your mod through your own messages (`window.vuplex.postMessage`) and your own handler on the C# side.
 - While your tab is on, your page's header is smaller and the mod info above the tabs is hidden, to give your page room.
 - A tab that throws an error is skipped; the screen keeps working.
+
+### Game versions it works on
+
+When the game updates and your mod still works, say so without a new release: put a `game-versions.txt` at the top of your GitHub repository's default branch, listing each version of your mod and the game versions it is known to work on.
+
+```text
+# mod version = game versions it is known to work on
+0.4.0 = 1.1.18902, 1.1.19131
+0.3.2 = 1.1.18902
+```
+
+- The mod version is compared with your BepInPlugin version, the same way as release tags (`v0.4` and `0.4.0` match `0.4.0`). The game versions take the same form as `ModManager.GameVersion`, so `1.1` covers every 1.1 build.
+- A game version listed for your mod's version counts the same as one named in `ModManager.GameVersion`. Players whose game is in neither get the grey VERSION mark.
+- The screen reads the file at each game start along with the update checks (from `raw.githubusercontent.com`, which needs no account), and keeps a copy in `BepInEx\mod-manager\game-versions` for starts without a connection or with update checks off. `ModManager.GitHub` must be set, and `ModManager.CheckForUpdates` must not be `false`.
+- Lines that cannot be read are written to `BepInEx\mod-manager.log` and the rest are used. Delete the file and the screen forgets the list at the next start.
 
 ### Updates
 

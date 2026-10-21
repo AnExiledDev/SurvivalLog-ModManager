@@ -357,4 +357,11 @@ public static class GameVersion
 
         return madeFor.Any(version => running == version || running.StartsWith(version + ".", StringComparison.Ordinal));
     }
+
+    /// <summary>
+    /// True when the running game is one the mod was made for, or one its author has since listed it as working on.
+    /// A mod that names no version anywhere is never held against the game.
+    /// </summary>
+    public static bool IsKnownToWork(IReadOnlyList<string> madeFor, IReadOnlyList<string> listedAsWorking, string? running) =>
+        IsMadeFor(madeFor.Concat(listedAsWorking).ToList(), running);
 }

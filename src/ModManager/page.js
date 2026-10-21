@@ -48,8 +48,10 @@
       footerUpdates: n => (n === 1 ? '1 mod has' : n + ' mods have') + ' an update.',
       linkIssues: 'REPORT A PROBLEM', groupLibraries: 'Libraries', library: 'LIBRARY', needsRestart: 'NEEDS RESTART',
       categories: { Gameplay: 'Gameplay', Balance: 'Balance', QualityOfLife: 'Quality of life', Interface: 'Interface', Visuals: 'Visuals', Audio: 'Audio', Cheats: 'Cheats', Tools: 'Tools' },
-      pipOtherGame: 'VERSION', otherGameTitle: 'Made for another game version.',
-      otherGameBody: (built, game) => 'It was made for ' + built + (game ? ' and this game is ' + game : '') + '. It may not work as expected.',
+      pipUntested: 'VERSION', untestedTitle: 'Not checked on this game version yet.',
+      untestedBody: (known, game) => 'It is known to work on ' + known + (game ? ', and this game is ' + game : '') + '. It may still work.',
+      untestedErrorsTitle: 'May need an update for this game version.',
+      untestedErrorsBody: (known, game) => 'It is known to work on ' + known + (game ? ', and this game is ' + game : '') + '. It logged errors this session.',
       relNeeds: 'NEEDS', relWorksWith: 'WORKS WITH (OPTIONAL)', relNot: 'DOES NOT WORK WITH',
       relNeededBy: 'NEEDED BY', relUsedBy: 'USED BY (OPTIONAL)', hasVersion: (have, range) => have + ', needs ' + range,
       relStopsThem: 'Needs this mod, so it will not start while this one is off',
@@ -126,8 +128,10 @@
       footerUpdates: n => n + ' 个模组有更新。',
       linkIssues: '反馈问题', groupLibraries: '前置库', library: '前置库', needsRestart: '需要重启',
       categories: { Gameplay: '玩法', Balance: '平衡', QualityOfLife: '便利', Interface: '界面', Visuals: '画面', Audio: '音频', Cheats: '作弊', Tools: '工具' },
-      pipOtherGame: '版本', otherGameTitle: '为其他游戏版本制作。',
-      otherGameBody: (built, game) => '它是为 ' + built + ' 制作的' + (game ? '，当前游戏是 ' + game : '') + '。它可能无法正常工作。',
+      pipUntested: '版本', untestedTitle: '尚未在此游戏版本上验证。',
+      untestedBody: (known, game) => '已知可在 ' + known + ' 上运行' + (game ? '，当前游戏是 ' + game : '') + '。它可能仍可正常运行。',
+      untestedErrorsTitle: '可能需要为此游戏版本更新。',
+      untestedErrorsBody: (known, game) => '已知可在 ' + known + ' 上运行' + (game ? '，当前游戏是 ' + game : '') + '。本次运行中它记录了错误。',
       relNeeds: '需要', relWorksWith: '可配合（可选）', relNot: '不兼容',
       relNeededBy: '被这些模组需要', relUsedBy: '可被这些模组使用（可选）', hasVersion: (have, range) => have + '，需要 ' + range,
       relStopsThem: '它需要本模组，本模组关闭时它不会启动',
@@ -369,6 +373,7 @@
 #slmm .pip.warnp { color: var(--red); border: 1px solid rgba(255,90,90,0.5); }
 #slmm .pip.errp { color: #111; background: var(--red); border: 1px solid var(--red); }
 #slmm .pip.wrnp { color: #e8813a; border: 1px solid rgba(232,129,58,0.5); }
+#slmm .pip.untp { color: #aaa; border: 1px solid #666; }
 #slmm .has-icon { padding: 0; overflow: hidden; background: #000; }
 #slmm .has-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
 #slmm .grp.tog { cursor: pointer; }
@@ -849,6 +854,10 @@
     return m.errors.length > 0;
   }
 
+  function hasLoggedErrors(m) {
+    return m.errors.some(e => e.level === 'error');
+  }
+
   function modRow(m, delay) {
     const changed = m.settings.filter(isChanged).length;
     const sub = m.loaded ? esc(m.version) + ' &middot; ' + esc(m.settings.length ? word('settingCount')(m.settings.length) : word('noSettings')) : esc(word(m.state === 'off' ? 'offSub' : 'notLoadedSub'));
@@ -856,8 +865,8 @@
     const pips = (changed ? '<span class="pip chg">' + changed + '</span>' : '') +
       (m.state === 'off' ? '<span class="pip offp">' + esc(word('statusOff')) + '</span>' : '') +
       (isPending(m) ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : '') +
-      (m.otherGame ? '<span class="pip warnp">' + esc(word('pipOtherGame')) + '</span>' : '') +
-      (m.errors.some(e => e.level === 'error') ? '<span class="pip errp">' + esc(word('pipError')) + '</span>' : hasErrors(m) ? '<span class="pip wrnp">' + esc(word('pipWarning')) + '</span>' : '') +
+      (m.untested ? '<span class="pip ' + (hasLoggedErrors(m) ? 'warnp' : 'untp') + '">' + esc(word('pipUntested')) + '</span>' : '') +
+      (hasLoggedErrors(m) ? '<span class="pip errp">' + esc(word('pipError')) + '</span>' : hasErrors(m) ? '<span class="pip wrnp">' + esc(word('pipWarning')) + '</span>' : '') +
       (m.install.kind === 'installed' || m.rollback.kind === 'done' ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : hasUpdate(m) ? '<span class="pip upd">' + esc(word('pipUpdate')) + '</span>' : '');
 
     return '<div class="mod' + (isSelected ? ' sel' : '') + (m.loaded ? '' : ' off') + '" data-mod="' + esc(m.guid) + '" style="animation-delay:' + delay + 'ms">' +
@@ -900,7 +909,7 @@
 
     const ownTab = ownTabOf(m, state.side);
     const railKey = m.guid + '\n' + state.lang;
-    const top = ownTab ? hero(m, true) : hero(m, false) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + otherGameNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m);
+    const top = ownTab ? hero(m, true) : hero(m, false) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + untestedNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m);
     const body = modNotices(m) + paneBody(m, names);
 
     morph(pane, top + (state.rail[railKey] ? '<div class="railed">' + tabs(m, names) + '<div>' + body + '</div></div>' : tabs(m, names) + body));
@@ -1042,10 +1051,15 @@
     }
   }
 
-  function otherGameNotice(m) {
-    if (!m.otherGame) return '';
+  // A mod not known to work on this game version only turns red once it logs errors; until then it may well still work.
+  function untestedNotice(m) {
+    if (!m.untested) return '';
 
-    return '<div class="notice warn"><span class="ico">!</span><div><b>' + esc(word('otherGameTitle')) + '</b> ' + esc(word('otherGameBody')(m.builtFor.join(' / '), state.view.game)) + '</div></div>';
+    const known = m.builtFor.concat(m.listedFor).filter((v, i, all) => all.indexOf(v) === i).join(' / ');
+
+    if (hasLoggedErrors(m)) return '<div class="notice warn"><span class="ico">!</span><div><b>' + esc(word('untestedErrorsTitle')) + '</b> ' + esc(word('untestedErrorsBody')(known, state.view.game)) + '</div></div>';
+
+    return '<div class="notice"><span class="ico">?</span><div><b>' + esc(word('untestedTitle')) + '</b> ' + esc(word('untestedBody')(known, state.view.game)) + '</div></div>';
   }
 
   // What the mod declares it needs, works with, or clashes with, and the mods that need or use it in turn, each with whether it will be there at the next start.

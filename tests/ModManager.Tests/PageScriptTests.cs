@@ -289,7 +289,8 @@ public class PageScriptTests
         var mod = Loaded() with
         {
             Info = info,
-            IsForOtherGame = true,
+            ListedGameVersions = new[] { "1.1" },
+            IsUntestedOnGame = true,
             Relations = new[] { new Relation(RelationKind.Needs, "t", "Toolkit", RelationStatus.Off, true), new Relation(RelationKind.DoesNotWorkWith, "x", "x", RelationStatus.Missing, false) },
             Install = new InstallState.Failed("no zip"),
         };
@@ -301,7 +302,8 @@ public class PageScriptTests
         Assert.Equal("QualityOfLife", root.GetProperty("category").GetString());
         Assert.True(root.GetProperty("library").GetBoolean());
         Assert.Equal("1.0", root.GetProperty("builtFor")[0].GetString());
-        Assert.True(root.GetProperty("otherGame").GetBoolean());
+        Assert.Equal("1.1", root.GetProperty("listedFor")[0].GetString());
+        Assert.True(root.GetProperty("untested").GetBoolean());
         Assert.Equal("needs", needs.GetProperty("kind").GetString());
         Assert.Equal("off", needs.GetProperty("status").GetString());
         Assert.True(needs.GetProperty("canTurnOn").GetBoolean());

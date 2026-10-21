@@ -92,7 +92,8 @@ public static class PageScript
         json.Append(",\"category\":").Append(mod.Info.Category is { } category ? Str(category.ToString()) : "null");
         json.Append(",\"library\":").Append(Bool(mod.Info.IsLibrary));
         json.Append(",\"builtFor\":").Append(List(mod.Info.GameVersions, Str));
-        json.Append(",\"otherGame\":").Append(Bool(mod.IsForOtherGame));
+        json.Append(",\"listedFor\":").Append(List(mod.ListedGameVersions, Str));
+        json.Append(",\"untested\":").Append(Bool(mod.IsUntestedOnGame));
         json.Append(",\"relations\":").Append(List(mod.Relations, RelationJson));
         json.Append(",\"dependents\":").Append(List(mod.Dependents, RelationJson));
         json.Append(",\"patchOverlaps\":").Append(List(mod.PatchOverlaps, OverlapJson));

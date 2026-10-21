@@ -19,7 +19,7 @@ Mod Manager adds a Mods screen to Survival Log. It lists every BepInEx mod you h
 [*][b]Conflicts tab[/b]: each mod's page lists the other mods that patch the same parts of the game, marked LIKELY TO CLASH, MAY CLASH or PROBABLY HARMLESS, so you know where to look first when two mods misbehave together.[/*]
 [*][b]Changelog tab[/b]: a mod that links its changelog gets a CHANGELOG tab that shows it right on the mod's page.[/*]
 [*][b]Tabs from other mods[/b]: a mod can add a tab with its own page to its entry. New Loop Plus adds TALENTS, an editor for its loop rewards.[/*]
-[*][b]Game version warning[/b]: a mod made for another game version is marked.[/*]
+[*][b]Game version warning[/b]: a mod not known to work on your game version gets a grey mark, which turns red if it logs errors. Mod authors can list newer game versions their mod works on without a new release.[/*]
 [/list]
 
 The Mod Manager adds nothing to your save and does not edit game files. It only contacts GitHub, for update checks and installs, and needs no account or key.
@@ -89,7 +89,7 @@ Mod Manager 为 Survival Log 加入一个模组界面。它列出你安装的每
 [*][b]「冲突」页[/b]：每个模组的页面会列出修改了游戏相同部分的其他模组，并标出「很可能冲突」「可能冲突」或「大概无害」，两个模组一起出问题时可以先从这里查起。[/*]
 [*][b]「更新日志」页[/b]：链接了更新日志的模组会多出一个「更新日志」页，直接在模组页面上显示它。[/*]
 [*][b]其他模组的页签[/b]：模组可以在自己的条目中加入一个带有自己页面的页签。New Loop Plus 加入了「天赋」页签，用来编辑它的轮回奖励。[/*]
-[*][b]游戏版本提醒[/b]：为其他游戏版本制作的模组会被标记。[/*]
+[*][b]游戏版本提醒[/b]：尚未确认可在你的游戏版本上运行的模组会显示灰色标记；如果它记录了错误，标记会变红。模组作者无需发布新版本，即可列出模组可运行的新游戏版本。[/*]
 [/list]
 
 Mod Manager 不会向存档添加任何内容，也不会修改游戏文件。它只会连接 GitHub 来检查和安装更新，不需要账号或密钥。

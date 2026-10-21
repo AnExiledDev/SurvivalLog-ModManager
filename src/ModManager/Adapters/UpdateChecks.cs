@@ -27,14 +27,19 @@ internal sealed class UpdateChecks
     private readonly SemaphoreSlim _slots = new(AtOnce);
     private readonly ConcurrentQueue<Action> _finished = new();
     private readonly UpdateBook _book;
+    private readonly SavedGameVersions _saved;
     private readonly Action<string> _log;
+
+    /// <summary>Repositories asked for their game version list this session; each is asked once.</summary>
+    private readonly HashSet<string> _askedForGameVersions = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Bumped when checks start or stop, so answers from an earlier run are dropped.</summary>
     private int _run;
 
-    public UpdateChecks(UpdateBook book, string userAgent, Action<string> log)
+    public UpdateChecks(UpdateBook book, SavedGameVersions saved, string userAgent, Action<string> log)
     {
         _book = book;
+        _saved = saved;
         _log = log;
         _client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = Timeout };
         _client.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
@@ -52,6 +57,17 @@ internal sealed class UpdateChecks
         {
             _book.Record(repository, new LatestRelease.Checking());
             _ = Check(run, repository);
+
+            if (_askedForGameVersions.Add(repository)) _ = GameVersions(repository);
+        }
+    }
+
+    /// <summary>Main thread: the lists saved at earlier starts, used until (or unless) the repositories answer.</summary>
+    public void LoadSavedGameVersions(IEnumerable<string> repositories)
+    {
+        foreach (var repository in repositories.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (_saved.Read(repository) is { } text) _book.Record(repository, GameVersionLists.Parse(text).List);
         }
     }
 
@@ -138,6 +154,39 @@ internal sealed class UpdateChecks
 
             if (state is ChangelogState.Failed failed) _log("could not load the changelog " + changelog + ": " + failed.Reason);
         });
+    }
+
+    /// <summary>Kept when update checks stop or start again, like a changelog, since the list does not depend on them.</summary>
+    private async Task GameVersions(string repository)
+    {
+        var answer = GameVersionLists.From(await Limited(() => Send(new HttpRequestMessage(HttpMethod.Get, GameVersionLists.Address(repository)), true)).ConfigureAwait(false));
+
+        _finished.Enqueue(() => RecordGameVersions(repository, answer));
+    }
+
+    private void RecordGameVersions(string repository, GameVersionListAnswer answer)
+    {
+        switch (answer)
+        {
+            case GameVersionListAnswer.Found found:
+                _book.Record(repository, found.Read.List);
+                _saved.Save(repository, found.Text);
+
+                foreach (var problem in found.Read.Ignored) _log("in the " + GameVersionLists.FileName + " of " + repository + ", " + problem);
+
+                break;
+            case GameVersionListAnswer.Missing:
+                _book.Record(repository, GameVersionList.Empty);
+                _saved.Forget(repository);
+
+                break;
+            case GameVersionListAnswer.Failed failed:
+                _log("could not load the game versions of " + repository + ", so the saved ones stay in use: " + failed.Reason);
+
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(answer), answer, null);
+        }
     }
 
     private void Finish(int run, Action record) => _finished.Enqueue(() =>

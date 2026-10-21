@@ -249,6 +249,7 @@ internal sealed class PluginCatalog
 
     private ModEntry Finish(ModEntry mod)
     {
+        var listed = _updates.GameVersionsListed(mod.Info.UpdateRepository, mod.Version);
         var install = _updates.InstallOf(mod.Guid);
         var rollback = mod.State is ModState.Loaded ? _updates.RollbackOf(mod.Guid, _backupVersions(mod.Guid), mod.Version) : new RollbackState.None();
 
@@ -258,7 +259,8 @@ internal sealed class PluginCatalog
             Install = install,
             Rollback = rollback,
             Changelog = _updates.ChangelogOf(Changelogs.TextUri(mod.Info.Link(LinkKind.Changelog)?.Url)),
-            IsForOtherGame = !Core.GameVersion.IsMadeFor(mod.Info.GameVersions, GameVersion),
+            ListedGameVersions = listed,
+            IsUntestedOnGame = !Core.GameVersion.IsKnownToWork(mod.Info.GameVersions, listed, GameVersion),
         };
     }
 

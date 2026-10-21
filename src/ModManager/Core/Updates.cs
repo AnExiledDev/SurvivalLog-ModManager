@@ -350,8 +350,16 @@ public sealed class UpdateBook
     private readonly Dictionary<string, InstallState> _installs = new(StringComparer.Ordinal);
     private readonly Dictionary<string, RollbackState> _rollbacks = new(StringComparer.Ordinal);
     private readonly Dictionary<Uri, ChangelogState> _changelogs = new();
+    private readonly Dictionary<string, GameVersionList> _gameVersions = new(StringComparer.OrdinalIgnoreCase);
 
     public void Record(string repository, LatestRelease latest) => _latest[repository] = latest;
+
+    /// <summary>Game version lists are kept for the session whether or not update checks run again.</summary>
+    public void Record(string repository, GameVersionList list) => _gameVersions[repository] = list;
+
+    /// <summary>The game versions the repository lists this version of its mod as working on; none when it lists nothing.</summary>
+    public IReadOnlyList<string> GameVersionsListed(string? repository, string modVersion) =>
+        repository != null && _gameVersions.TryGetValue(repository, out var list) ? list.For(modVersion) : Array.Empty<string>();
 
     /// <summary>Changelogs are kept for the session whether or not update checks run again.</summary>
     public void Record(Uri changelog, ChangelogState state) => _changelogs[changelog] = state;

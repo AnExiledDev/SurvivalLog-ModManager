@@ -79,8 +79,11 @@ public sealed record ModEntry(string Guid, string Name, string Version, string F
     /// <summary>The other mods that patch some of the same game methods.</summary>
     public IReadOnlyList<PatchOverlap> PatchOverlaps { get; init; } = Array.Empty<PatchOverlap>();
 
-    /// <summary>The mod names the game versions it was made for, and the running game is none of them.</summary>
-    public bool IsForOtherGame { get; init; }
+    /// <summary>The game versions the mod's author lists this version of it as working on, besides the ones it was made for.</summary>
+    public IReadOnlyList<string> ListedGameVersions { get; init; } = Array.Empty<string>();
+
+    /// <summary>The mod names game versions, and the running game is none it was made for or is listed as working on.</summary>
+    public bool IsUntestedOnGame { get; init; }
 
     /// <summary>Warnings and errors this session that came from the mod, or went through a game method it shares with another mod.</summary>
     public IReadOnlyList<ModProblem> Errors { get; init; } = Array.Empty<ModProblem>();

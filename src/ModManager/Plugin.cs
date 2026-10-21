@@ -57,7 +57,7 @@ public sealed class Plugin : BasePlugin
 
         var userAgent = "SurvivalLog-ModManager/" + Version;
         var updates = new UpdateBook();
-        var checks = new UpdateChecks(updates, userAgent, log.Write);
+        var checks = new UpdateChecks(updates, new SavedGameVersions(Path.Combine(Paths.BepInExRootPath, "mod-manager", "game-versions"), log.Write), userAgent, log.Write);
         var shelf = new BackupShelf(Path.Combine(Paths.BepInExRootPath, "mod-manager", "backups"));
         var installer = new UpdateInstaller(updates, shelf, userAgent, log.Write);
         var catalog = new PluginCatalog(folders, updates, shelf.Versions, watch.Book, Guid, ReadGameVersion(log.Write), log.Write);

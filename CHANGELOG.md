@@ -4,6 +4,8 @@
 
 - Mods can add a tab of their own to their page on the Mods screen, with any page they like (New Loop Plus uses it to edit its loop rewards). See "Your own tab" under "For mod authors" in the README.
 - Text boxes with several lines take the keyboard the same way one-line boxes do.
+- A mod's author can list the game versions each version of the mod works on in a `game-versions.txt` in its GitHub repository, so a mod that still works after a game update is no longer marked. See "Game versions it works on" under "For mod authors" in the README.
+- A mod not known to work on this game version gets a grey VERSION mark and a note that it may still work. The mark turns red, and the note says it may need an update, once the mod logs errors this session.
 
 ## 0.6.0
 
