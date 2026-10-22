@@ -5,7 +5,8 @@
 - Updates are checked before they are installed:
   - The new DLL must be the same mod (the same BepInPlugin GUID) as the one installed. A zip that holds a program file (.exe, .bat, .ps1 and the like) is refused.
   - A mod's updates must keep coming from the GitHub repository its first install came from. A repository that was deleted and made again under the same name by someone else is not installed from; use GET UPDATE to install by hand if you trust it.
-  - When an update can do something the installed version could not (connect to the internet, start other programs, call native code, load other code, use the Windows registry, or add another DLL), its page says what, and it is installed only when you click INSTALL ANYWAY. INSTALL ALL UPDATES skips these.
+  - An update that starts doing something harmful code needs and a game mod does not (starting other programs, loading other code, using the Windows registry) is refused. A mod that already did it when installed keeps updating.
+  - When an update can do something else the installed version could not (connect to the internet, call native code, or add another DLL), its page says what, and it is installed only when you click INSTALL ANYWAY. INSTALL ALL UPDATES skips these.
 
 ## 0.7.0
 

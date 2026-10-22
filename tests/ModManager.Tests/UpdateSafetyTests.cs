@@ -100,9 +100,9 @@ public class UpdateReviewTests
     [Fact]
     public void An_update_that_gains_a_power_waits_for_the_player()
     {
-        var verdict = Judge(Dll("System.Net.Http.HttpClient", "System.Diagnostics.Process"), new[] { Dll("System.Net.WebClient") });
+        var verdict = Judge(Dll("System.Net.Http.HttpClient", "System.Runtime.InteropServices.NativeLibrary"), new[] { Dll("System.Net.WebClient") });
 
-        Assert.Equal(new[] { Power.StartsPrograms }, Assert.IsType<UpdateVerdict.NeedsApproval>(verdict).NewPowers);
+        Assert.Equal(new[] { Power.NativeCode }, Assert.IsType<UpdateVerdict.NeedsApproval>(verdict).NewPowers);
     }
 
     [Fact]
@@ -116,9 +116,32 @@ public class UpdateReviewTests
     [Fact]
     public void A_power_in_another_dll_of_the_update_counts()
     {
-        var verdict = Judge(Dll(), new[] { Dll() }, Incoming(Plugins(Array.Empty<string>(), "Microsoft.Win32.Registry")));
+        var verdict = Judge(Dll(), new[] { Dll() }, Incoming(Plugins(Array.Empty<string>(), "System.Net.WebClient")));
 
-        Assert.Equal(new[] { Power.Registry }, Assert.IsType<UpdateVerdict.NeedsApproval>(verdict).NewPowers);
+        Assert.Equal(new[] { Power.Network }, Assert.IsType<UpdateVerdict.NeedsApproval>(verdict).NewPowers);
+    }
+
+    [Theory]
+    [InlineData("System.Diagnostics.Process", "it newly starts programs, which no update is allowed to start doing")]
+    [InlineData("Microsoft.Win32.RegistryKey", "it newly uses the Windows registry, which no update is allowed to start doing")]
+    public void An_update_that_gains_a_dangerous_power_is_refused(string type, string reason)
+    {
+        Assert.Equal(reason, Assert.IsType<UpdateVerdict.Rejected>(Judge(Dll(type), new[] { Dll() })).Reason);
+    }
+
+    [Fact]
+    public void Code_loading_hidden_in_another_dll_of_the_update_is_refused_alongside_a_warned_power()
+    {
+        var loader = new DllScan.Read(Array.Empty<string>(), new DllFacts(Array.Empty<string>(), new[] { "System.Reflection.Assembly::Load" }, false, false));
+        var verdict = Judge(Dll("System.Net.Http.HttpClient"), new[] { Dll() }, Incoming(loader, isNew: true));
+
+        Assert.Equal("it newly loads other code, which no update is allowed to start doing", Assert.IsType<UpdateVerdict.Rejected>(verdict).Reason);
+    }
+
+    [Fact]
+    public void A_mod_that_already_started_programs_keeps_updating()
+    {
+        Assert.IsType<UpdateVerdict.Clear>(Judge(Dll("System.Diagnostics.Process", "Microsoft.Win32.Registry"), new[] { Dll("System.Diagnostics.ProcessStartInfo", "Microsoft.Win32.RegistryKey") }));
     }
 
     [Fact]

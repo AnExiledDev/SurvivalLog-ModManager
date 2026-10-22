@@ -139,9 +139,26 @@ public static class UpdateReview
         var before = installed.SelectMany(scan => scan.Powers);
         var after = incomingList.SelectMany(dll => dll.Scan.Powers).Concat(incomingList.Any(dll => dll.IsNew) ? new[] { Power.AddsDll } : Array.Empty<Power>());
         var added = Powers.Added(before, after);
+        var refused = added.Where(Refused.Contains).ToList();
+
+        if (refused.Count > 0) return new UpdateVerdict.Rejected("it newly " + string.Join(" and ", refused.Select(Describe)) + ", which no update is allowed to start doing");
 
         return added.Count == 0 ? new UpdateVerdict.Clear() : new UpdateVerdict.NeedsApproval(added);
     }
+
+    /// <summary>
+    /// Powers harmful code leans on and a game mod has no need to pick up in an update. A mod that already had one when
+    /// it was installed keeps updating; only gaining it is refused.
+    /// </summary>
+    private static readonly HashSet<Power> Refused = new() { Power.StartsPrograms, Power.LoadsOtherCode, Power.Registry };
+
+    private static string Describe(Power power) => power switch
+    {
+        Power.StartsPrograms => "starts programs",
+        Power.LoadsOtherCode => "loads other code",
+        Power.Registry => "uses the Windows registry",
+        _ => power.ToString(),
+    };
 }
 
 /// <summary>
