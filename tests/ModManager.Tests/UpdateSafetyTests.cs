@@ -65,6 +65,17 @@ public class PowersTests
     [InlineData("ShellExecuteExW", Power.StartsPrograms)]
     [InlineData("WinExec", Power.StartsPrograms)]
     [InlineData("NtCreateUserProcess", Power.StartsPrograms)]
+    [InlineData("ZwCreateUserProcess", Power.StartsPrograms)]
+    [InlineData("SHCreateProcessAsUserW", Power.StartsPrograms)]
+    [InlineData("_wsystem", Power.StartsPrograms)]
+    [InlineData("system", Power.StartsPrograms)]
+    [InlineData("_wspawnv", Power.StartsPrograms)]
+    [InlineData("_popen", Power.StartsPrograms)]
+    [InlineData("SHSetValueW", Power.Registry)]
+    [InlineData("SHDeleteKeyA", Power.Registry)]
+    [InlineData("ZwDeleteValueKey", Power.Registry)]
+    [InlineData("NtRenameKey", Power.Registry)]
+    [InlineData("NtOpenKeyEx", Power.Registry)]
     [InlineData("RegOpenKeyExW", Power.Registry)]
     [InlineData("RegSetValueExA", Power.Registry)]
     [InlineData("regdeletetreew", Power.Registry)]
@@ -72,6 +83,17 @@ public class PowersTests
     public void A_windows_function_imported_directly_gives_its_power_as_well_as_native_code(string function, Power power)
     {
         Assert.Equal(new[] { power, Power.NativeCode }.OrderBy(p => p), Powers.Of(Facts(nativeImports: new[] { function })).OrderBy(p => p));
+    }
+
+    [Theory]
+    [InlineData("SystemParametersInfoW")]
+    [InlineData("GetAsyncKeyState")]
+    [InlineData("RegisterClassExW")]
+    [InlineData("NtCreateKeyedEvent")]
+    [InlineData("executeQuery")]
+    public void A_windows_function_that_only_starts_alike_is_native_code_alone(string function)
+    {
+        Assert.Equal(new[] { Power.NativeCode }, Powers.Of(Facts(nativeImports: new[] { function })));
     }
 
     [Fact]
@@ -222,6 +244,15 @@ public class RepositoryPinTests
     {
         Assert.Equal("https://api.github.com/repositories/1425067219/releases/tags/v1.0%20beta", RepositoryPin.ReleaseUri(1425067219, Release.Tag).AbsoluteUri);
         Assert.Equal("https://api.github.com/repos/Ann/Mod", RepositoryPin.RepositoryUri(Release).AbsoluteUri);
+    }
+
+    [Fact]
+    public void A_pin_is_kept_under_the_name_the_mod_gives_not_where_GitHub_sends_it()
+    {
+        var moved = Release with { Owner = "Someone", Repository = "Else" };
+
+        Assert.Equal("Ann/Mod", RepositoryPin.KeyOf("Ann/Mod", moved));
+        Assert.Equal("Someone/Else", RepositoryPin.KeyOf(null, moved));
     }
 
     [Fact]

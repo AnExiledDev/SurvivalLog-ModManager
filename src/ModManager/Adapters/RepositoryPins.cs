@@ -52,18 +52,34 @@ internal sealed class RepositoryPins
         }
     }
 
-    public void Save(string repository, long repositoryId)
+    /// <summary>Written beside the pin and then moved over it, so a crash or a second install never leaves half a file. False when it could not be saved.</summary>
+    public bool Save(string repository, long repositoryId)
     {
         var path = PathOf(repository);
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
 
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path) ?? _root);
-            File.WriteAllText(path, RepositoryPin.Format(repositoryId));
+            File.WriteAllText(temporary, RepositoryPin.Format(repositoryId));
+            File.Move(temporary, path, true);
+
+            return true;
         }
         catch (Exception ex)
         {
             _log("could not save the number of " + repository + ": " + ex.Message);
+
+            try
+            {
+                File.Delete(temporary);
+            }
+            catch
+            {
+                // Best effort: a leftover .tmp file is never read as a pin.
+            }
+
+            return false;
         }
     }
 

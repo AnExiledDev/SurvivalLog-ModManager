@@ -64,14 +64,33 @@ public static class Powers
     private static readonly HashSet<string> OpeningMembers = new(StringComparer.Ordinal) { "UnityEngine.Application::OpenURL" };
 
     /// <summary>Windows functions that start a program, by the start of their name (CreateProcessW, ShellExecuteExW and the like).</summary>
-    private static readonly string[] ProgramImports = { "CreateProcess", "ShellExecute", "WinExec", "NtCreateUserProcess", "RtlCreateUserProcess" };
+    private static readonly string[] ProgramImports =
+    {
+        "CreateProcess", "ShellExecute", "WinExec", "NtCreateUserProcess", "ZwCreateUserProcess", "RtlCreateUserProcess", "NtCreateProcess", "ZwCreateProcess", "SHCreateProcess",
+        "_spawn", "_wspawn", "_exec", "_wexec", "_popen", "_wpopen",
+    };
+
+    /// <summary>C library functions that start a program, by their whole name: a prefix such as "system" would also catch SystemParametersInfo.</summary>
+    private static readonly HashSet<string> ProgramImportNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "system", "_system", "_wsystem", "popen", "execl", "execle", "execlp", "execlpe", "execv", "execve", "execvp", "execvpe", "spawnl", "spawnle", "spawnlp", "spawnlpe", "spawnv", "spawnve", "spawnvp", "spawnvpe",
+    };
 
     private static readonly string[] RegistryImports =
     {
         "RegOpenKey", "RegCreateKey", "RegSetValue", "RegSetKeyValue", "RegDeleteKey", "RegDeleteValue", "RegDeleteTree", "RegQueryValue", "RegQueryInfoKey", "RegGetValue",
-        "RegEnumKey", "RegEnumValue", "RegLoadKey", "RegSaveKey", "RegReplaceKey", "RegRestoreKey", "RegConnectRegistry", "RegCopyTree", "RegRenameKey", "RegOverridePredefKey",
-        "NtCreateKey", "NtOpenKey", "NtSetValueKey", "NtDeleteKey", "ZwCreateKey", "ZwOpenKey", "ZwSetValueKey", "ZwDeleteKey",
+        "RegEnumKey", "RegEnumValue", "RegLoadKey", "RegUnLoadKey", "RegSaveKey", "RegReplaceKey", "RegRestoreKey", "RegConnectRegistry", "RegCopyTree", "RegRenameKey", "RegOverridePredefKey",
+        "SHSetValue", "SHGetValue", "SHQueryValue", "SHDeleteKey", "SHDeleteValue", "SHDeleteEmptyKey", "SHCopyKey", "SHRegSetUSValue", "SHRegWriteUSValue", "SHRegCreateUSKey",
+        "SHRegOpenUSKey", "SHRegGetValue", "SHRegGetUSValue", "SHRegQueryUSValue", "SHRegDeleteUSValue", "SHRegDeleteEmptyUSKey", "SHRegSetPath", "SHRegGetPath",
     };
+
+    private static bool IsProgramImport(string name) => ProgramImportNames.Contains(name) || StartsWithAny(name, ProgramImports);
+
+    /// <summary>The registry by the functions above, or ntdll's own: NtSetValueKey, ZwDeleteValueKey, NtOpenKeyEx and the like.</summary>
+    private static bool IsRegistryImport(string name) =>
+        StartsWithAny(name, RegistryImports) || (StartsWithAny(name, NtPrefixes) && (name.EndsWith("Key", StringComparison.OrdinalIgnoreCase) || name.EndsWith("KeyEx", StringComparison.OrdinalIgnoreCase)));
+
+    private static readonly string[] NtPrefixes = { "Nt", "Zw" };
 
     public static IReadOnlyCollection<Power> Of(DllFacts facts)
     {
@@ -81,13 +100,13 @@ public static class Powers
 
         if (types.Any(IsNetwork)) powers.Add(Power.Network);
 
-        if (types.Any(ProgramTypes.Contains) || facts.NativeImports.Any(name => StartsWithAny(name, ProgramImports))) powers.Add(Power.StartsPrograms);
+        if (types.Any(ProgramTypes.Contains) || facts.NativeImports.Any(IsProgramImport)) powers.Add(Power.StartsPrograms);
 
         if (facts.NativeImports.Count > 0 || types.Any(NativeTypes.Contains) || members.Any(NativeMembers.Contains)) powers.Add(Power.NativeCode);
 
         if (facts.CarriesProgram || members.Any(LoadingMembers.Contains)) powers.Add(Power.LoadsOtherCode);
 
-        if (types.Any(RegistryTypes.Contains) || facts.NativeImports.Any(name => StartsWithAny(name, RegistryImports))) powers.Add(Power.Registry);
+        if (types.Any(RegistryTypes.Contains) || facts.NativeImports.Any(IsRegistryImport)) powers.Add(Power.Registry);
 
         if (members.Any(OpeningMembers.Contains)) powers.Add(Power.OpensFiles);
 
@@ -190,6 +209,12 @@ public static class UpdateReview
 /// </summary>
 public static class RepositoryPin
 {
+    /// <summary>
+    /// The name a pin is kept under: the one the mod gives, not the one GitHub's answer sends it to, so a name that starts
+    /// pointing somewhere else still meets the old pin.
+    /// </summary>
+    public static string KeyOf(string? declared, LatestRelease.Found release) => declared ?? release.Owner + "/" + release.Repository;
+
     public static Uri RepositoryUri(LatestRelease.Found release) => new("https://api.github.com/repos/" + release.Owner + "/" + release.Repository);
 
     /// <summary>The release with this tag in the pinned repository, whatever it is called now.</summary>

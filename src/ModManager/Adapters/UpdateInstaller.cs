@@ -135,14 +135,10 @@ internal sealed class UpdateInstaller
 
     private sealed record Downloaded(string Tag, byte[] Zip);
 
-    /// <summary>
-    /// The release's zip, from the repository pinned at the mod's first install (pinned now when this is it). The pin is
-    /// kept under the name the mod gives, not the one GitHub sends it to, so a name that starts pointing somewhere else
-    /// still meets the old pin.
-    /// </summary>
+    /// <summary>The release's zip, from the repository pinned at the mod's first install (pinned now when this is it).</summary>
     private async Task<(Downloaded? Download, InstallState? Stopped)> Fetch(ModEntry mod, LatestRelease.Found release, string dllName)
     {
-        var repository = mod.Info.UpdateRepository ?? release.Owner + "/" + release.Repository;
+        var repository = RepositoryPin.KeyOf(mod.Info.UpdateRepository, release);
         var pin = _pins.Read(repository);
 
         if (pin is RepositoryPins.Saved.Unusable unusable) return (null, new InstallState.Refused(RepositoryPin.Unusable(unusable.Path, unusable.Problem)));
@@ -162,7 +158,9 @@ internal sealed class UpdateInstaller
             if (RepositoryPin.IdFrom(System.Text.Encoding.UTF8.GetString(about.Body)) is not { } id) return (null, new InstallState.Failed("GitHub did not say which repository " + repository + " is"));
 
             repositoryId = id;
-            _pins.Save(repository, repositoryId);
+
+            // Unsaved, every later install would pin again by name, which is the check skipped.
+            if (!_pins.Save(repository, repositoryId)) return (null, new InstallState.Failed("could not save which GitHub repository " + repository + " is"));
         }
 
         var answer = await Get(RepositoryPin.ReleaseUri(repositoryId, release.Tag)).ConfigureAwait(false);

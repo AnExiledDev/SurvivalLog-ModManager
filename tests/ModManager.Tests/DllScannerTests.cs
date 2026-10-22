@@ -83,4 +83,14 @@ public class RepositoryPinsTests : IDisposable
 
         Assert.Equal(Path.Combine(_root, "ann", "mod.txt"), unusable.Path);
     }
+
+    [Fact]
+    public void Saving_again_replaces_the_pin_and_leaves_no_other_file()
+    {
+        Assert.True(Pins().Save("Ann/Mod", 1));
+        Assert.True(Pins().Save("Ann/Mod", 2));
+
+        Assert.Equal(2L, Assert.IsType<RepositoryPins.Saved.Pinned>(Pins().Read("Ann/Mod")).Id);
+        Assert.Equal(new[] { "mod.txt" }, Directory.GetFiles(Path.Combine(_root, "ann")).Select(Path.GetFileName));
+    }
 }

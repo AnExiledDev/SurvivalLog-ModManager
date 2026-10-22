@@ -176,6 +176,10 @@ public class ZipPlanTests
     [InlineData("run.bat")]
     [InlineData("start.ps1")]
     [InlineData("shortcut.lnk")]
+    [InlineData("run.js")]
+    [InlineData("x.cpl")]
+    [InlineData("site.url")]
+    [InlineData("tool.jar")]
     public void A_zip_holding_a_program_file_installs_nothing(string name)
     {
         var (files, problem) = ZipPlan.Place(new[] { Item("Map.dll"), Item(name) }, "Map.dll", Folder, false);

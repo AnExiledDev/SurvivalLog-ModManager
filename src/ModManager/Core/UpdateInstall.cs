@@ -127,7 +127,11 @@ public static class ZipPlan
     private static readonly string[] SameNameExtensions = { ".dll", ".pdb", ".xml" };
 
     /// <summary>Files Windows runs when opened. A mod never needs one, so an update that brings one is refused whole.</summary>
-    private static readonly string[] ProgramExtensions = { ".exe", ".com", ".scr", ".bat", ".cmd", ".ps1", ".vbs", ".vbe", ".wsf", ".hta", ".msi", ".lnk", ".reg" };
+    private static readonly string[] ProgramExtensions =
+    {
+        ".exe", ".com", ".scr", ".pif", ".cpl", ".bat", ".cmd", ".ps1", ".psm1", ".psd1", ".ps1xml", ".vb", ".vbs", ".vbe", ".js", ".jse", ".ws", ".wsf", ".wsh", ".hta",
+        ".msi", ".msp", ".mst", ".msc", ".jar", ".lnk", ".url", ".scf", ".inf", ".reg", ".chm", ".application", ".appref-ms", ".gadget", ".settingcontent-ms",
+    };
 
     /// <param name="modFolder">The folder of the mod's DLL now.</param>
     /// <param name="isSharedFolder">The mod's DLL sits straight in the plugins folder, which other mods share, so only files named after the DLL are written.</param>
