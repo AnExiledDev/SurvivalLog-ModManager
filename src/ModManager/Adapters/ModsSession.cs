@@ -168,6 +168,10 @@ internal sealed class ModsSession
                 StartInstall(install.Guid);
                 RefreshOpen();
                 break;
+            case PageCommand.ApproveInstall approve:
+                ApproveInstall(approve.Guid);
+                RefreshOpen();
+                break;
             case PageCommand.InstallAll:
                 InstallAll();
                 break;
@@ -269,6 +273,17 @@ internal sealed class ModsSession
 
         if (dllPath == null) _updates.Record(guid, new InstallState.Failed(problem ?? "it cannot be updated here"));
         else _installer.Start(mod, release, dllPath, _catalog.IsStraightInPlugins(dllPath));
+    }
+
+    private void ApproveInstall(string guid)
+    {
+        var mod = _catalog.Mod(guid);
+        var (dllPath, problem) = _catalog.InstallPathOf(guid);
+
+        if (mod == null || _updates.HasRolledBack(guid)) return;
+
+        if (dllPath == null) _updates.Record(guid, new InstallState.Failed(problem ?? "it cannot be updated here"));
+        else _installer.Approve(mod, dllPath, _catalog.IsStraightInPlugins(dllPath));
     }
 
     /// <summary>Every update not installed yet, failed ones again; the installs run side by side.</summary>

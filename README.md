@@ -25,6 +25,7 @@ Open it with F10, or with the Mods button in the Esc menu or on the title screen
 - **Mod info and links**: a mod can give its name, a short description, its author, a category, and links to its Nexus Mods page, GitHub repository, website and a page for reporting problems. The link buttons open them in your browser.
 - **Update checks**: each time the game starts, the Mod Manager asks GitHub whether mods that name a GitHub repository have a newer release. Mods with an update get an UPDATE mark in the list and an "Updates" filter, and one message says how many mods have updates (click it to see them). A mod's page shows the new version, the release notes, an INSTALL UPDATE button and a GET UPDATE button that opens the release page in your browser.
 - **Install updates**: INSTALL UPDATE downloads the release's zip from GitHub and puts the new files in place for the next game start. The running game keeps the version it loaded. The old files are kept in `BepInEx\mod-manager\backups`, and a failed install puts them back. INSTALL ALL UPDATES at the top of the "Updates" filter installs every update at once.
+- **Update safety**: before an update is installed, its DLL must be the same mod as the installed one, its zip may hold no program files, and it must come from the same GitHub repository as the mod's first install (a repository deleted and made again under the same name is refused). An update that can do something the installed version could not, such as connect to the internet, start programs or add another DLL, says so on the mod's page and waits for you to click INSTALL ANYWAY. These checks catch an update that plainly starts doing something new; they cannot prove a mod is safe.
 - **Release notes since your version**: a mod's page shows the notes of every release since the version you have, newest first, not only the latest one.
 - **Roll back**: when an update replaced an older version, ROLL BACK TO (version) on the mod's page puts the old files back for the next game start. The newer files are kept in the backups folder too.
 - **Conflicts tab**: a mod's page lists the other mods that patch the same parts of the game, which parts, and what each mod does there. Each is marked by how likely the two are to get in each other's way:
@@ -77,7 +78,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.19131 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.7.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.8.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
@@ -274,4 +275,7 @@ With `ModManager.GitHub` set (or a GitHub `RepositoryUrl`), the screen checks th
 - For INSTALL UPDATE, attach a `.zip` to the release that holds your DLL. With one zip it is used whatever its name; with several, the one whose name holds your DLL's name (`BetterMap` for `BetterMap.dll`). Up to 50 MB.
 - The folder holding your DLL in the zip maps onto the folder holding your DLL on disk. A zip laid out like the install (`BepInEx/plugins/BetterMap.dll`) works, and so does one with the DLL at its root. Files beside your DLL in the zip (other DLLs, a `lang` folder) are installed beside it.
 - When your DLL sits straight in `BepInEx\plugins`, a folder every mod shares, only your DLL and its `.pdb` and `.xml` are written. Put your mod in its own folder (`BepInEx\plugins\BetterMap\`) if it ships more files.
-- Downloads only come from GitHub over https. A zip with a file that would land outside your mod's folder is refused.
+- Downloads only come from GitHub over https. A zip with a file that would land outside your mod's folder is refused, and so is one with a program file (`.exe`, `.bat`, `.cmd`, `.ps1`, `.msi` and the like).
+- The DLL in the zip must declare the same BepInPlugin GUID as the installed one.
+- Each repository is remembered by GitHub's number for it at the first install, so renaming or transferring your repository keeps updates working. Deleting it and making a new one under the same name stops installs; players then use GET UPDATE.
+- When a release starts using something the installed version did not (`System.Net` or `UnityWebRequest`, `Process`, P/Invoke or `NativeLibrary`, `Assembly.Load`, the registry, or a new DLL beside yours), players are shown what and asked before it installs. Ship those changes with a line in the release notes saying why.

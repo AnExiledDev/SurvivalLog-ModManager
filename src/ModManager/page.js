@@ -83,6 +83,9 @@
       installed: tag => 'Version ' + tag + ' is installed. Restart the game to use it.',
       installFailed: reason => 'Could not install the update: ' + reason + '.',
       installAll: n => 'INSTALL ALL UPDATES (' + n + ')',
+      needsApproval: (tag, powers) => 'Version ' + tag + ' can do things the installed version cannot: it can ' + powers.join(', ') + '. Mods can have good reasons for this. Install it only if you trust where it comes from.',
+      installAnyway: 'INSTALL ANYWAY',
+      powers: { network: 'connect to the internet', programs: 'start other programs', native: 'call Windows or other native code directly', loadsCode: 'load code that is not in its DLL', registry: 'read or change the Windows registry', newDll: 'add another DLL file', unreadable: 'include a DLL the Mod Manager cannot read' },
       rollbackTitle: 'An earlier version is kept.', rollbackBody: version => 'The last update replaced ' + version + '. If this version gives you trouble, you can go back to it.',
       rollbackButton: version => 'ROLL BACK TO ' + version,
       rolledBack: version => 'Rolled back to ' + version + '. Restart the game to use it.',
@@ -163,6 +166,9 @@
       installed: tag => '版本 ' + tag + ' 已安装。重启游戏后生效。',
       installFailed: reason => '无法安装更新：' + reason + '。',
       installAll: n => '安装全部更新（' + n + '）',
+      needsApproval: (tag, powers) => '版本 ' + tag + ' 能做到当前版本做不到的事：它可以' + powers.join('、') + '。模组这样做可能有正当理由。只有在信任它的来源时才安装。',
+      installAnyway: '仍然安装',
+      powers: { network: '连接互联网', programs: '启动其他程序', native: '直接调用 Windows 或其他原生代码', loadsCode: '加载不在其 DLL 中的代码', registry: '读取或修改 Windows 注册表', newDll: '添加另一个 DLL 文件', unreadable: '包含一个模组管理器无法读取的 DLL' },
       rollbackTitle: '保留了一个旧版本。', rollbackBody: version => '上次更新替换了 ' + version + '。如果这个版本有问题，可以退回到它。',
       rollbackButton: version => '退回到 ' + version,
       rolledBack: version => '已退回到 ' + version + '。重启游戏后生效。',
@@ -1027,6 +1033,7 @@
       case 'installing': return '<div class="upd-line">' + esc(word('installing')) + '</div>';
       case 'installed': return '<div class="upd-line ok">' + esc(word('installed')(tagText(install.tag))) + '</div>';
       case 'failed': return '<div class="upd-line bad">' + esc(word('installFailed')(install.reason)) + '</div>';
+      case 'needsApproval': return '<div class="upd-line bad">' + esc(word('needsApproval')(tagText(install.tag), install.powers.map(power => word('powers')[power] || power))) + '</div>';
       default: return '';
     }
   }
@@ -1035,6 +1042,7 @@
     switch (install.kind) {
       case 'none': return '<div class="key-btn" data-act="install">' + esc(word('installUpdate')) + '</div>';
       case 'failed': return '<div class="key-btn" data-act="install">' + esc(word('tryAgain')) + '</div>';
+      case 'needsApproval': return '<div class="key-btn" data-act="approve">' + esc(word('installAnyway')) + '</div>';
       default: return '';
     }
   }
@@ -1761,6 +1769,7 @@
     else if (actName === 'link') send('link', [state.selected, act.dataset.kind]);
     else if (actName === 'update') send('update', [state.selected]);
     else if (actName === 'install') send('install', [state.selected]);
+    else if (actName === 'approve') send('approve', [state.selected]);
     else if (actName === 'installAll') send('installAll');
     else if (actName === 'rollback') send('rollback', [state.selected]);
     else if (actName === 'needs') send('needs', [state.selected]);

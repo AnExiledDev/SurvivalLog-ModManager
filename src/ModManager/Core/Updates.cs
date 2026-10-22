@@ -263,10 +263,6 @@ public static class ReleaseNotes
     public const int MaxLength = 3000;
     public const int MaxReleases = 10;
 
-    /// <summary>The address of one release, which lists its files.</summary>
-    public static Uri ApiUri(LatestRelease.Found release) =>
-        new("https://api.github.com/repos/" + release.Owner + "/" + release.Repository + "/releases/tags/" + Uri.EscapeDataString(release.Tag));
-
     /// <summary>The address of the repository's recent releases.</summary>
     public static Uri ListUri(LatestRelease.Found release) =>
         new("https://api.github.com/repos/" + release.Owner + "/" + release.Repository + "/releases?per_page=30");

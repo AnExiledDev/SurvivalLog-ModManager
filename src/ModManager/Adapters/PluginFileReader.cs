@@ -24,6 +24,12 @@ internal static class PluginFileReader
     public static IReadOnlyList<PluginFile> Read(string path)
     {
         using var assembly = Open(path);
+
+        return Read(assembly);
+    }
+
+    public static IReadOnlyList<PluginFile> Read(AssemblyDefinition assembly)
+    {
         var metadata = assembly.CustomAttributes
             .Where(attribute => attribute.AttributeType.FullName == MetadataAttribute && attribute.ConstructorArguments.Count == 2)
             .Select(attribute => new KeyValuePair<string, string?>(attribute.ConstructorArguments[0].Value as string ?? "", attribute.ConstructorArguments[1].Value as string))

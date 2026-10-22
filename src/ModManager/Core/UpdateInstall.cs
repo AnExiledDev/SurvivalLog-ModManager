@@ -19,6 +19,14 @@ public abstract record InstallState
 
     public sealed record Installed(string Tag) : InstallState;
 
+    /// <summary>The update is downloaded and checked, and can do things the installed version cannot; the player decides.</summary>
+    public sealed record NeedsApproval(string Tag, IReadOnlyList<Power> NewPowers) : InstallState
+    {
+        public bool Equals(NeedsApproval? other) => other != null && Tag == other.Tag && NewPowers.SequenceEqual(other.NewPowers);
+
+        public override int GetHashCode() => Tag.GetHashCode();
+    }
+
     public sealed record Failed(string Reason) : InstallState;
 }
 
@@ -114,6 +122,9 @@ public static class ZipPlan
 
     private static readonly string[] SameNameExtensions = { ".dll", ".pdb", ".xml" };
 
+    /// <summary>Files Windows runs when opened. A mod never needs one, so an update that brings one is refused whole.</summary>
+    private static readonly string[] ProgramExtensions = { ".exe", ".com", ".scr", ".bat", ".cmd", ".ps1", ".vbs", ".vbe", ".wsf", ".hta", ".msi", ".lnk", ".reg" };
+
     /// <param name="modFolder">The folder of the mod's DLL now.</param>
     /// <param name="isSharedFolder">The mod's DLL sits straight in the plugins folder, which other mods share, so only files named after the DLL are written.</param>
     public static (IReadOnlyList<PlacedFile>? Files, string? Problem) Place(IReadOnlyList<ZipItem> items, string dllFileName, string modFolder, bool isSharedFolder)
@@ -146,6 +157,8 @@ public static class ZipPlan
 
             if (!IsBelow(folder, target)) return (null, "the zip has a file that would land outside the mod's folder: " + item.FullName);
 
+            if (IsProgram(relative)) return (null, "the zip holds a program file, which is never installed: " + item.FullName);
+
             placed.Add(new PlacedFile(item.FullName, target));
         }
 
@@ -153,6 +166,8 @@ public static class ZipPlan
     }
 
     private static string LastPart(string path) => path.Substring(path.LastIndexOf('/') + 1);
+
+    private static bool IsProgram(string relative) => ProgramExtensions.Contains(Path.GetExtension(relative).ToLowerInvariant());
 
     private static bool IsNamedAfter(string relative, string baseName) =>
         !relative.Contains('/') && string.Equals(Path.GetFileNameWithoutExtension(relative), baseName, StringComparison.OrdinalIgnoreCase) && SameNameExtensions.Contains(Path.GetExtension(relative).ToLowerInvariant());

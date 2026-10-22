@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0
+
+- Updates are checked before they are installed:
+  - The new DLL must be the same mod (the same BepInPlugin GUID) as the one installed. A zip that holds a program file (.exe, .bat, .ps1 and the like) is refused.
+  - A mod's updates must keep coming from the GitHub repository its first install came from. A repository that was deleted and made again under the same name by someone else is not installed from; use GET UPDATE to install by hand if you trust it.
+  - When an update can do something the installed version could not (connect to the internet, start other programs, call native code, load other code, use the Windows registry, or add another DLL), its page says what, and it is installed only when you click INSTALL ANYWAY. INSTALL ALL UPDATES skips these.
+
 ## 0.7.0
 
 - Mods can add a tab of their own to their page on the Mods screen, with any page they like (New Loop Plus uses it to edit its loop rewards). See "Your own tab" under "For mod authors" in the README.

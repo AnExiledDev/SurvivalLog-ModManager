@@ -231,8 +231,21 @@ public static class PageScript
         InstallState.None => "{\"kind\":\"none\"}",
         InstallState.Installing => "{\"kind\":\"installing\"}",
         InstallState.Installed installed => "{\"kind\":\"installed\",\"tag\":" + Str(installed.Tag) + "}",
+        InstallState.NeedsApproval approval => "{\"kind\":\"needsApproval\",\"tag\":" + Str(approval.Tag) + ",\"powers\":[" + string.Join(",", approval.NewPowers.Select(power => Str(PowerName(power)))) + "]}",
         InstallState.Failed failed => "{\"kind\":\"failed\",\"reason\":" + Str(failed.Reason) + "}",
         _ => throw new ArgumentOutOfRangeException(nameof(install), install, null),
+    };
+
+    private static string PowerName(Power power) => power switch
+    {
+        Power.Network => "network",
+        Power.StartsPrograms => "programs",
+        Power.NativeCode => "native",
+        Power.LoadsOtherCode => "loadsCode",
+        Power.Registry => "registry",
+        Power.AddsDll => "newDll",
+        Power.Unreadable => "unreadable",
+        _ => throw new ArgumentOutOfRangeException(nameof(power), power, null),
     };
 
     private static string StateName(ModState state) => state switch

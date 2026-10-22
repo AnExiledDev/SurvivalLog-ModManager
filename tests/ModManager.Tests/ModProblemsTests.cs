@@ -9,7 +9,7 @@ namespace ModManager.Tests;
 
 public class ModProblemsTests
 {
-    private const string StartLine = "===== Mod Manager 0.7.0 started";
+    private const string StartLine = "===== Mod Manager 0.8.0 started";
 
     private static LoggedEvent Error(string source, string text) => new(ProblemLevel.Error, source, text);
 

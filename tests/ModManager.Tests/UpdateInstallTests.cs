@@ -169,6 +169,29 @@ public class ZipPlanTests
         Assert.Equal("the zip unpacks to more than 200 MB", ZipPlan.Place(new[] { Item("Map.dll", ZipPlan.MaxUnpackedBytes), Item("x", 1) }, "Map.dll", Folder, false).Problem);
         Assert.Null(ZipPlan.Place(new[] { Item("Map.dll", ZipPlan.MaxUnpackedBytes) }, "Map.dll", Folder, false).Problem);
     }
+
+    [Theory]
+    [InlineData("helper.exe")]
+    [InlineData("tools/Setup.EXE")]
+    [InlineData("run.bat")]
+    [InlineData("start.ps1")]
+    [InlineData("shortcut.lnk")]
+    public void A_zip_holding_a_program_file_installs_nothing(string name)
+    {
+        var (files, problem) = ZipPlan.Place(new[] { Item("Map.dll"), Item(name) }, "Map.dll", Folder, false);
+
+        Assert.Null(files);
+        Assert.Equal("the zip holds a program file, which is never installed: " + name, problem);
+    }
+
+    [Fact]
+    public void Files_that_only_look_like_programs_by_name_are_installed()
+    {
+        var (files, problem) = ZipPlan.Place(new[] { Item("Map.dll"), Item("exe-notes.txt"), Item("bat.png") }, "Map.dll", Folder, false);
+
+        Assert.Null(problem);
+        Assert.Equal(3, files?.Count);
+    }
 }
 
 public class UpdateToastTests

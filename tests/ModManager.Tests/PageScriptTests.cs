@@ -314,6 +314,19 @@ public class PageScriptTests
     }
 
     [Fact]
+    public void An_update_waiting_for_approval_sends_its_tag_and_what_it_newly_does()
+    {
+        var mod = Loaded() with { Install = new InstallState.NeedsApproval("v2.0", new[] { Power.Network, Power.AddsDll }) };
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(mod));
+        var install = json.RootElement.GetProperty("install");
+
+        Assert.Equal("needsApproval", install.GetProperty("kind").GetString());
+        Assert.Equal("v2.0", install.GetProperty("tag").GetString());
+        Assert.Equal(new[] { "network", "newDll" }, install.GetProperty("powers").EnumerateArray().Select(power => power.GetString()).ToArray());
+    }
+
+    [Fact]
     public void A_mod_sends_the_version_range_it_needs_and_the_mods_that_depend_on_it()
     {
         var mod = Loaded() with

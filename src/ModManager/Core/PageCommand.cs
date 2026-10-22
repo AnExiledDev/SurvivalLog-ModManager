@@ -59,6 +59,9 @@ public abstract record PageCommand
     /// <summary>Download the release this mod can update to and put its files in place for the next game start.</summary>
     public sealed record Install(string Guid) : PageCommand;
 
+    /// <summary>Install the downloaded update the player was warned about, as it can do things the installed version cannot.</summary>
+    public sealed record ApproveInstall(string Guid) : PageCommand;
+
     /// <summary>Install every update that can be installed now.</summary>
     public sealed record InstallAll : PageCommand;
 
@@ -103,6 +106,7 @@ public abstract record PageCommand
         ("changelog", 2) => new Changelog(parts[1]),
         ("update", 2) => new OpenUpdate(parts[1]),
         ("install", 2) => new Install(parts[1]),
+        ("approve", 2) => new ApproveInstall(parts[1]),
         ("installAll", 1) => new InstallAll(),
         ("rollback", 2) => new RollBack(parts[1]),
         ("needs", 2) => new TurnOnNeeds(parts[1]),

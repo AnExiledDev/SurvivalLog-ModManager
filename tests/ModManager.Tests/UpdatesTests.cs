@@ -203,12 +203,6 @@ public class ReleaseNotesTests
     {
         Assert.Equal("https://api.github.com/repos/Ann/Mod/releases?per_page=30", ReleaseNotes.ListUri(Release).AbsoluteUri);
     }
-
-    [Fact]
-    public void The_tag_is_escaped_in_the_api_address()
-    {
-        Assert.Equal("https://api.github.com/repos/Ann/Mod/releases/tags/v1.0%20beta", ReleaseNotes.ApiUri(Release).AbsoluteUri);
-    }
 }
 
 public class UpdateBookTests

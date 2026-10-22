@@ -14,6 +14,8 @@ namespace ModManager.Adapters;
 /// Downloads a mod's update from its GitHub release and puts the files in place for the next game start. The running
 /// game keeps the DLL it loaded: Windows lets a loaded DLL be moved, so the old files are moved to a backup folder and
 /// the new ones moved in beside them. Any failure puts the old files back. A rollback works the same way backwards.
+/// Before anything is written, the update must come from the repository pinned at the mod's first install, must be the
+/// same mod, and waits for the player when it can do something the installed version could not.
 /// </summary>
 internal sealed class UpdateInstaller
 {
@@ -23,12 +25,17 @@ internal sealed class UpdateInstaller
     private readonly ConcurrentQueue<Action> _finished = new();
     private readonly UpdateBook _book;
     private readonly BackupShelf _shelf;
+    private readonly RepositoryPins _pins;
     private readonly Action<string> _log;
 
-    public UpdateInstaller(UpdateBook book, BackupShelf shelf, string userAgent, Action<string> log)
+    /// <summary>Checked updates waiting for the player, by mod GUID. Approving installs these bytes, not a second download.</summary>
+    private readonly ConcurrentDictionary<string, Downloaded> _waiting = new(StringComparer.Ordinal);
+
+    public UpdateInstaller(UpdateBook book, BackupShelf shelf, RepositoryPins pins, string userAgent, Action<string> log)
     {
         _book = book;
         _shelf = shelf;
+        _pins = pins;
         _log = log;
         _client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = Timeout, MaxResponseContentBufferSize = ReleaseAssets.MaxDownloadBytes };
         _client.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
@@ -39,30 +46,23 @@ internal sealed class UpdateInstaller
     {
         if (_book.InstallOf(mod.Guid) is InstallState.Installing or InstallState.Installed || _book.HasRolledBack(mod.Guid)) return;
 
-        _book.Record(mod.Guid, new InstallState.Installing());
+        _waiting.TryRemove(mod.Guid, out _);
         _log("installing " + mod.Guid + " " + release.Tag + " over " + mod.Version);
-
-        var backup = _shelf.FolderOf(mod.Guid, mod.Version);
-
-        _ = Task.Run(async () =>
+        Run(mod, release.Tag, async () =>
         {
-            InstallState result;
+            var (download, problem) = await Fetch(release, Path.GetFileName(dllPath)).ConfigureAwait(false);
 
-            try
-            {
-                result = await Install(mod.Guid, release, dllPath, isSharedFolder, backup).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                result = new InstallState.Failed(ex.Message);
-            }
-
-            _finished.Enqueue(() =>
-            {
-                _book.Record(mod.Guid, result);
-                _log(result is InstallState.Failed failed ? "could not install " + mod.Guid + " " + release.Tag + ": " + failed.Reason : "installed " + mod.Guid + " " + release.Tag + "; it is used from the next start, the old files are in " + backup);
-            });
+            return download == null ? new InstallState.Failed(problem ?? "nothing to install") : Place(mod, download, dllPath, isSharedFolder, isApproved: false);
         });
+    }
+
+    /// <summary>Main thread. Installs the update the player was asked about, from the bytes already checked.</summary>
+    public void Approve(ModEntry mod, string dllPath, bool isSharedFolder)
+    {
+        if (_book.InstallOf(mod.Guid) is not InstallState.NeedsApproval || !_waiting.TryRemove(mod.Guid, out var download)) return;
+
+        _log("installing " + mod.Guid + " " + download.Tag + " as the player approved it");
+        Run(mod, download.Tag, () => Task.FromResult(Place(mod, download, dllPath, isSharedFolder, isApproved: true)));
     }
 
     /// <summary>Main thread: records every install that finished since the last call. True when anything changed.</summary>
@@ -100,39 +100,130 @@ internal sealed class UpdateInstaller
         _log(result is RollbackState.Failed failed ? "could not roll " + mod.Guid + " back to " + version + ": " + failed.Reason : "rolled " + mod.Guid + " back to " + version + "; it is used from the next start, the files it replaced are in " + aside);
     }
 
-    private async Task<InstallState> Install(string guid, LatestRelease.Found release, string dllPath, bool isSharedFolder, string backup)
+    private void Run(ModEntry mod, string tag, Func<Task<InstallState>> install)
     {
-        var dllName = Path.GetFileName(dllPath);
-        var answer = await Get(ReleaseNotes.ApiUri(release)).ConfigureAwait(false);
+        _book.Record(mod.Guid, new InstallState.Installing());
 
-        if (answer.Problem != null) return new InstallState.Failed(answer.Problem);
+        _ = Task.Run(async () =>
+        {
+            InstallState result;
+
+            try
+            {
+                result = await install().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                result = new InstallState.Failed(ex.Message);
+            }
+
+            _finished.Enqueue(() =>
+            {
+                _book.Record(mod.Guid, result);
+                _log(Describe(mod, tag, result));
+            });
+        });
+    }
+
+    private string Describe(ModEntry mod, string tag, InstallState result) => result switch
+    {
+        InstallState.Failed failed => "could not install " + mod.Guid + " " + tag + ": " + failed.Reason,
+        InstallState.NeedsApproval approval => mod.Guid + " " + tag + " waits for the player, as it gains: " + string.Join(", ", approval.NewPowers),
+        _ => "installed " + mod.Guid + " " + tag + "; it is used from the next start, the old files are in " + _shelf.FolderOf(mod.Guid, mod.Version),
+    };
+
+    private sealed record Downloaded(string Tag, byte[] Zip);
+
+    /// <summary>The release's zip, from the repository pinned at the mod's first install (pinned now when this is it).</summary>
+    private async Task<(Downloaded? Download, string? Problem)> Fetch(LatestRelease.Found release, string dllName)
+    {
+        var repository = release.Owner + "/" + release.Repository;
+        var repositoryId = _pins.Read(repository);
+
+        if (repositoryId == null)
+        {
+            var about = await Get(RepositoryPin.RepositoryUri(release)).ConfigureAwait(false);
+
+            if (about.Problem != null) return (null, about.Problem);
+
+            repositoryId = RepositoryPin.IdFrom(System.Text.Encoding.UTF8.GetString(about.Body));
+
+            if (repositoryId == null) return (null, "GitHub did not say which repository " + repository + " is");
+
+            _pins.Save(repository, repositoryId.Value);
+        }
+
+        var answer = await Get(RepositoryPin.ReleaseUri(repositoryId.Value, release.Tag)).ConfigureAwait(false);
+
+        if (answer.Status == 404) return (null, RepositoryPin.NotInPinned(release.Tag));
+
+        if (answer.Problem != null) return (null, answer.Problem);
 
         var (asset, assetProblem) = ReleaseAssets.Choose(System.Text.Encoding.UTF8.GetString(answer.Body), dllName);
 
-        if (asset == null) return new InstallState.Failed(assetProblem ?? "no file to install");
+        if (asset == null) return (null, assetProblem ?? "no file to install");
 
         var download = await Download(asset.Url).ConfigureAwait(false);
 
-        if (download.Problem != null) return new InstallState.Failed(download.Problem);
+        return download.Problem != null ? (null, download.Problem) : (new Downloaded(release.Tag, download.Body), null);
+    }
 
-        using var zip = new ZipArchive(new MemoryStream(download.Body), ZipArchiveMode.Read);
+    /// <param name="isApproved">The player already saw what the update gains, so it is not held again.</param>
+    private InstallState Place(ModEntry mod, Downloaded download, string dllPath, bool isSharedFolder, bool isApproved)
+    {
+        var modFolder = Path.GetDirectoryName(dllPath) ?? ".";
+
+        using var zip = new ZipArchive(new MemoryStream(download.Zip), ZipArchiveMode.Read);
         var items = zip.Entries.Select(entry => new ZipItem(entry.FullName, entry.Length)).ToList();
-        var (files, placeProblem) = ZipPlan.Place(items, dllName, Path.GetDirectoryName(dllPath) ?? ".", isSharedFolder);
+        var (files, placeProblem) = ZipPlan.Place(items, Path.GetFileName(dllPath), modFolder, isSharedFolder);
 
         if (files == null) return new InstallState.Failed(placeProblem ?? "nothing to install");
 
-        var modFolder = Path.GetDirectoryName(dllPath) ?? ".";
-        var entryOf = files.ToDictionary(file => file.Target, file => file.EntryName);
+        var entryOf = files.ToDictionary(file => file.Target, file => zip.Entries.First(entry => entry.FullName == file.EntryName));
+        UpdateVerdict verdict = isApproved ? new UpdateVerdict.Clear() : Review(mod.Guid, files, entryOf, dllPath);
 
-        FileSwap.Replace(DiskFiles.Instance, files.Select(file => file.Target).ToList(), (target, temporary) => zip.Entries.First(entry => entry.FullName == entryOf[target]).ExtractToFile(temporary, true), modFolder, backup);
+        switch (verdict)
+        {
+            case UpdateVerdict.Rejected rejected:
+                return new InstallState.Failed(rejected.Reason);
+            case UpdateVerdict.NeedsApproval approval:
+                _waiting[mod.Guid] = download;
+
+                return new InstallState.NeedsApproval(download.Tag, approval.NewPowers);
+        }
+
+        FileSwap.Replace(DiskFiles.Instance, files.Select(file => file.Target).ToList(), (target, temporary) => entryOf[target].ExtractToFile(temporary, true), modFolder, _shelf.FolderOf(mod.Guid, mod.Version));
 
         // Without the list a rollback still restores the replaced files; it only leaves files the update added.
-        TryRun(() => _shelf.RecordInstalled(guid, release.Tag, files.Select(file => Path.GetRelativePath(modFolder, file.Target))));
+        TryRun(() => _shelf.RecordInstalled(mod.Guid, download.Tag, files.Select(file => Path.GetRelativePath(modFolder, file.Target))));
 
-        return new InstallState.Installed(release.Tag);
+        return new InstallState.Installed(download.Tag);
     }
 
-    private async Task<(byte[] Body, string? Problem)> Get(Uri uri)
+    /// <summary>The update's DLLs against the installed ones they replace: it must be the same mod, and anything it newly does is shown first.</summary>
+    private static UpdateVerdict Review(string guid, IReadOnlyList<PlacedFile> files, IReadOnlyDictionary<string, ZipArchiveEntry> entryOf, string dllPath)
+    {
+        var modDll = Path.GetFullPath(dllPath);
+        var dlls = files.Where(file => file.Target.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)).ToList();
+        var incoming = dlls.Select(file => (file.Target, Dll: new IncomingDll(DllScanner.Bytes(Unpack(entryOf[file.Target])), !File.Exists(file.Target)))).ToList();
+        var installed = dlls.Where(file => File.Exists(file.Target)).Select(file => DllScanner.File(file.Target)).ToList();
+        var newModDll = incoming.Where(dll => string.Equals(dll.Target, modDll, StringComparison.OrdinalIgnoreCase)).Select(dll => dll.Dll.Scan).FirstOrDefault();
+
+        return newModDll == null ? new UpdateVerdict.Rejected("the zip does not hold " + Path.GetFileName(dllPath)) : UpdateReview.Judge(guid, newModDll, installed, incoming.Select(dll => dll.Dll));
+    }
+
+    private static byte[] Unpack(ZipArchiveEntry entry)
+    {
+        using var stream = entry.Open();
+        using var copy = new MemoryStream();
+
+        stream.CopyTo(copy);
+
+        return copy.ToArray();
+    }
+
+    /// <summary>An API answer: its status (0 when GitHub was not reached), and its body when 200, else the problem.</summary>
+    private async Task<(int Status, byte[] Body, string? Problem)> Get(Uri uri)
     {
         try
         {
@@ -143,15 +234,15 @@ internal sealed class UpdateInstaller
             using var response = await _client.SendAsync(request).ConfigureAwait(false);
             var status = (int)response.StatusCode;
 
-            if (status is 403 or 429) return (Array.Empty<byte>(), "GitHub's hourly limit for requests without an account was reached; try again within the hour");
+            if (status is 403 or 429) return (status, Array.Empty<byte>(), "GitHub's hourly limit for requests without an account was reached; try again within the hour");
 
-            if (status != 200) return (Array.Empty<byte>(), "GitHub answered " + status);
+            if (status != 200) return (status, Array.Empty<byte>(), "GitHub answered " + status);
 
-            return (await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false), null);
+            return (status, await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false), null);
         }
         catch (Exception ex)
         {
-            return (Array.Empty<byte>(), "could not reach GitHub: " + ex.Message);
+            return (0, Array.Empty<byte>(), "could not reach GitHub: " + ex.Message);
         }
     }
 
