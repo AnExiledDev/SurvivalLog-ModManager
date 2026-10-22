@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using ModManager.Core;
@@ -8,9 +9,12 @@ namespace ModManager.Tests;
 /// <summary>Going back to the files the last update replaced, without ever landing on a newer version or outside the mod's folder.</summary>
 public class RollbackTests
 {
-    private const string ModFolder = @"C:\Game\BepInEx\plugins\Mod";
-    private const string Backup = @"C:\Game\BepInEx\mod-manager\backups\com.x\1.0.0";
-    private const string Aside = @"C:\Game\BepInEx\mod-manager\backups\com.x\1.2.0";
+    // Rooted for whichever system runs the tests, so the plan's path checks see real absolute paths.
+    private static readonly string Root = OperatingSystem.IsWindows() ? @"C:\" : "/";
+    private static readonly string ModFolder = Path.Combine(Root, "Game", "BepInEx", "plugins", "Mod");
+    private static readonly string Backup = Path.Combine(Root, "Game", "BepInEx", "mod-manager", "backups", "com.x", "1.0.0");
+    private static readonly string Aside = Path.Combine(Root, "Game", "BepInEx", "mod-manager", "backups", "com.x", "1.2.0");
+    private static readonly string DataFile = Path.Combine("data", "a.txt");
 
     [Fact]
     public void After_a_restart_the_target_is_the_newest_backup_older_than_the_running_version()
@@ -42,7 +46,8 @@ public class RollbackTests
         Assert.True(BackupFolder.IsSameVersion("odd name", "odd name"));
         Assert.False(BackupFolder.IsSameVersion("v1.2.1", "1.2.0"));
         Assert.Equal("_", BackupFolder.Name(".."));
-        Assert.Equal("a_b", BackupFolder.Name("a\\b"));
+        Assert.Equal("a_b", BackupFolder.Name("a/b"));
+        if (OperatingSystem.IsWindows()) Assert.Equal("a_b", BackupFolder.Name("a\\b"));
     }
 
     [Fact]
@@ -73,13 +78,13 @@ public class RollbackTests
     [Fact]
     public void A_rollback_sets_aside_the_current_files_and_copies_the_backup_back()
     {
-        var (steps, problem) = RollbackPlan.For(ModFolder, "Mod.dll", Backup, new[] { "Mod.dll", @"data\a.txt" }, new[] { "Mod.dll", "New.dll" }, Aside);
+        var (steps, problem) = RollbackPlan.For(ModFolder, "Mod.dll", Backup, new[] { "Mod.dll", DataFile }, new[] { "Mod.dll", "New.dll" }, Aside);
 
         Assert.Null(problem);
         Assert.NotNull(steps);
-        Assert.Equal(new[] { "Mod.dll", @"data\a.txt", "New.dll" }, steps.SetAside.Select(step => Path.GetRelativePath(ModFolder, step.From)));
+        Assert.Equal(new[] { "Mod.dll", DataFile, "New.dll" }, steps.SetAside.Select(step => Path.GetRelativePath(ModFolder, step.From)));
         Assert.All(steps.SetAside, step => Assert.StartsWith(Aside, step.To));
-        Assert.Equal(new[] { new FileStep(Path.Combine(Backup, "Mod.dll"), Path.Combine(ModFolder, "Mod.dll")), new FileStep(Path.Combine(Backup, @"data\a.txt"), Path.Combine(ModFolder, @"data\a.txt")) }, steps.CopyBack);
+        Assert.Equal(new[] { new FileStep(Path.Combine(Backup, "Mod.dll"), Path.Combine(ModFolder, "Mod.dll")), new FileStep(Path.Combine(Backup, DataFile), Path.Combine(ModFolder, DataFile)) }, steps.CopyBack);
     }
 
     [Fact]
@@ -94,7 +99,7 @@ public class RollbackTests
     [Fact]
     public void A_listed_file_outside_the_mods_folder_is_refused()
     {
-        var (steps, problem) = RollbackPlan.For(ModFolder, "Mod.dll", Backup, new[] { "Mod.dll" }, new[] { @"..\Other\Other.dll" }, Aside);
+        var (steps, problem) = RollbackPlan.For(ModFolder, "Mod.dll", Backup, new[] { "Mod.dll" }, new[] { Path.Combine("..", "Other", "Other.dll") }, Aside);
 
         Assert.Null(steps);
         Assert.Contains("outside", problem);

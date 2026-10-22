@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using ModManager.Core;
 using Xunit;
@@ -124,12 +125,17 @@ public class ZipPlanTests
         Assert.Equal(new[] { In("deep", "x", "Map.dll"), In("Map.dll") }, files!.Select(file => file.Target));
     }
 
+    // A drive letter only makes a path absolute on Windows, which is where the mod runs.
+    public static TheoryData<string> OutsideNames()
+    {
+        var names = new TheoryData<string> { "../evil.dll", "lang/../../evil.dll", "..\\evil.dll", "/Windows/evil.dll" };
+        if (OperatingSystem.IsWindows()) names.Add("C:/Windows/evil.dll");
+
+        return names;
+    }
+
     [Theory]
-    [InlineData("../evil.dll")]
-    [InlineData("lang/../../evil.dll")]
-    [InlineData("..\\evil.dll")]
-    [InlineData("/Windows/evil.dll")]
-    [InlineData("C:/Windows/evil.dll")]
+    [MemberData(nameof(OutsideNames))]
     public void A_file_that_would_land_outside_the_mods_folder_stops_the_install(string name)
     {
         var (files, problem) = ZipPlan.Place(new[] { Item("Map.dll"), Item(name) }, "Map.dll", Folder, false);
