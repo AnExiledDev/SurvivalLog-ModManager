@@ -5,8 +5,9 @@ using ModManager.Core;
 namespace ModManager.Adapters;
 
 /// <summary>
-/// GitHub's number for each repository a mod named, saved at its first install under owner\repository.txt. Fails
-/// soft: a pin that cannot be read is fetched and saved again, as at a first install.
+/// GitHub's number for each repository a mod named, saved at its first install under owner\repository.txt. A pin file
+/// that is there but cannot be used stops installs of that mod instead of being pinned again, as pinning again would
+/// trust whatever the name points at now.
 /// </summary>
 internal sealed class RepositoryPins
 {
@@ -19,19 +20,35 @@ internal sealed class RepositoryPins
         _log = log;
     }
 
-    public long? Read(string repository)
+    public abstract record Saved
+    {
+        private Saved()
+        {
+        }
+
+        /// <summary>No pin yet: this is the mod's first install from that repository.</summary>
+        public sealed record None : Saved;
+
+        public sealed record Pinned(long Id) : Saved;
+
+        public sealed record Unusable(string Path, string Problem) : Saved;
+    }
+
+    public Saved Read(string repository)
     {
         var path = PathOf(repository);
 
         try
         {
-            return File.Exists(path) ? RepositoryPin.Parse(File.ReadAllText(path)) : null;
+            if (!File.Exists(path)) return new Saved.None();
+
+            return RepositoryPin.Parse(File.ReadAllText(path)) is { } id ? new Saved.Pinned(id) : new Saved.Unusable(path, "it does not hold a repository number");
         }
         catch (Exception ex)
         {
             _log("could not read the saved number of " + repository + ": " + ex.Message);
 
-            return null;
+            return new Saved.Unusable(path, ex.Message);
         }
     }
 

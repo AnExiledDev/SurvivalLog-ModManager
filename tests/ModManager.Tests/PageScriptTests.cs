@@ -314,6 +314,26 @@ public class PageScriptTests
     }
 
     [Fact]
+    public void A_refused_update_sends_why_so_the_page_offers_no_retry()
+    {
+        using var json = JsonDocument.Parse(PageScript.ModJson(Loaded() with { Install = new InstallState.Refused("it newly starts programs") }));
+        var install = json.RootElement.GetProperty("install");
+
+        Assert.Equal("refused", install.GetProperty("kind").GetString());
+        Assert.Equal("it newly starts programs", install.GetProperty("reason").GetString());
+    }
+
+    [Fact]
+    public void Every_power_has_a_name_the_page_knows()
+    {
+        var mod = Loaded() with { Install = new InstallState.NeedsApproval("v2.0", Enum.GetValues<Power>()) };
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(mod));
+
+        Assert.Contains("opens", json.RootElement.GetProperty("install").GetProperty("powers").EnumerateArray().Select(power => power.GetString()));
+    }
+
+    [Fact]
     public void An_update_waiting_for_approval_sends_its_tag_and_what_it_newly_does()
     {
         var mod = Loaded() with { Install = new InstallState.NeedsApproval("v2.0", new[] { Power.Network, Power.AddsDll }) };

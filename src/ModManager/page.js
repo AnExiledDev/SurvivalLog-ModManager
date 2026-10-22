@@ -82,10 +82,11 @@
       installUpdate: 'INSTALL UPDATE', tryAgain: 'TRY AGAIN', installing: 'Installing the update.',
       installed: tag => 'Version ' + tag + ' is installed. Restart the game to use it.',
       installFailed: reason => 'Could not install the update: ' + reason + '.',
+      installRefused: reason => 'The Mod Manager will not install this update: ' + reason + '. GET UPDATE still lets you install it by hand.',
       installAll: n => 'INSTALL ALL UPDATES (' + n + ')',
-      needsApproval: (tag, powers) => 'Version ' + tag + ' can do things the installed version cannot: it can ' + powers.join(', ') + '. Mods can have good reasons for this. Install it only if you trust where it comes from.',
+      needsApproval: (tag, powers) => 'Version ' + tag + ' can do things the installed version cannot: it can ' + andList(powers) + '. Mods can have good reasons for this. Install it only if you trust where it comes from.',
       installAnyway: 'INSTALL ANYWAY',
-      powers: { network: 'connect to the internet', programs: 'start other programs', native: 'call Windows or other native code directly', loadsCode: 'load code that is not in its DLL', registry: 'read or change the Windows registry', newDll: 'add another DLL file', unreadable: 'include a DLL the Mod Manager cannot read' },
+      powers: { network: 'connect to the internet', programs: 'start other programs', native: 'call Windows or other native code directly', loadsCode: 'load code that is not in its DLL', registry: 'read or change the Windows registry', opens: 'open links or files in other programs', newDll: 'add another DLL file', unreadable: 'include a DLL the Mod Manager cannot read' },
       rollbackTitle: 'An earlier version is kept.', rollbackBody: version => 'The last update replaced ' + version + '. If this version gives you trouble, you can go back to it.',
       rollbackButton: version => 'ROLL BACK TO ' + version,
       rolledBack: version => 'Rolled back to ' + version + '. Restart the game to use it.',
@@ -165,10 +166,11 @@
       installUpdate: '安装更新', tryAgain: '重试', installing: '正在安装更新。',
       installed: tag => '版本 ' + tag + ' 已安装。重启游戏后生效。',
       installFailed: reason => '无法安装更新：' + reason + '。',
+      installRefused: reason => '模组管理器不会安装此更新：' + reason + '。仍可通过「获取更新」手动安装。',
       installAll: n => '安装全部更新（' + n + '）',
       needsApproval: (tag, powers) => '版本 ' + tag + ' 能做到当前版本做不到的事：它可以' + powers.join('、') + '。模组这样做可能有正当理由。只有在信任它的来源时才安装。',
       installAnyway: '仍然安装',
-      powers: { network: '连接互联网', programs: '启动其他程序', native: '直接调用 Windows 或其他原生代码', loadsCode: '加载不在其 DLL 中的代码', registry: '读取或修改 Windows 注册表', newDll: '添加另一个 DLL 文件', unreadable: '包含一个模组管理器无法读取的 DLL' },
+      powers: { network: '连接互联网', programs: '启动其他程序', native: '直接调用 Windows 或其他原生代码', loadsCode: '加载不在其 DLL 中的代码', registry: '读取或修改 Windows 注册表', opens: '用其他程序打开链接或文件', newDll: '添加另一个 DLL 文件', unreadable: '包含一个模组管理器无法读取的 DLL' },
       rollbackTitle: '保留了一个旧版本。', rollbackBody: version => '上次更新替换了 ' + version + '。如果这个版本有问题，可以退回到它。',
       rollbackButton: version => '退回到 ' + version,
       rolledBack: version => '已退回到 ' + version + '。重启游戏后生效。',
@@ -1028,11 +1030,17 @@
       releaseNotes(m.update.notes) + installLine(m.install) + '<div class="upd-act">' + (m.rollback.kind === 'done' ? '' : installButton(m.install)) + '<div class="key-btn" data-act="update">' + esc(word('getUpdate')) + ' &#x2197;</div></div></div></div>';
   }
 
+  // "a, b and c": the English list of what an update newly does.
+  function andList(items) {
+    return items.length < 2 ? items.join('') : items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+  }
+
   function installLine(install) {
     switch (install.kind) {
       case 'installing': return '<div class="upd-line">' + esc(word('installing')) + '</div>';
       case 'installed': return '<div class="upd-line ok">' + esc(word('installed')(tagText(install.tag))) + '</div>';
       case 'failed': return '<div class="upd-line bad">' + esc(word('installFailed')(install.reason)) + '</div>';
+      case 'refused': return '<div class="upd-line bad">' + esc(word('installRefused')(install.reason)) + '</div>';
       case 'needsApproval': return '<div class="upd-line bad">' + esc(word('needsApproval')(tagText(install.tag), install.powers.map(power => word('powers')[power] || power))) + '</div>';
       default: return '';
     }

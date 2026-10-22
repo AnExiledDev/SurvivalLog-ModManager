@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using ModManager.Core;
 using Xunit;
 
@@ -7,8 +8,8 @@ namespace ModManager.Tests;
 
 public class PowersTests
 {
-    private static DllFacts Facts(string[]? types = null, string[]? members = null, bool hasNativeImports = false, bool carriesProgram = false) =>
-        new(types ?? Array.Empty<string>(), members ?? Array.Empty<string>(), hasNativeImports, carriesProgram);
+    private static DllFacts Facts(string[]? types = null, string[]? members = null, string[]? nativeImports = null, bool carriesProgram = false) =>
+        new(types ?? Array.Empty<string>(), members ?? Array.Empty<string>(), nativeImports ?? Array.Empty<string>(), carriesProgram);
 
     [Fact]
     public void A_mod_that_only_patches_the_game_has_no_powers()
@@ -38,6 +39,7 @@ public class PowersTests
     [InlineData("System.Reflection.Assembly::Load", Power.LoadsOtherCode)]
     [InlineData("System.Runtime.Loader.AssemblyLoadContext::LoadFromStream", Power.LoadsOtherCode)]
     [InlineData("System.Runtime.InteropServices.Marshal::GetDelegateForFunctionPointer", Power.NativeCode)]
+    [InlineData("UnityEngine.Application::OpenURL", Power.OpensFiles)]
     public void A_member_the_code_calls_gives_its_power(string member, Power power)
     {
         Assert.Equal(new[] { power }, Powers.Of(Facts(members: new[] { member })));
@@ -54,8 +56,22 @@ public class PowersTests
     [Fact]
     public void Native_imports_and_an_embedded_program_count_too()
     {
-        Assert.Equal(new[] { Power.NativeCode }, Powers.Of(Facts(hasNativeImports: true)));
+        Assert.Equal(new[] { Power.NativeCode }, Powers.Of(Facts(nativeImports: new[] { "MessageBoxW" })));
         Assert.Equal(new[] { Power.LoadsOtherCode }, Powers.Of(Facts(carriesProgram: true)));
+    }
+
+    [Theory]
+    [InlineData("CreateProcessW", Power.StartsPrograms)]
+    [InlineData("ShellExecuteExW", Power.StartsPrograms)]
+    [InlineData("WinExec", Power.StartsPrograms)]
+    [InlineData("NtCreateUserProcess", Power.StartsPrograms)]
+    [InlineData("RegOpenKeyExW", Power.Registry)]
+    [InlineData("RegSetValueExA", Power.Registry)]
+    [InlineData("regdeletetreew", Power.Registry)]
+    [InlineData("NtSetValueKey", Power.Registry)]
+    public void A_windows_function_imported_directly_gives_its_power_as_well_as_native_code(string function, Power power)
+    {
+        Assert.Equal(new[] { power, Power.NativeCode }.OrderBy(p => p), Powers.Of(Facts(nativeImports: new[] { function })).OrderBy(p => p));
     }
 
     [Fact]
@@ -78,7 +94,7 @@ public class UpdateReviewTests
 
     private static DllScan Dll(params string[] types) => Plugins(new[] { Guid }, types);
 
-    private static DllScan Plugins(string[] guids, params string[] types) => new DllScan.Read(guids, new DllFacts(types, Array.Empty<string>(), false, false));
+    private static DllScan Plugins(string[] guids, params string[] types) => new DllScan.Read(guids, new DllFacts(types, Array.Empty<string>(), Array.Empty<string>(), false));
 
     private static IncomingDll Incoming(DllScan scan, bool isNew = false) => new(scan, isNew);
 
@@ -130,9 +146,25 @@ public class UpdateReviewTests
     }
 
     [Fact]
+    public void Starting_a_program_through_a_direct_windows_call_is_refused_too()
+    {
+        var update = new DllScan.Read(new[] { Guid }, new DllFacts(Array.Empty<string>(), Array.Empty<string>(), new[] { "CreateProcessW" }, false));
+
+        Assert.Equal("it newly starts programs, which no update is allowed to start doing", Assert.IsType<UpdateVerdict.Rejected>(Judge(update, new[] { Dll() })).Reason);
+    }
+
+    [Fact]
+    public void An_update_that_starts_opening_links_waits_for_the_player()
+    {
+        var update = new DllScan.Read(new[] { Guid }, new DllFacts(Array.Empty<string>(), new[] { "UnityEngine.Application::OpenURL" }, Array.Empty<string>(), false));
+
+        Assert.Equal(new[] { Power.OpensFiles }, Assert.IsType<UpdateVerdict.NeedsApproval>(Judge(update, new[] { Dll() })).NewPowers);
+    }
+
+    [Fact]
     public void Code_loading_hidden_in_another_dll_of_the_update_is_refused_alongside_a_warned_power()
     {
-        var loader = new DllScan.Read(Array.Empty<string>(), new DllFacts(Array.Empty<string>(), new[] { "System.Reflection.Assembly::Load" }, false, false));
+        var loader = new DllScan.Read(Array.Empty<string>(), new DllFacts(Array.Empty<string>(), new[] { "System.Reflection.Assembly::Load" }, Array.Empty<string>(), false));
         var verdict = Judge(Dll("System.Net.Http.HttpClient"), new[] { Dll() }, Incoming(loader, isNew: true));
 
         Assert.Equal("it newly loads other code, which no update is allowed to start doing", Assert.IsType<UpdateVerdict.Rejected>(verdict).Reason);

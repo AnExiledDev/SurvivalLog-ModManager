@@ -184,6 +184,21 @@ public class ZipPlanTests
         Assert.Equal("the zip holds a program file, which is never installed: " + name, problem);
     }
 
+    [Theory]
+    [InlineData("helper.exe.")]
+    [InlineData("run.bat ")]
+    [InlineData("tools./notes.txt")]
+    [InlineData("Evil.dll::$DATA")]
+    [InlineData("lang/zh.json:hidden")]
+    [InlineData("what?.txt")]
+    public void A_zip_with_a_name_windows_would_change_installs_nothing(string name)
+    {
+        var (files, problem) = ZipPlan.Place(new[] { Item("Map.dll"), Item(name) }, "Map.dll", Folder, false);
+
+        Assert.Null(files);
+        Assert.Equal("the zip has a file name Windows would change or read differently: " + name, problem);
+    }
+
     [Fact]
     public void Files_that_only_look_like_programs_by_name_are_installed()
     {

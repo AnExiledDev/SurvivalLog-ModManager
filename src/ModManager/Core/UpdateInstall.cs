@@ -27,7 +27,11 @@ public abstract record InstallState
         public override int GetHashCode() => Tag.GetHashCode();
     }
 
+    /// <summary>Something went wrong that trying again could fix, such as GitHub not answering.</summary>
     public sealed record Failed(string Reason) : InstallState;
+
+    /// <summary>The update itself breaks a safety rule, so trying again gives the same answer and it is not offered.</summary>
+    public sealed record Refused(string Reason) : InstallState;
 }
 
 /// <summary>A file attached to a GitHub release.</summary>
@@ -157,6 +161,8 @@ public static class ZipPlan
 
             if (!IsBelow(folder, target)) return (null, "the zip has a file that would land outside the mod's folder: " + item.FullName);
 
+            if (HasBadName(relative)) return (null, "the zip has a file name Windows would change or read differently: " + item.FullName);
+
             if (IsProgram(relative)) return (null, "the zip holds a program file, which is never installed: " + item.FullName);
 
             placed.Add(new PlacedFile(item.FullName, target));
@@ -164,6 +170,15 @@ public static class ZipPlan
 
         return (placed, null);
     }
+
+    /// <summary>
+    /// Windows drops a trailing dot or space from a name (so "run.bat " is written as run.bat) and reads ':' as a hidden
+    /// stream of a file, so a check on the name in the zip would not be a check on the file written.
+    /// </summary>
+    private static bool HasBadName(string relative) =>
+        relative.Split('/').Any(part => part.EndsWith(".", StringComparison.Ordinal) || part.EndsWith(" ", StringComparison.Ordinal) || part.IndexOfAny(BadNameCharacters) >= 0);
+
+    private static readonly char[] BadNameCharacters = { ':', '*', '?', '"', '<', '>', '|' };
 
     private static string LastPart(string path) => path.Substring(path.LastIndexOf('/') + 1);
 

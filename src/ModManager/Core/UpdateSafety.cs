@@ -17,14 +17,20 @@ public enum Power
     NativeCode,
     LoadsOtherCode,
     Registry,
+
+    /// <summary>Hands an address to Windows to open, which can be a program on disk as well as a web page.</summary>
+    OpensFiles,
     AddsDll,
 
     /// <summary>A DLL in the update could not be read, so nothing is known about what it can do.</summary>
     Unreadable,
 }
 
-/// <summary>What a DLL uses from outside itself, read without loading it: type names, and members as "Type::Name".</summary>
-public sealed record DllFacts(IReadOnlyCollection<string> Types, IReadOnlyCollection<string> Members, bool HasNativeImports, bool CarriesProgram);
+/// <summary>
+/// What a DLL uses from outside itself, read without loading it: type names, members as "Type::Name", and the name of
+/// each native function it imports.
+/// </summary>
+public sealed record DllFacts(IReadOnlyCollection<string> Types, IReadOnlyCollection<string> Members, IReadOnlyCollection<string> NativeImports, bool CarriesProgram);
 
 /// <summary>
 /// Reads powers from what a DLL references. Code that hides its calls behind reflection gets past this; it catches an
@@ -55,6 +61,18 @@ public static class Powers
 
     private static readonly HashSet<string> RegistryTypes = new(StringComparer.Ordinal) { "Microsoft.Win32.Registry", "Microsoft.Win32.RegistryKey" };
 
+    private static readonly HashSet<string> OpeningMembers = new(StringComparer.Ordinal) { "UnityEngine.Application::OpenURL" };
+
+    /// <summary>Windows functions that start a program, by the start of their name (CreateProcessW, ShellExecuteExW and the like).</summary>
+    private static readonly string[] ProgramImports = { "CreateProcess", "ShellExecute", "WinExec", "NtCreateUserProcess", "RtlCreateUserProcess" };
+
+    private static readonly string[] RegistryImports =
+    {
+        "RegOpenKey", "RegCreateKey", "RegSetValue", "RegSetKeyValue", "RegDeleteKey", "RegDeleteValue", "RegDeleteTree", "RegQueryValue", "RegQueryInfoKey", "RegGetValue",
+        "RegEnumKey", "RegEnumValue", "RegLoadKey", "RegSaveKey", "RegReplaceKey", "RegRestoreKey", "RegConnectRegistry", "RegCopyTree", "RegRenameKey", "RegOverridePredefKey",
+        "NtCreateKey", "NtOpenKey", "NtSetValueKey", "NtDeleteKey", "ZwCreateKey", "ZwOpenKey", "ZwSetValueKey", "ZwDeleteKey",
+    };
+
     public static IReadOnlyCollection<Power> Of(DllFacts facts)
     {
         var types = facts.Types.Select(WithoutIl2CppPrefix).ToList();
@@ -63,13 +81,15 @@ public static class Powers
 
         if (types.Any(IsNetwork)) powers.Add(Power.Network);
 
-        if (types.Any(ProgramTypes.Contains)) powers.Add(Power.StartsPrograms);
+        if (types.Any(ProgramTypes.Contains) || facts.NativeImports.Any(name => StartsWithAny(name, ProgramImports))) powers.Add(Power.StartsPrograms);
 
-        if (facts.HasNativeImports || types.Any(NativeTypes.Contains) || members.Any(NativeMembers.Contains)) powers.Add(Power.NativeCode);
+        if (facts.NativeImports.Count > 0 || types.Any(NativeTypes.Contains) || members.Any(NativeMembers.Contains)) powers.Add(Power.NativeCode);
 
         if (facts.CarriesProgram || members.Any(LoadingMembers.Contains)) powers.Add(Power.LoadsOtherCode);
 
-        if (types.Any(RegistryTypes.Contains)) powers.Add(Power.Registry);
+        if (types.Any(RegistryTypes.Contains) || facts.NativeImports.Any(name => StartsWithAny(name, RegistryImports))) powers.Add(Power.Registry);
+
+        if (members.Any(OpeningMembers.Contains)) powers.Add(Power.OpensFiles);
 
         return powers;
     }
@@ -81,6 +101,8 @@ public static class Powers
 
         return after.Distinct().Where(power => power == Power.Unreadable || !had.Contains(power)).OrderBy(power => power).ToList();
     }
+
+    private static bool StartsWithAny(string name, string[] prefixes) => prefixes.Any(prefix => name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 
     private static bool IsNetwork(string type) => NetworkTypes.Contains(type) || NetworkNamespaces.Any(prefix => type.StartsWith(prefix, StringComparison.Ordinal));
 
@@ -189,7 +211,7 @@ public static class RepositoryPin
         }
     }
 
-    /// <summary>A saved pin: the number alone. Anything else counts as no pin.</summary>
+    /// <summary>A saved pin: the number alone, else null.</summary>
     public static long? Parse(string text) =>
         long.TryParse(text.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var id) && id > 0 ? id : null;
 
@@ -197,5 +219,9 @@ public static class RepositoryPin
 
     /// <summary>Why a release could not be fetched from the pinned repository, as the player reads it.</summary>
     public static string NotInPinned(string tag) =>
-        "release " + tag + " is not in the GitHub repository this mod's earlier updates came from, so that repository may have been replaced. If you trust it, use GET UPDATE to install it by hand";
+        "release " + tag + " is not in the GitHub repository this mod's earlier updates came from, so that repository may have been replaced";
+
+    /// <summary>Why a pin that is there but cannot be used stops the install: treating it as missing would pin whatever the name points at now.</summary>
+    public static string Unusable(string path, string problem) =>
+        "the saved number of its GitHub repository could not be used (" + problem + "). If you trust the repository, delete " + path + " and start the game again";
 }

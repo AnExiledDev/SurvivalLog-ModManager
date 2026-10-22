@@ -41,18 +41,18 @@ internal sealed class UpdateInstaller
         _client.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
     }
 
-    /// <summary>Main thread. Does nothing while an install of the same mod runs, after one finished, or after a rollback.</summary>
+    /// <summary>Main thread. Does nothing while an install of the same mod runs, after one finished or was refused, or after a rollback.</summary>
     public void Start(ModEntry mod, LatestRelease.Found release, string dllPath, bool isSharedFolder)
     {
-        if (_book.InstallOf(mod.Guid) is InstallState.Installing or InstallState.Installed || _book.HasRolledBack(mod.Guid)) return;
+        if (_book.InstallOf(mod.Guid) is InstallState.Installing or InstallState.Installed or InstallState.Refused || _book.HasRolledBack(mod.Guid)) return;
 
         _waiting.TryRemove(mod.Guid, out _);
         _log("installing " + mod.Guid + " " + release.Tag + " over " + mod.Version);
         Run(mod, release.Tag, async () =>
         {
-            var (download, problem) = await Fetch(release, Path.GetFileName(dllPath)).ConfigureAwait(false);
+            var (download, stopped) = await Fetch(mod, release, Path.GetFileName(dllPath)).ConfigureAwait(false);
 
-            return download == null ? new InstallState.Failed(problem ?? "nothing to install") : Place(mod, download, dllPath, isSharedFolder, isApproved: false);
+            return download == null ? stopped ?? new InstallState.Failed("nothing to install") : Place(mod, download, dllPath, isSharedFolder, isApproved: false);
         });
     }
 
@@ -128,44 +128,56 @@ internal sealed class UpdateInstaller
     private string Describe(ModEntry mod, string tag, InstallState result) => result switch
     {
         InstallState.Failed failed => "could not install " + mod.Guid + " " + tag + ": " + failed.Reason,
+        InstallState.Refused refused => "refused to install " + mod.Guid + " " + tag + ": " + refused.Reason,
         InstallState.NeedsApproval approval => mod.Guid + " " + tag + " waits for the player, as it gains: " + string.Join(", ", approval.NewPowers),
         _ => "installed " + mod.Guid + " " + tag + "; it is used from the next start, the old files are in " + _shelf.FolderOf(mod.Guid, mod.Version),
     };
 
     private sealed record Downloaded(string Tag, byte[] Zip);
 
-    /// <summary>The release's zip, from the repository pinned at the mod's first install (pinned now when this is it).</summary>
-    private async Task<(Downloaded? Download, string? Problem)> Fetch(LatestRelease.Found release, string dllName)
+    /// <summary>
+    /// The release's zip, from the repository pinned at the mod's first install (pinned now when this is it). The pin is
+    /// kept under the name the mod gives, not the one GitHub sends it to, so a name that starts pointing somewhere else
+    /// still meets the old pin.
+    /// </summary>
+    private async Task<(Downloaded? Download, InstallState? Stopped)> Fetch(ModEntry mod, LatestRelease.Found release, string dllName)
     {
-        var repository = release.Owner + "/" + release.Repository;
-        var repositoryId = _pins.Read(repository);
+        var repository = mod.Info.UpdateRepository ?? release.Owner + "/" + release.Repository;
+        var pin = _pins.Read(repository);
 
-        if (repositoryId == null)
+        if (pin is RepositoryPins.Saved.Unusable unusable) return (null, new InstallState.Refused(RepositoryPin.Unusable(unusable.Path, unusable.Problem)));
+
+        long repositoryId;
+
+        if (pin is RepositoryPins.Saved.Pinned pinned)
+        {
+            repositoryId = pinned.Id;
+        }
+        else
         {
             var about = await Get(RepositoryPin.RepositoryUri(release)).ConfigureAwait(false);
 
-            if (about.Problem != null) return (null, about.Problem);
+            if (about.Problem != null) return (null, new InstallState.Failed(about.Problem));
 
-            repositoryId = RepositoryPin.IdFrom(System.Text.Encoding.UTF8.GetString(about.Body));
+            if (RepositoryPin.IdFrom(System.Text.Encoding.UTF8.GetString(about.Body)) is not { } id) return (null, new InstallState.Failed("GitHub did not say which repository " + repository + " is"));
 
-            if (repositoryId == null) return (null, "GitHub did not say which repository " + repository + " is");
-
-            _pins.Save(repository, repositoryId.Value);
+            repositoryId = id;
+            _pins.Save(repository, repositoryId);
         }
 
-        var answer = await Get(RepositoryPin.ReleaseUri(repositoryId.Value, release.Tag)).ConfigureAwait(false);
+        var answer = await Get(RepositoryPin.ReleaseUri(repositoryId, release.Tag)).ConfigureAwait(false);
 
-        if (answer.Status == 404) return (null, RepositoryPin.NotInPinned(release.Tag));
+        if (answer.Status == 404) return (null, new InstallState.Refused(RepositoryPin.NotInPinned(release.Tag)));
 
-        if (answer.Problem != null) return (null, answer.Problem);
+        if (answer.Problem != null) return (null, new InstallState.Failed(answer.Problem));
 
         var (asset, assetProblem) = ReleaseAssets.Choose(System.Text.Encoding.UTF8.GetString(answer.Body), dllName);
 
-        if (asset == null) return (null, assetProblem ?? "no file to install");
+        if (asset == null) return (null, new InstallState.Failed(assetProblem ?? "no file to install"));
 
         var download = await Download(asset.Url).ConfigureAwait(false);
 
-        return download.Problem != null ? (null, download.Problem) : (new Downloaded(release.Tag, download.Body), null);
+        return download.Problem != null ? (null, new InstallState.Failed(download.Problem)) : (new Downloaded(release.Tag, download.Body), null);
     }
 
     /// <param name="isApproved">The player already saw what the update gains, so it is not held again.</param>
@@ -177,7 +189,7 @@ internal sealed class UpdateInstaller
         var items = zip.Entries.Select(entry => new ZipItem(entry.FullName, entry.Length)).ToList();
         var (files, placeProblem) = ZipPlan.Place(items, Path.GetFileName(dllPath), modFolder, isSharedFolder);
 
-        if (files == null) return new InstallState.Failed(placeProblem ?? "nothing to install");
+        if (files == null) return new InstallState.Refused(placeProblem ?? "nothing to install");
 
         var entryOf = files.ToDictionary(file => file.Target, file => zip.Entries.First(entry => entry.FullName == file.EntryName));
         UpdateVerdict verdict = isApproved ? new UpdateVerdict.Clear() : Review(mod.Guid, files, entryOf, dllPath);
@@ -185,7 +197,7 @@ internal sealed class UpdateInstaller
         switch (verdict)
         {
             case UpdateVerdict.Rejected rejected:
-                return new InstallState.Failed(rejected.Reason);
+                return new InstallState.Refused(rejected.Reason);
             case UpdateVerdict.NeedsApproval approval:
                 _waiting[mod.Guid] = download;
 

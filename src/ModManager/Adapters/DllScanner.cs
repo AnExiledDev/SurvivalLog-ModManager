@@ -45,10 +45,10 @@ internal static class DllScanner
         var guids = PluginFileReader.Read(assembly).Select(plugin => plugin.Guid).ToList();
         var types = module.GetTypeReferences().Select(type => type.FullName).ToList();
         var members = module.GetMemberReferences().Where(member => member.DeclaringType != null).Select(member => member.DeclaringType.GetElementType().FullName + "::" + member.Name).ToList();
-        var hasNativeImports = module.GetTypes().SelectMany(type => type.Methods).Any(method => method.IsPInvokeImpl);
+        var nativeImports = module.GetTypes().SelectMany(type => type.Methods).Where(method => method.IsPInvokeImpl).Select(method => method.PInvokeInfo?.EntryPoint ?? method.Name).ToList();
         var carriesProgram = module.Resources.OfType<EmbeddedResource>().Any(IsProgram);
 
-        return new DllScan.Read(guids, new DllFacts(types, members, hasNativeImports, carriesProgram));
+        return new DllScan.Read(guids, new DllFacts(types, members, nativeImports, carriesProgram));
     }
 
     /// <summary>Every Windows program and DLL starts with "MZ"; a mod's pictures and pages never do.</summary>

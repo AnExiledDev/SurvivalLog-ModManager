@@ -13,6 +13,12 @@
     <Compile Include="..\..\src\ModManager\Core\*.cs" Link="Core\%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- The adapters that only read files and DLLs are tested against real ones; Mono.Cecil comes from the game's BepInEx. -->
+  <ItemGroup>
+    <Compile Include="..\..\src\ModManager\Adapters\DllScanner.cs;..\..\src\ModManager\Adapters\PluginFileReader.cs;..\..\src\ModManager\Adapters\RepositoryPins.cs" Link="Adapters\%(Filename)%(Extension)" />
+    <Reference Include="$(GameDir)\BepInEx\core\Mono.Cecil.dll" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />

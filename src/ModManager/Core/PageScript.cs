@@ -233,6 +233,7 @@ public static class PageScript
         InstallState.Installed installed => "{\"kind\":\"installed\",\"tag\":" + Str(installed.Tag) + "}",
         InstallState.NeedsApproval approval => "{\"kind\":\"needsApproval\",\"tag\":" + Str(approval.Tag) + ",\"powers\":[" + string.Join(",", approval.NewPowers.Select(power => Str(PowerName(power)))) + "]}",
         InstallState.Failed failed => "{\"kind\":\"failed\",\"reason\":" + Str(failed.Reason) + "}",
+        InstallState.Refused refused => "{\"kind\":\"refused\",\"reason\":" + Str(refused.Reason) + "}",
         _ => throw new ArgumentOutOfRangeException(nameof(install), install, null),
     };
 
@@ -243,6 +244,7 @@ public static class PageScript
         Power.NativeCode => "native",
         Power.LoadsOtherCode => "loadsCode",
         Power.Registry => "registry",
+        Power.OpensFiles => "opens",
         Power.AddsDll => "newDll",
         Power.Unreadable => "unreadable",
         _ => throw new ArgumentOutOfRangeException(nameof(power), power, null),
