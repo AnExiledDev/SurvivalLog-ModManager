@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+- After INSTALL ALL UPDATES, an update that waits for INSTALL ANYWAY is marked ASK in the mod list, and a refused one is marked REFUSED. A line under the button says how many of each there are.
+
 ## 0.8.0
 
 - Updates are checked before they are installed:

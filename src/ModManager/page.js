@@ -84,6 +84,9 @@
       installFailed: reason => 'Could not install the update: ' + reason + '.',
       installRefused: reason => 'The Mod Manager will not install this update: ' + reason + '. GET UPDATE still lets you install it by hand.',
       installAll: n => 'INSTALL ALL UPDATES (' + n + ')',
+      pipAsk: 'ASK', pipRefused: 'REFUSED',
+      heldAsking: n => (n === 1 ? '1 update waits for you' : n + ' updates wait for you') + ' (marked ASK): it can do things the installed version cannot. Open it to see what, and click INSTALL ANYWAY if you trust where it comes from.',
+      heldRefused: n => 'The Mod Manager will not install ' + (n === 1 ? '1 update' : n + ' updates') + ' (marked REFUSED). Open it to see why.',
       needsApproval: (tag, powers) => 'Version ' + tag + ' can do things the installed version cannot: it can ' + andList(powers) + '. Mods can have good reasons for this. Install it only if you trust where it comes from.',
       installAnyway: 'INSTALL ANYWAY',
       powers: { network: 'connect to the internet', programs: 'start other programs', native: 'call Windows or other native code directly', loadsCode: 'load code that is not in its DLL', registry: 'read or change the Windows registry', opens: 'open links or files in other programs', newDll: 'add another DLL file', unreadable: 'include a DLL the Mod Manager cannot read' },
@@ -168,6 +171,9 @@
       installFailed: reason => '无法安装更新：' + reason + '。',
       installRefused: reason => '模组管理器不会安装此更新：' + reason + '。仍可通过「获取更新」手动安装。',
       installAll: n => '安装全部更新（' + n + '）',
+      pipAsk: '待确认', pipRefused: '已拒绝',
+      heldAsking: n => n + ' 个更新等你确认（标为「待确认」）：它能做到当前版本做不到的事。打开查看详情，信任它的来源时点「仍然安装」。',
+      heldRefused: n => '模组管理器不会安装 ' + n + ' 个更新（标为「已拒绝」）。打开查看原因。',
       needsApproval: (tag, powers) => '版本 ' + tag + ' 能做到当前版本做不到的事：它可以' + powers.join('、') + '。模组这样做可能有正当理由。只有在信任它的来源时才安装。',
       installAnyway: '仍然安装',
       powers: { network: '连接互联网', programs: '启动其他程序', native: '直接调用 Windows 或其他原生代码', loadsCode: '加载不在其 DLL 中的代码', registry: '读取或修改 Windows 注册表', opens: '用其他程序打开链接或文件', newDll: '添加另一个 DLL 文件', unreadable: '包含一个模组管理器无法读取的 DLL' },
@@ -507,6 +513,7 @@
 #slmm .upd-line.bad { color: #c98a8a; }
 #slmm .upd-tag { font-family: var(--mono); font-size: .8rem; color: #ccc; margin: 10px 0 2px; }
 #slmm .upd-h + .upd-tag { margin-top: 0; }
+#slmm .held-line { margin: 10px 18px 2px; }
 #slmm .all-btn { display: block; margin: 12px 18px 2px; text-align: center; border-color: rgba(143,199,191,0.55); color: var(--teal); }
 #slmm .rels { padding: 16px 40px 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; align-items: baseline; }
 #slmm .rel-h { font-family: var(--mono); font-size: .75rem; letter-spacing: 2px; color: #777; white-space: nowrap; }
@@ -839,11 +846,21 @@
 
     const installable = mods().filter(canInstall).length;
 
-    if (state.filter === 'updates' && !state.query && installable) html = '<div class="key-btn all-btn" data-act="installAll">' + esc(word('installAll')(installable)) + '</div>' + html;
+    if (state.filter === 'updates' && !state.query) html = installAllHeader(installable) + html;
 
     if (problems.length) html += '<div class="grp">' + esc(word('problems')) + ' &middot; ' + problems.length + '</div>' + problems.map(p => '<div class="problem">' + esc(p) + '</div>').join('');
 
     morph(list, html);
+  }
+
+  // INSTALL ALL UPDATES, then a line for each kind of update it left alone, so none is missed in the list.
+  function installAllHeader(installable) {
+    const asking = mods().filter(m => hasUpdate(m) && m.install.kind === 'needsApproval').length;
+    const refused = mods().filter(m => hasUpdate(m) && m.install.kind === 'refused').length;
+    const held = (count, key) => count ? '<div class="upd-line bad held-line">' + esc(word(key)(count)) + '</div>' : '';
+
+    return (installable ? '<div class="key-btn all-btn" data-act="installAll">' + esc(word('installAll')(installable)) + '</div>' : '') +
+      held(asking, 'heldAsking') + held(refused, 'heldRefused');
   }
 
   function otherErrors() {
@@ -866,6 +883,21 @@
     return m.errors.some(e => e.level === 'error');
   }
 
+  // The update's mark in the list: RESTART once it is in place, ASK or REFUSED when its checks stopped it.
+  function updatePip(m) {
+    const pip = (cls, key) => '<span class="pip ' + cls + '">' + esc(word(key)) + '</span>';
+
+    if (m.install.kind === 'installed' || m.rollback.kind === 'done') return pip('chg', 'pipRestart');
+
+    if (!hasUpdate(m)) return '';
+
+    switch (m.install.kind) {
+      case 'needsApproval': return pip('wrnp', 'pipAsk');
+      case 'refused': return pip('errp', 'pipRefused');
+      default: return pip('upd', 'pipUpdate');
+    }
+  }
+
   function modRow(m, delay) {
     const changed = m.settings.filter(isChanged).length;
     const sub = m.loaded ? esc(m.version) + ' &middot; ' + esc(m.settings.length ? word('settingCount')(m.settings.length) : word('noSettings')) : esc(word(m.state === 'off' ? 'offSub' : 'notLoadedSub'));
@@ -875,7 +907,7 @@
       (isPending(m) ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : '') +
       (m.untested ? '<span class="pip ' + (hasLoggedErrors(m) ? 'warnp' : 'untp') + '">' + esc(word('pipUntested')) + '</span>' : '') +
       (hasLoggedErrors(m) ? '<span class="pip errp">' + esc(word('pipError')) + '</span>' : hasErrors(m) ? '<span class="pip wrnp">' + esc(word('pipWarning')) + '</span>' : '') +
-      (m.install.kind === 'installed' || m.rollback.kind === 'done' ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : hasUpdate(m) ? '<span class="pip upd">' + esc(word('pipUpdate')) + '</span>' : '');
+      updatePip(m);
 
     return '<div class="mod' + (isSelected ? ' sel' : '') + (m.loaded ? '' : ' off') + '" data-mod="' + esc(m.guid) + '" style="animation-delay:' + delay + 'ms">' +
       badge(m, 'mono') +
