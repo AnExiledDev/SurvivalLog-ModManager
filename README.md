@@ -54,7 +54,7 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 
 ## Requirements
 
-- Survival Log 1.1.19131. Built and tested on this version; a game update can break it until the mod is updated.
+- Survival Log 1.1.19611. Built and tested on this version; a game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
 - [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.4.0 or later.
 
@@ -76,7 +76,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 ## Troubleshooting
 
-Tested on Survival Log 1.1.19131 with BepInEx `6.0.0-be.788`.
+Tested on Survival Log 1.1.19611 with BepInEx `6.0.0-be.788`.
 
 Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.8.1 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
 
