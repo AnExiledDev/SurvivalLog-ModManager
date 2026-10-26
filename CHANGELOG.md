@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2
+
+- The Mods button in the Esc menu and on the title screen shows the moment the menu opens, instead of popping in up to a second later.
+
 ## 0.8.1
 
 - After INSTALL ALL UPDATES, an update that waits for INSTALL ANYWAY is marked ASK in the mod list, and a refused one is marked REFUSED. A line under the button says how many of each there are.

@@ -2212,7 +2212,10 @@
 
     if (settings.nextElementSibling !== button) settings.parentNode.insertBefore(button, settings.nextElementSibling);
 
-    button.textContent = isCjk(settings.textContent) ? WORDS.zh.menuButton : WORDS.en.menuButton;
+    const label = isCjk(settings.textContent) ? WORDS.zh.menuButton : WORDS.en.menuButton;
+
+    // Written only when it differs: a write is a change the page watcher sees, and it would wake itself forever.
+    if (button.textContent !== label) button.textContent = label;
   }
 
   // The title screen: an item like the game's own, right before Exit. The game's click handler reads data-i18n, so
@@ -2241,25 +2244,81 @@
 
     if (exit.previousElementSibling !== item) exit.parentNode.insertBefore(item, exit);
 
-    item.querySelector('.menu-text').textContent = isCjk(exitText.textContent) ? WORDS.zh.menuButton : WORDS.en.menuButton;
+    const text = item.querySelector('.menu-text');
+    const label = isCjk(exitText.textContent) ? WORDS.zh.menuButton : WORDS.en.menuButton;
+
+    if (text.textContent !== label) text.textContent = label;
+  }
+
+  function addButtonsTo(frame) {
+    try {
+      const src = String(frame.src || '');
+      const doc = frame.contentDocument;
+
+      if (!doc || !doc.body) return;
+
+      if (/OutSetting\.html/.test(src)) addEscButton(doc);
+      else if (/MainUI\.html/.test(src)) addTitleButton(doc);
+    } catch (e) {
+      // A page from another origin, or one being torn down: try again next time.
+    }
   }
 
   function addMenuButtons() {
     const frames = document.getElementsByTagName('iframe');
 
     for (let i = 0; i < frames.length; i++) {
-      try {
-        const src = String(frames[i].src || '');
-        const doc = frames[i].contentDocument;
-
-        if (!doc || doc.readyState === 'loading') continue;
-
-        if (/OutSetting\.html/.test(src)) addEscButton(doc);
-        else if (/MainUI\.html/.test(src)) addTitleButton(doc);
-      } catch (e) {
-        // A page from another origin, or one being torn down: try again next time.
-      }
+      watchFrame(frames[i]);
+      addButtonsTo(frames[i]);
     }
+  }
+
+  // The buttons go in the moment the game builds or changes a menu page, not on the next poll, so they show with the
+  // game's own. An observer runs before the next paint. Each page the frame loads gets its own watcher.
+  function watchFrame(frame) {
+    if (!frame.__slmmWatched) {
+      frame.__slmmWatched = true;
+      frame.addEventListener('load', () => watchFrame(frame));
+    }
+
+    try {
+      const doc = frame.contentDocument;
+      const win = doc && doc.defaultView;
+
+      if (!doc || doc.__slmmWatched || !win || typeof win.MutationObserver === 'undefined') return;
+
+      doc.__slmmWatched = true;
+      new win.MutationObserver(() => addButtonsTo(frame)).observe(doc, { childList: true, subtree: true });
+      addButtonsTo(frame);
+    } catch (e) {
+      // A page from another origin: the poll still tries it.
+    }
+  }
+
+  // A new game page is a new iframe in this document.
+  function watchForFrames() {
+    if (typeof MutationObserver === 'undefined') return;
+
+    new MutationObserver(records => {
+      for (let i = 0; i < records.length; i++) {
+        const added = records[i].addedNodes;
+
+        for (let j = 0; j < added.length; j++) {
+          const node = added[j];
+
+          if (node.nodeType !== 1) continue;
+
+          if (node.tagName === 'IFRAME') {
+            watchFrame(node);
+            continue;
+          }
+
+          const frames = node.getElementsByTagName('iframe');
+
+          for (let k = 0; k < frames.length; k++) watchFrame(frames[k]);
+        }
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
   }
 
   // ===== Start =====
@@ -2273,6 +2332,7 @@
   root.addEventListener('focusin', () => setTimeout(syncTyping, 0));
   root.addEventListener('focusout', () => setTimeout(syncTyping, 0));
   window.addEventListener('resize', fit);
+  watchForFrames();
   setInterval(addMenuButtons, MENU_POLL_MS);
   addMenuButtons();
 

@@ -78,7 +78,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.19611 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.8.1 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.8.2 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
