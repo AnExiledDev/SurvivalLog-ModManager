@@ -668,6 +668,21 @@
     $('.stage').style.transform = 'translate(-50%,-50%) scale(' + scale + ')';
   }
 
+  // Hands a panel to Exiled's Toolkit to be drawn at the player's UI size. Before the Toolkit's script has loaded it
+  // waits in a list the Toolkit reads; without the Toolkit nothing happens.
+  function uiSize(node, options) {
+    const toolkit = window.ExiledUi;
+
+    if (toolkit) {
+      toolkit.size(node, options);
+      return;
+    }
+
+    const waiting = window.__exiledUiWait = window.__exiledUiWait || [];
+    waiting.push([node, options]);
+    if (waiting.length > 32) waiting.shift();
+  }
+
   // ===== Drawing =====
 
   // Patches a container to match new markup and keeps every node that is still there, so a redraw changes only what
@@ -2325,6 +2340,8 @@
 
   document.head.appendChild(style);
   document.body.appendChild(root);
+  // The backdrop fills the screen at any size, so the window inside it is what follows the UI size and has to fit.
+  uiSize($('.win'));
   root.addEventListener('click', onClick);
   root.addEventListener('change', onChange);
   root.addEventListener('input', onInput);

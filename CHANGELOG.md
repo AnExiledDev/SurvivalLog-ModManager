@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.3
+
+- The Mods screen can be drawn bigger or smaller with the UI size setting of Exiled's Toolkit 0.10.0 or later. A change shows at once. A bigger screen still fits the game's window.
+- Tabs other mods add to the screen take the same size.
+- Made for Survival Log 1.1.19611.
+
 ## 0.8.2
 
 - The Mods button in the Esc menu and on the title screen shows the moment the menu opens, instead of popping in up to a second later.

@@ -56,7 +56,7 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 
 - Survival Log 1.1.19611. Built and tested on this version; a game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
-- [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.4.0 or later.
+- [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.4.0 or later. With 0.10.0 or later, its UI size setting also draws the Mods screen bigger or smaller.
 
 ## Install
 
@@ -78,7 +78,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.19611 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.8.2 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.8.3 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
@@ -248,6 +248,7 @@ if (window.__modmanager) window.__modmanager.tabsChanged();
 - Talk to your mod through your own messages (`window.vuplex.postMessage`) and your own handler on the C# side.
 - While your tab is on, your page's header is smaller and the mod info above the tabs is hidden, to give your page room.
 - A tab that throws an error is skipped; the screen keeps working.
+- Your tab is drawn inside the screen's window, which is scaled to the game's window and, with Exiled's Toolkit 0.10.0 or later, zoomed to the player's UI size. Mouse and `getBoundingClientRect()` positions are in screen pixels: to place a popup inside the window, divide them by the window's scale (its `getBoundingClientRect().width` over its `offsetWidth`) before writing `left` and `top`.
 
 ### Game versions it works on
 
