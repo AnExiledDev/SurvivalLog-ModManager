@@ -2265,15 +2265,33 @@
     if (text.textContent !== label) text.textContent = label;
   }
 
+  // Which of the two menu pages a frame holds: 'esc', 'title', or '' for every other page (maps, shops, the HUD).
+  function menuKind(frame) {
+    let src = String(frame.src || '');
+
+    try {
+      const win = frame.contentWindow;
+
+      if (win && win.location && win.location.href) src = String(win.location.href);
+    } catch (e) {
+      // A page from another origin: the src attribute is all there is.
+    }
+
+    if (/OutSetting\.html/.test(src)) return 'esc';
+    if (/MainUI\.html/.test(src)) return 'title';
+
+    return '';
+  }
+
   function addButtonsTo(frame) {
     try {
-      const src = String(frame.src || '');
+      const kind = menuKind(frame);
       const doc = frame.contentDocument;
 
-      if (!doc || !doc.body) return;
+      if (!kind || !doc || !doc.body) return;
 
-      if (/OutSetting\.html/.test(src)) addEscButton(doc);
-      else if (/MainUI\.html/.test(src)) addTitleButton(doc);
+      if (kind === 'esc') addEscButton(doc);
+      else addTitleButton(doc);
     } catch (e) {
       // A page from another origin, or one being torn down: try again next time.
     }
@@ -2289,7 +2307,9 @@
   }
 
   // The buttons go in the moment the game builds or changes a menu page, not on the next poll, so they show with the
-  // game's own. An observer runs before the next paint. Each page the frame loads gets its own watcher.
+  // game's own. An observer runs before the next paint. Only the Esc menu and the title screen are watched: a watcher
+  // on any other page (a map, a shop) would wake on every change the game makes there and do nothing. A frame that
+  // loads a new page is looked at again on its load.
   function watchFrame(frame) {
     if (!frame.__slmmWatched) {
       frame.__slmmWatched = true;
@@ -2297,6 +2317,8 @@
     }
 
     try {
+      if (!menuKind(frame)) return;
+
       const doc = frame.contentDocument;
       const win = doc && doc.defaultView;
 

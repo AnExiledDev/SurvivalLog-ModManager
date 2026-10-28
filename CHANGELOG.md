@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.5
+
+- Smoother maps and screens: the Mods button watches only the Esc menu and the title screen. Before, it also watched every other game page, so each change the game made on the trade map, the explore map or a shop woke it for nothing.
+- Made for Survival Log 1.1.19611.
+
 ## 0.8.4
 
 - Fixed: almost every mod update was marked REFUSED with "its DLL could not be read (Failed to resolve assembly: 'BepInEx.Core ...')". Updates install again.
