@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using ModManager.Adapters;
 using ModManager.Core;
+using Mono.Cecil;
 using Xunit;
 
 namespace ModManager.Tests;
@@ -29,6 +30,69 @@ public class DllScannerTests
         Assert.Contains(Power.StartsPrograms, powers);
         Assert.Contains(Power.Registry, powers);
         Assert.Contains(Power.NativeCode, powers);
+    }
+
+    [Fact]
+    public void A_mod_with_an_optional_dependency_is_read_even_where_BepInEx_cannot_be_found()
+    {
+        var scan = DllScanner.Bytes(ModWithOptionalDependency());
+
+        Assert.Equal(new[] { "ann.mod" }, Assert.IsType<DllScan.Read>(scan).PluginGuids);
+    }
+
+    /// <summary>
+    /// Shaped like every mod built against BepInEx: BepInPlugin and BepInDependency(guid, DependencyFlags.SoftDependency),
+    /// both from a BepInEx.Core this test never has, so the flags cannot be decoded.
+    /// </summary>
+    private static byte[] ModWithOptionalDependency()
+    {
+        var assembly = AssemblyDefinition.CreateAssembly(new AssemblyNameDefinition("AnnMod", new Version(1, 0)), "AnnMod", ModuleKind.Dll);
+        var module = assembly.MainModule;
+        var core = new AssemblyNameReference("BepInEx.Core", new Version(6, 0, 0, 0));
+        var type = new TypeDefinition("AnnMod", "Plugin", Mono.Cecil.TypeAttributes.Public | Mono.Cecil.TypeAttributes.Class, module.TypeSystem.Object);
+
+        module.AssemblyReferences.Add(core);
+        type.CustomAttributes.Add(Plugin(module, core, "ann.mod"));
+        type.CustomAttributes.Add(OptionalDependency(module, core, "bob.mod"));
+        module.Types.Add(type);
+
+        using var stream = new MemoryStream();
+
+        assembly.Write(stream);
+
+        return stream.ToArray();
+    }
+
+    private static CustomAttribute Plugin(ModuleDefinition module, AssemblyNameReference core, string guid)
+    {
+        var ctor = new MethodReference(".ctor", module.TypeSystem.Void, new TypeReference("BepInEx", "BepInPlugin", module, core)) { HasThis = true };
+
+        for (var i = 0; i < 3; i++) ctor.Parameters.Add(new ParameterDefinition(module.TypeSystem.String));
+
+        var attribute = new CustomAttribute(ctor);
+
+        foreach (var text in new[] { guid, "Ann Mod", "1.0.0" }) attribute.ConstructorArguments.Add(new CustomAttributeArgument(module.TypeSystem.String, text));
+
+        return attribute;
+    }
+
+    /// <summary>The flags go in as raw bytes, because writing them any other way needs BepInEx.Core too.</summary>
+    private static CustomAttribute OptionalDependency(ModuleDefinition module, AssemblyNameReference core, string guid)
+    {
+        var attributeType = new TypeReference("BepInEx", "BepInDependency", module, core);
+        var flags = new TypeReference("", "DependencyFlags", module, core) { DeclaringType = attributeType, IsValueType = true };
+        var ctor = new MethodReference(".ctor", module.TypeSystem.Void, attributeType) { HasThis = true };
+        const int softDependency = 2;
+        var blob = new byte[] { 1, 0, (byte)guid.Length }
+            .Concat(System.Text.Encoding.UTF8.GetBytes(guid))
+            .Concat(BitConverter.GetBytes(softDependency))
+            .Concat(new byte[] { 0, 0 })
+            .ToArray();
+
+        ctor.Parameters.Add(new ParameterDefinition(module.TypeSystem.String));
+        ctor.Parameters.Add(new ParameterDefinition(flags));
+
+        return new CustomAttribute(ctor, blob);
     }
 
     [Fact]

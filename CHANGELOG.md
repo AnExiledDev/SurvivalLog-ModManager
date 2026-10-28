@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.4
+
+- Fixed: almost every mod update was marked REFUSED with "its DLL could not be read (Failed to resolve assembly: 'BepInEx.Core ...')". Updates install again.
+- Made for Survival Log 1.1.19611.
+
 ## 0.8.3
 
 - The Mods screen can be drawn bigger or smaller with the UI size setting of Exiled's Toolkit 0.10.0 or later. A change shows at once. A bigger screen still fits the game's window.

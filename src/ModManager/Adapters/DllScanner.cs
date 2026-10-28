@@ -38,9 +38,13 @@ internal static class DllScanner
         }
     }
 
+    /// <summary>
+    /// Deferred, because reading everything up front decodes every attribute, and a BepInDependency with flags needs
+    /// BepInEx.Core found to decode, which fails on almost every mod's update.
+    /// </summary>
     private static DllScan Scan(Stream stream)
     {
-        using var assembly = AssemblyDefinition.ReadAssembly(stream, new ReaderParameters { ReadingMode = ReadingMode.Immediate, InMemory = true });
+        using var assembly = AssemblyDefinition.ReadAssembly(stream, new ReaderParameters { ReadingMode = ReadingMode.Deferred, InMemory = true });
         var module = assembly.MainModule;
         var guids = PluginFileReader.Read(assembly).Select(plugin => plugin.Guid).ToList();
         var types = module.GetTypeReferences().Select(type => type.FullName).ToList();
