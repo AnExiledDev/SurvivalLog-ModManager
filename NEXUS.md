@@ -2,6 +2,8 @@ Name: Mod Manager
 Summary: An in-game Mods screen. See every installed mod, turn mods on or off, change their settings and install updates without leaving the game. Every mod shows up with no work from its author, and mods that add a few lines of metadata get a name in both languages, an icon, links, live settings and one-click updates. Needs Exiled's Toolkit.
 
 Description (BBCode):
+[center][img]https://sldb.core-directive.com/media/save/1-save-safe.png[/img][/center]
+
 Mod Manager adds a Mods screen to Survival Log. It lists every BepInEx mod you have installed, shows whether each one loaded, and lets you change their settings, turn them on or off and install their updates, all without opening a .cfg file. Open it with F10, or with the Mods button in the Esc menu or on the title screen.
 
 [size=5]Main features[/size]
