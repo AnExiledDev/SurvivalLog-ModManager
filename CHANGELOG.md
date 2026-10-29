@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.0
+
+- New: `UiScale` under Interface sets the size of Mod Manager's own windows on their own, from 75% to 200%, whatever Exiled's Toolkit's UI size is. At 0, the default, they follow the Toolkit's. Needs Exiled's Toolkit 0.11.0 or newer.
+- Made for Survival Log 1.1.19611.
+
 ## 0.8.5
 
 - Smoother maps and screens: the Mods button watches only the Esc menu and the title screen. Before, it also watched every other game page, so each change the game made on the trade map, the explore map or a shop woke it for nothing.

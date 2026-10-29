@@ -56,7 +56,7 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 
 - Survival Log 1.1.19611. Built and tested on this version; a game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
-- [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.4.0 or later. With 0.10.0 or later, its UI size setting also draws the Mods screen bigger or smaller.
+- [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.4.0 or later. With 0.10.0 or later, its UI size setting also draws the Mods screen bigger or smaller. With 0.11.0 or later, Mod Manager's own `UiScale` under Interface sets a size for this mod alone; at 0, the default, it follows the Toolkit's.
 
 ## Install
 

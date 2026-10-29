@@ -15,13 +15,15 @@ namespace ModManager;
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "com.dev.survivallog.modmanager";
-    public const string Version = "0.8.5";
+    public const string Version = "0.9.0";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
     private const string ToolkitVersion = ">=0.4.0";
 
     public override void Load()
     {
+        OptionalUiSize.Bind(Config);
+
         var openKey = Config.Bind("Menu", "OpenKey", KeyCode.F10,
             "The key that opens and closes the Mods screen. The Mods button in the Esc menu and on the title screen opens it too. Default: F10.\n" +
             "打开和关闭「模组」界面的按键。Esc 菜单和标题画面中的「模组」按钮也能打开它。默认 F10。");

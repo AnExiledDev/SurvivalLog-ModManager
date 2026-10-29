@@ -16,3 +16,9 @@ While the Mods screen is open, the game's own hotkeys are paused, and Esc closes
 | --- | --- | --- |
 | `CheckForUpdates` | `true` | Each time the game starts, ask GitHub whether mods that name a GitHub repository have a newer release. Only GitHub is contacted, and no account or key is needed. Turning it off stops the checks at once. |
 | `ShowToast` | `true` | After the update check at the start, show one message saying how many mods have updates. Click it to see them. |
+
+## Interface
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `UiScale` | `0` | How big Mod Manager's own windows, panels and messages are drawn, in percent, from 75 to 200. At `0` they follow the UI size set in Exiled's Toolkit (its `UiScale`). Needs Exiled's Toolkit 0.11.0 or newer. |
