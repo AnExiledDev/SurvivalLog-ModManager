@@ -1457,6 +1457,8 @@
   function shown(s, value) {
     if (s.kind === 'hotkey' && (value === '' || value === 'None')) return word('none');
 
+    if (s.kind === 'choice') return choiceLabel(s, value);
+
     if (!state.items) return value;
 
     if (s.kind === 'item') return itemName(value);
@@ -1649,11 +1651,19 @@
     return 'background:linear-gradient(to right,#EBA308 0%,#EBA308 ' + percent + '%,#444 ' + percent + '%,#444 100%)';
   }
 
+  // The mod may name its choices in Chinese; the value written stays the option itself.
+  function choiceLabel(s, option) {
+    const i = s.options.findIndex(o => o.toLowerCase() === option.toLowerCase());
+    const zh = state.lang === 'zh' && Array.isArray(s.optionsZh) && i >= 0 ? s.optionsZh[i] : null;
+
+    return typeof zh === 'string' && zh ? zh : option;
+  }
+
   function choiceControl(s) {
     const isSelected = option => option.toLowerCase() === s.current.toLowerCase();
-    const items = s.options.map((option, i) => '<div class="dd-item' + (isSelected(option) ? ' selected' : '') + '" data-option="' + i + '">' + esc(option) + '</div>').join('');
+    const items = s.options.map((option, i) => '<div class="dd-item' + (isSelected(option) ? ' selected' : '') + '" data-option="' + i + '">' + esc(choiceLabel(s, option)) + '</div>').join('');
 
-    return '<div class="dd"><div class="dd-trigger"><span>' + esc(s.current) + '</span><span class="dd-arrow"></span></div><div class="dd-list">' + items + '</div></div>';
+    return '<div class="dd"><div class="dd-trigger"><span>' + esc(choiceLabel(s, s.current)) + '</span><span class="dd-arrow"></span></div><div class="dd-list">' + items + '</div></div>';
   }
 
   function conflicts(m, s) {

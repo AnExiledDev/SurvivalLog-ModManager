@@ -60,6 +60,23 @@ public class PageScriptTests
     }
 
     [Fact]
+    public void A_choice_sends_its_Chinese_names_beside_its_options_and_null_where_there_is_none()
+    {
+        var named = Setting("Mode", new SettingKind.Choice(new[] { "Default", "Custom", "Hard limit" }), "Default") with { ChoiceZh = new System.Collections.Generic.Dictionary<string, string> { ["Default"] = "\u9ed8\u8ba4", ["Hard limit"] = "\u786c\u4e0a\u9650" } };
+        var plain = Setting("Plain", new SettingKind.Choice(new[] { "A", "B" }), "A");
+
+        using var json = JsonDocument.Parse(PageScript.ViewJson(new ModsView(new[] { Loaded(named, plain) }, System.Array.Empty<string>(), true, "F10")));
+        var settings = json.RootElement.GetProperty("mods")[0].GetProperty("settings");
+        var zh = settings[0].GetProperty("optionsZh");
+
+        Assert.Equal("\u9ed8\u8ba4", zh[0].GetString());
+        Assert.Equal(JsonValueKind.Null, zh[1].ValueKind);
+        Assert.Equal("\u786c\u4e0a\u9650", zh[2].GetString());
+        Assert.Equal("Default", settings[0].GetProperty("current").GetString());
+        Assert.False(settings[1].TryGetProperty("optionsZh", out _));
+    }
+
+    [Fact]
     public void A_number_without_a_usable_range_sends_no_ends_so_the_page_shows_a_box()
     {
         using var json = JsonDocument.Parse(PageScript.ModJson(Loaded(Setting("N", new SettingKind.Number(true, 5, 5)))));

@@ -127,6 +127,12 @@ public static class PageScript
         json.Append(",\"advanced\":").Append(Bool(setting.IsAdvanced));
         AppendKind(json, setting.Kind);
 
+        // One name per option, null where the mod gave none, so the page keeps the option itself.
+        if (setting.Kind is SettingKind.Choice choice && setting.ChoiceZh.Count > 0)
+        {
+            json.Append(",\"optionsZh\":").Append(List(choice.Options, option => setting.ChoiceZh.TryGetValue(option, out var name) ? Str(name) : "null"));
+        }
+
         return json.Append('}').ToString();
     }
 

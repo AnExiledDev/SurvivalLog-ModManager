@@ -11,7 +11,11 @@ namespace ModManager.Core;
 public sealed record ShowRule(string Target, IReadOnlyList<string> Values);
 
 /// <summary>What a setting's string tags ask of the Mods screen, plus the tags that could not be used.</summary>
-public sealed record SettingTagsRead(SettingControl? Control, IReadOnlyList<ShowRule> ShowWhen, bool IsAdvanced, IReadOnlyList<string> Ignored);
+public sealed record SettingTagsRead(SettingControl? Control, IReadOnlyList<ShowRule> ShowWhen, bool IsAdvanced, IReadOnlyList<string> Ignored)
+{
+    /// <summary>The Chinese name of each choice that has one, by the choice as the mod spells it.</summary>
+    public IReadOnlyDictionary<string, string> ChoiceZh { get; init; } = new Dictionary<string, string>();
+}
 
 /// <summary>
 /// Reads the plain strings a mod puts in a setting's ConfigDescription tags, such as "ModManager.Control=Item". Strings
@@ -22,12 +26,14 @@ public static class SettingTags
     public const string ControlPrefix = ModInfoReader.Prefix + "Control=";
     public const string ShowWhenPrefix = ModInfoReader.Prefix + "ShowWhen=";
     public const string AdvancedTag = ModInfoReader.Prefix + "Advanced";
+    public const string ChoiceZhPrefix = ModInfoReader.Prefix + "ChoiceZh=";
 
     public static SettingTagsRead Read(IEnumerable<object?>? tags)
     {
         SettingControl? control = null;
         var rules = new List<ShowRule>();
         var isAdvanced = false;
+        var choiceZh = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var ignored = new List<string>();
 
         foreach (var tag in (tags ?? Array.Empty<object?>()).OfType<string>().Select(tag => tag.Trim()))
@@ -47,13 +53,17 @@ public static class SettingTags
             {
                 isAdvanced = true;
             }
+            else if (tag.StartsWith(ChoiceZhPrefix, StringComparison.Ordinal))
+            {
+                AddChoiceZh(choiceZh, tag, ignored);
+            }
             else if (tag.StartsWith(ModInfoReader.Prefix, StringComparison.Ordinal) && tag != ApplyModes.LiveTag && tag != ApplyModes.RestartTag)
             {
                 ignored.Add(tag + " is not a tag the Mod Manager knows");
             }
         }
 
-        return new SettingTagsRead(control, rules, isAdvanced, ignored);
+        return new SettingTagsRead(control, rules, isAdvanced, ignored) { ChoiceZh = choiceZh };
     }
 
     private static SettingControl? ControlOf(string name)
@@ -64,6 +74,18 @@ public static class SettingTags
         }
 
         return null;
+    }
+
+    /// <summary>"Choice=名称": the choice, as the mod spells it, up to the first "=", then its Chinese name.</summary>
+    private static void AddChoiceZh(Dictionary<string, string> choiceZh, string tag, List<string> ignored)
+    {
+        var rest = tag.Substring(ChoiceZhPrefix.Length);
+        var equals = rest.IndexOf('=');
+        var choice = equals < 0 ? "" : rest.Substring(0, equals).Trim();
+        var name = equals < 0 ? "" : rest.Substring(equals + 1).Trim();
+
+        if (choice.Length > 0 && name.Length > 0) choiceZh[choice] = name;
+        else ignored.Add(tag + " must be ChoiceZh=choice=name");
     }
 
     /// <summary>"Key" means that on/off setting is on; "Key=a|b" or "Section.Key=a|b" means it holds a or b. ";" joins several.</summary>

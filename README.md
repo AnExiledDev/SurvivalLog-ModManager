@@ -204,6 +204,7 @@ Config.Bind("Loot", "LogRolls", false, new ConfigDescription("...", null, "ModMa
 | `ModManager.Control=Category` | An `int` setting holding a game item category id. Shown as a drop-down of the game's categories. |
 | `ModManager.ShowWhen=...` | Show the setting only while another setting of your mod has a value. `ShowWhen=Enabled` means that on/off setting is on; `ShowWhen=Mode=Custom\|Expert` means it holds either value (any case). Name a setting in another section as `Section.Key`. Several conditions joined by `;` must all hold. When the setting it depends on is hidden, this one is too. |
 | `ModManager.Advanced` | Put the setting in the folded "Advanced" group at the end of its section. |
+| `ModManager.ChoiceZh=...` | The Chinese name of one choice of a list setting, shown when the Mods screen is in Chinese: `ChoiceZh=Custom=自定义`. One tag per choice. The value saved stays the choice itself. |
 
 Item and category names come from the game in the player's language. A control on a setting of the wrong type, a rule naming a setting that does not exist, or a loop of rules is passed over (the setting shows as usual) and `BepInEx\mod-manager.log` says why. Hidden settings keep their values and search skips them.
 

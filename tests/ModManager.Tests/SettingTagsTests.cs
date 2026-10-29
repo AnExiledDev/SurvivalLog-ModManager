@@ -33,6 +33,28 @@ public class SettingTagsTests
         Assert.Empty(read.Ignored);
     }
 
+    [Fact]
+    public void A_mod_names_its_choices_in_Chinese_one_tag_each()
+    {
+        var read = SettingTags.Read(new object?[] { "ModManager.ChoiceZh=Default=\u9ed8\u8ba4", "ModManager.ChoiceZh= Hard limit = \u786c\u4e0a\u9650" });
+
+        Assert.Equal("\u9ed8\u8ba4", read.ChoiceZh["Default"]);
+        Assert.Equal("\u786c\u4e0a\u9650", read.ChoiceZh["hard limit"]);
+        Assert.Empty(read.Ignored);
+    }
+
+    [Theory]
+    [InlineData("ModManager.ChoiceZh=Default")]
+    [InlineData("ModManager.ChoiceZh==\u9ed8\u8ba4")]
+    [InlineData("ModManager.ChoiceZh=Default=")]
+    public void A_choice_name_without_both_parts_is_reported(string tag)
+    {
+        var read = SettingTags.Read(new object?[] { tag });
+
+        Assert.Empty(read.ChoiceZh);
+        Assert.Single(read.Ignored);
+    }
+
     [Theory]
     [InlineData("ModManager.Control=Colour")]
     [InlineData("ModManager.ShowWhen=")]

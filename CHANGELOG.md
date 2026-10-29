@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0
+
+- List settings can show their choices in Chinese. A mod names each choice with the new `ModManager.ChoiceZh` tag; the value saved stays the same.
+- Made for Survival Log 1.1.19611.
+
 ## 0.9.0
 
 - New: `UiScale` under Interface sets the size of Mod Manager's own windows on their own, from 75% to 200%, whatever Exiled's Toolkit's UI size is. At 0, the default, they follow the Toolkit's. Needs Exiled's Toolkit 0.11.0 or newer.

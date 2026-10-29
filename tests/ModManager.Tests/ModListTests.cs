@@ -47,6 +47,15 @@ public class ModListTests
     }
 
     [Fact]
+    public void The_Chinese_choice_names_reach_the_setting()
+    {
+        var names = new System.Collections.Generic.Dictionary<string, string> { ["Custom"] = "\u81ea\u5b9a\u4e49" };
+        var setting = Assert.Single(ModList.Arrange("g", new[] { Found("A", "Mode", Hints.None with { ChoiceZh = names }) }, new StartValues()));
+
+        Assert.Equal("\u81ea\u5b9a\u4e49", setting.ChoiceZh["Custom"]);
+    }
+
+    [Fact]
     public void A_read_only_hint_makes_the_setting_read_only()
     {
         var setting = Assert.Single(ModList.Arrange("g", new[] { Found("A", "Key", Hints.None with { IsReadOnly = true }) }, new StartValues()));

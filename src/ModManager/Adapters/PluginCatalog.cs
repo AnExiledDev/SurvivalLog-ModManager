@@ -385,7 +385,7 @@ internal sealed class PluginCatalog
 
         var defaultValue = TomlTypeConverter.ConvertToString(entry.DefaultValue, entry.SettingType);
         var apply = ApplyModes.ForSetting(description?.Tags, LiveSettings.IsWatched(entry));
-        var hints = HintsOf(description?.Tags) with { IsAdvanced = tags.IsAdvanced || IsAdvancedByAttributes(description?.Tags), ShowWhen = tags.ShowWhen };
+        var hints = HintsOf(description?.Tags) with { IsAdvanced = tags.IsAdvanced || IsAdvancedByAttributes(description?.Tags), ShowWhen = tags.ShowWhen, ChoiceZh = tags.ChoiceZh };
 
         return (new FoundSetting(entry.Definition.Section, entry.Definition.Key, description?.Description ?? "", kind, defaultValue, entry.GetSerializedValue(), hints, apply), ignored);
     }
