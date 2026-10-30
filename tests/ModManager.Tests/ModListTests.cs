@@ -56,6 +56,15 @@ public class ModListTests
     }
 
     [Fact]
+    public void The_choice_pictures_reach_the_setting()
+    {
+        var pictures = new System.Collections.Generic.Dictionary<string, string> { ["Signal"] = "<i>s</i>" };
+        var setting = Assert.Single(ModList.Arrange("g", new[] { Found("A", "Style", Hints.None with { ChoicePreview = pictures }) }, new StartValues()));
+
+        Assert.Equal("<i>s</i>", setting.ChoicePreview["Signal"]);
+    }
+
+    [Fact]
     public void A_read_only_hint_makes_the_setting_read_only()
     {
         var setting = Assert.Single(ModList.Arrange("g", new[] { Found("A", "Key", Hints.None with { IsReadOnly = true }) }, new StartValues()));

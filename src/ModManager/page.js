@@ -1,6 +1,7 @@
 // Mod Manager: the Mods screen, run in the game's root web document above every page.
 // The C# side reads every plugin and its settings, checks and writes each value, and sends the result back through
-// window.__modmanager; this script only draws and reports clicks. Data is put in the page through esc() or textContent.
+// window.__modmanager; this script only draws and reports clicks. Data is put in the page through esc() or textContent,
+// except a choice's picture, which is markup the mod drew for it.
 (function () {
   if (window.__modmanager) return;
 
@@ -487,6 +488,14 @@
 #slmm .dd-item { padding: 8px 15px; color: #ccc; font-size: .95rem; font-weight: 700; cursor: pointer; }
 #slmm .dd-item:hover { background: rgba(235,163,8,0.15); color: #fff; }
 #slmm .dd-item.selected { color: var(--amber); }
+#slmm .dd.pv { width: 360px; }
+#slmm .dd.pv .dd-trigger { padding: 6px 12px 6px 6px; }
+#slmm .dd.pv .dd-list { max-height: 340px; padding: 4px; }
+#slmm .dd.pv .dd-item { padding: 6px; border-radius: 3px; }
+#slmm .dd.pv .dd-item.selected { background: rgba(235,163,8,0.1); }
+#slmm .dd-pv { display: flex; align-items: center; gap: 12px; min-width: 0; }
+#slmm .dd-pic { flex: none; max-width: 220px; max-height: 56px; overflow: hidden; border-radius: 4px; line-height: 0; pointer-events: none; }
+#slmm .dd-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 #slmm .sr-head { padding: 30px 40px 6px; display: flex; align-items: baseline; gap: 14px; }
 #slmm .sr-head .big { font-family: var(--display); font-size: 2.6rem; color: #fff; letter-spacing: 2px; }
@@ -1651,19 +1660,34 @@
     return 'background:linear-gradient(to right,#EBA308 0%,#EBA308 ' + percent + '%,#444 ' + percent + '%,#444 100%)';
   }
 
+  function choiceIndex(s, option) {
+    return s.options.findIndex(o => o.toLowerCase() === option.toLowerCase());
+  }
+
   // The mod may name its choices in Chinese; the value written stays the option itself.
   function choiceLabel(s, option) {
-    const i = s.options.findIndex(o => o.toLowerCase() === option.toLowerCase());
+    const i = choiceIndex(s, option);
     const zh = state.lang === 'zh' && Array.isArray(s.optionsZh) && i >= 0 ? s.optionsZh[i] : null;
 
     return typeof zh === 'string' && zh ? zh : option;
   }
 
-  function choiceControl(s) {
-    const isSelected = option => option.toLowerCase() === s.current.toLowerCase();
-    const items = s.options.map((option, i) => '<div class="dd-item' + (isSelected(option) ? ' selected' : '') + '" data-option="' + i + '">' + esc(choiceLabel(s, option)) + '</div>').join('');
+  // The mod may draw a picture of each choice. It is the mod's own markup, so it goes in as it is, clipped to its box.
+  function choicePicture(s, option) {
+    const i = choiceIndex(s, option);
+    const html = Array.isArray(s.optionsPreview) && i >= 0 ? s.optionsPreview[i] : null;
 
-    return '<div class="dd"><div class="dd-trigger"><span>' + esc(choiceLabel(s, s.current)) + '</span><span class="dd-arrow"></span></div><div class="dd-list">' + items + '</div></div>';
+    return typeof html === 'string' && html ? '<div class="dd-pic">' + html + '</div>' : '';
+  }
+
+  function choiceControl(s) {
+    const pictured = Array.isArray(s.optionsPreview) && s.optionsPreview.some(html => typeof html === 'string' && html);
+    const body = option => pictured ? '<div class="dd-pv">' + choicePicture(s, option) + '<span class="dd-name">' + esc(choiceLabel(s, option)) + '</span></div>' : esc(choiceLabel(s, option));
+    const isSelected = option => option.toLowerCase() === s.current.toLowerCase();
+    const items = s.options.map((option, i) => '<div class="dd-item' + (isSelected(option) ? ' selected' : '') + '" data-option="' + i + '">' + body(option) + '</div>').join('');
+    const shown = pictured ? body(s.current) : '<span>' + body(s.current) + '</span>';
+
+    return '<div class="dd' + (pictured ? ' pv' : '') + '"><div class="dd-trigger">' + shown + '<span class="dd-arrow"></span></div><div class="dd-list">' + items + '</div></div>';
   }
 
   function conflicts(m, s) {

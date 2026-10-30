@@ -43,6 +43,30 @@ public class SettingTagsTests
         Assert.Empty(read.Ignored);
     }
 
+    [Fact]
+    public void A_mod_draws_a_picture_of_each_choice_one_tag_each_split_at_the_first_equals()
+    {
+        const string lamplight = "<div style=\"color:#f5b82e\"><svg viewBox=\"0 0 24 24\"><path d=\"M2 2h20\"/></svg></div>";
+        var read = SettingTags.Read(new object?[] { "ModManager.ChoicePreview=Lamplight=" + lamplight, "ModManager.ChoicePreview= Field kit = <b>kit</b> " });
+
+        Assert.Equal(lamplight, read.ChoicePreview["Lamplight"]);
+        Assert.Equal("<b>kit</b>", read.ChoicePreview["FIELD KIT"]);
+        Assert.Equal(2, read.ChoicePreview.Count);
+        Assert.Empty(read.Ignored);
+    }
+
+    [Theory]
+    [InlineData("ModManager.ChoicePreview=Lamplight")]
+    [InlineData("ModManager.ChoicePreview==<b>x</b>")]
+    [InlineData("ModManager.ChoicePreview=Lamplight=  ")]
+    public void A_choice_picture_without_both_parts_is_reported(string tag)
+    {
+        var read = SettingTags.Read(new object?[] { tag });
+
+        Assert.Empty(read.ChoicePreview);
+        Assert.Contains("ChoicePreview=choice=html", Assert.Single(read.Ignored));
+    }
+
     [Theory]
     [InlineData("ModManager.ChoiceZh=Default")]
     [InlineData("ModManager.ChoiceZh==\u9ed8\u8ba4")]

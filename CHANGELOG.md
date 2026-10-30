@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0
+
+- List settings can show a small picture of each choice, in the drop-down and in the closed box, so you can see what you are picking. A mod draws each picture with the new `ModManager.ChoicePreview` tag.
+- Made for Survival Log 1.1.20151.
+
 ## 0.10.0
 
 - List settings can show their choices in Chinese. A mod names each choice with the new `ModManager.ChoiceZh` tag; the value saved stays the same.

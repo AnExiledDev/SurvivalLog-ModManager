@@ -15,6 +15,9 @@ public sealed record SettingTagsRead(SettingControl? Control, IReadOnlyList<Show
 {
     /// <summary>The Chinese name of each choice that has one, by the choice as the mod spells it.</summary>
     public IReadOnlyDictionary<string, string> ChoiceZh { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The picture of each choice that has one, as the mod's own HTML, by the choice as the mod spells it.</summary>
+    public IReadOnlyDictionary<string, string> ChoicePreview { get; init; } = new Dictionary<string, string>();
 }
 
 /// <summary>
@@ -27,6 +30,7 @@ public static class SettingTags
     public const string ShowWhenPrefix = ModInfoReader.Prefix + "ShowWhen=";
     public const string AdvancedTag = ModInfoReader.Prefix + "Advanced";
     public const string ChoiceZhPrefix = ModInfoReader.Prefix + "ChoiceZh=";
+    public const string ChoicePreviewPrefix = ModInfoReader.Prefix + "ChoicePreview=";
 
     public static SettingTagsRead Read(IEnumerable<object?>? tags)
     {
@@ -34,6 +38,7 @@ public static class SettingTags
         var rules = new List<ShowRule>();
         var isAdvanced = false;
         var choiceZh = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var choicePreview = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var ignored = new List<string>();
 
         foreach (var tag in (tags ?? Array.Empty<object?>()).OfType<string>().Select(tag => tag.Trim()))
@@ -57,13 +62,17 @@ public static class SettingTags
             {
                 AddChoiceZh(choiceZh, tag, ignored);
             }
+            else if (tag.StartsWith(ChoicePreviewPrefix, StringComparison.Ordinal))
+            {
+                AddChoicePreview(choicePreview, tag, ignored);
+            }
             else if (tag.StartsWith(ModInfoReader.Prefix, StringComparison.Ordinal) && tag != ApplyModes.LiveTag && tag != ApplyModes.RestartTag)
             {
                 ignored.Add(tag + " is not a tag the Mod Manager knows");
             }
         }
 
-        return new SettingTagsRead(control, rules, isAdvanced, ignored) { ChoiceZh = choiceZh };
+        return new SettingTagsRead(control, rules, isAdvanced, ignored) { ChoiceZh = choiceZh, ChoicePreview = choicePreview };
     }
 
     private static SettingControl? ControlOf(string name)
@@ -86,6 +95,21 @@ public static class SettingTags
 
         if (choice.Length > 0 && name.Length > 0) choiceZh[choice] = name;
         else ignored.Add(tag + " must be ChoiceZh=choice=name");
+    }
+
+    /// <summary>
+    /// "Choice=&lt;html&gt;": the choice up to the first "=", then the markup the Mods screen draws as its picture. The
+    /// markup may hold "=" of its own, so only the first one splits.
+    /// </summary>
+    private static void AddChoicePreview(Dictionary<string, string> choicePreview, string tag, List<string> ignored)
+    {
+        var rest = tag.Substring(ChoicePreviewPrefix.Length);
+        var equals = rest.IndexOf('=');
+        var choice = equals < 0 ? "" : rest.Substring(0, equals).Trim();
+        var html = equals < 0 ? "" : rest.Substring(equals + 1).Trim();
+
+        if (choice.Length > 0 && html.Length > 0) choicePreview[choice] = html;
+        else ignored.Add(tag + " must be ChoicePreview=choice=html");
     }
 
     /// <summary>"Key" means that on/off setting is on; "Key=a|b" or "Section.Key=a|b" means it holds a or b. ";" joins several.</summary>

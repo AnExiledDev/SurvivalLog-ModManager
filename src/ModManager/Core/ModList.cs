@@ -27,6 +27,9 @@ public sealed record Hints(bool IsHidden, string? DisplayName, int Order, bool I
 
     /// <summary>The Chinese name of each choice that has one; the value written to the file stays the choice itself.</summary>
     public IReadOnlyDictionary<string, string> ChoiceZh { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The picture of each choice that has one, as the mod's own HTML.</summary>
+    public IReadOnlyDictionary<string, string> ChoicePreview { get; init; } = new Dictionary<string, string>();
 }
 
 /// <summary>A setting as read from a plugin's config, values written as in the .cfg file.</summary>
@@ -42,6 +45,9 @@ public sealed record Setting(SettingId Id, string Label, Description Description
 
     /// <summary>The Chinese name of each choice that has one.</summary>
     public IReadOnlyDictionary<string, string> ChoiceZh { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The picture of each choice that has one, as the mod's own HTML.</summary>
+    public IReadOnlyDictionary<string, string> ChoicePreview { get; init; } = new Dictionary<string, string>();
 
     /// <summary>Its show-when rules hold. A setting that is not shown is still sent, so resetting the mod resets it too.</summary>
     public bool IsShown { get; init; } = true;
@@ -177,6 +183,7 @@ public static class ModList
             Apply = found.Apply != ApplyMode.Unknown ? found.Apply : modApply,
             IsAdvanced = found.Hints.IsAdvanced,
             ChoiceZh = found.Hints.ChoiceZh,
+            ChoicePreview = found.Hints.ChoicePreview,
         };
     }
 }

@@ -133,6 +133,12 @@ public static class PageScript
             json.Append(",\"optionsZh\":").Append(List(choice.Options, option => setting.ChoiceZh.TryGetValue(option, out var name) ? Str(name) : "null"));
         }
 
+        // One picture per option, null where the mod drew none; sent only when at least one option has one.
+        if (setting.Kind is SettingKind.Choice pictured && pictured.Options.Any(setting.ChoicePreview.ContainsKey))
+        {
+            json.Append(",\"optionsPreview\":").Append(List(pictured.Options, option => setting.ChoicePreview.TryGetValue(option, out var html) ? Str(html) : "null"));
+        }
+
         return json.Append('}').ToString();
     }
 

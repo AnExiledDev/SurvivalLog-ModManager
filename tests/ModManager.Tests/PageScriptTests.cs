@@ -77,6 +77,35 @@ public class PageScriptTests
     }
 
     [Fact]
+    public void A_choice_sends_its_pictures_beside_its_options_matched_without_case_and_null_where_there_is_none()
+    {
+        var pictures = new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase) { ["lamplight"] = "<b style=\"color:#f5b82e\">L</b>", ["Classic"] = "<i>C</i>", ["Neon"] = "<u>N</u>" };
+        var pictured = Setting("Style", new SettingKind.Choice(new[] { "Lamplight", "FieldKit", "Classic" }), "Lamplight") with { ChoicePreview = pictures };
+        var onlyUnknown = Setting("Other", new SettingKind.Choice(new[] { "A", "B" }), "A") with { ChoicePreview = new System.Collections.Generic.Dictionary<string, string> { ["Z"] = "<i>z</i>" } };
+
+        using var json = JsonDocument.Parse(PageScript.ViewJson(new ModsView(new[] { Loaded(pictured, onlyUnknown) }, System.Array.Empty<string>(), false, "F10")));
+        var settings = json.RootElement.GetProperty("mods")[0].GetProperty("settings");
+        var sent = settings[0].GetProperty("optionsPreview");
+
+        Assert.Equal(3, sent.GetArrayLength());
+        Assert.Equal("<b style=\"color:#f5b82e\">L</b>", sent[0].GetString());
+        Assert.Equal(JsonValueKind.Null, sent[1].ValueKind);
+        Assert.Equal("<i>C</i>", sent[2].GetString());
+        Assert.False(settings[1].TryGetProperty("optionsPreview", out _));
+    }
+
+    [Fact]
+    public void A_choice_picture_cannot_close_the_script_it_travels_in()
+    {
+        var pictured = Setting("Style", new SettingKind.Choice(new[] { "A" }), "A") with { ChoicePreview = new System.Collections.Generic.Dictionary<string, string> { ["A"] = "</script><b>x</b>" } };
+
+        var script = PageScript.Update(Loaded(pictured), null);
+
+        Assert.DoesNotContain("</script>", script);
+        Assert.DoesNotContain("<b>", script);
+    }
+
+    [Fact]
     public void A_number_without_a_usable_range_sends_no_ends_so_the_page_shows_a_box()
     {
         using var json = JsonDocument.Parse(PageScript.ModJson(Loaded(Setting("N", new SettingKind.Number(true, 5, 5)))));

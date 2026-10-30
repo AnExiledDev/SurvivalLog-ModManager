@@ -54,7 +54,7 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 
 ## Requirements
 
-- Survival Log 1.1.19611. Built and tested on this version; a game update can break it until the mod is updated.
+- Survival Log 1.1.20151. Built and tested on this version; a game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
 - [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.4.0 or later. With 0.10.0 or later, its UI size setting also draws the Mods screen bigger or smaller. With 0.11.0 or later, Mod Manager's own `UiScale` under Interface sets a size for this mod alone; at 0, the default, it follows the Toolkit's.
 
@@ -76,7 +76,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 ## Troubleshooting
 
-Tested on Survival Log 1.1.19611 with BepInEx `6.0.0-be.788`.
+Tested on Survival Log 1.1.20151 with BepInEx `6.0.0-be.788`.
 
 Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.8.5 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
 
@@ -205,6 +205,7 @@ Config.Bind("Loot", "LogRolls", false, new ConfigDescription("...", null, "ModMa
 | `ModManager.ShowWhen=...` | Show the setting only while another setting of your mod has a value. `ShowWhen=Enabled` means that on/off setting is on; `ShowWhen=Mode=Custom\|Expert` means it holds either value (any case). Name a setting in another section as `Section.Key`. Several conditions joined by `;` must all hold. When the setting it depends on is hidden, this one is too. |
 | `ModManager.Advanced` | Put the setting in the folded "Advanced" group at the end of its section. |
 | `ModManager.ChoiceZh=...` | The Chinese name of one choice of a list setting, shown when the Mods screen is in Chinese: `ChoiceZh=Custom=自定义`. One tag per choice. The value saved stays the choice itself. |
+| `ModManager.ChoicePreview=...` | A small picture of one choice of a list setting, as HTML: `ChoicePreview=Lamplight=<div style="...">...</div>`. One tag per choice; the first `=` after the choice ends its name, so the HTML may hold `=`. The drop-down then shows each picture beside its choice's name, and the picked one in the closed box; a choice without one shows its name alone. The HTML goes in as it is, inside a box 56 pixels high that cuts off anything bigger, and your mod's stylesheets are not on the Mods screen: use inline styles and inline SVG. |
 
 Item and category names come from the game in the player's language. A control on a setting of the wrong type, a rule naming a setting that does not exist, or a loop of rules is passed over (the setting shows as usual) and `BepInEx\mod-manager.log` says why. Hidden settings keep their values and search skips them.
 
