@@ -2,7 +2,7 @@
 
 An in-game Mods screen for Survival Log. It lists every BepInEx mod you have installed, shows whether each one loaded, turns mods on or off, installs their updates, and lets you change their settings without leaving the game or opening a .cfg file.
 
-Open it with F10, or with the Mods button in the Esc menu or on the title screen.
+Open it with the Mods button in the Esc menu or on the title screen, or set a key for it (`OpenKey`, unbound by default).
 
 ## Features
 
@@ -56,12 +56,12 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 
 - Survival Log 1.1.20151. Built and tested on this version; a game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
-- [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.4.0 or later. With 0.10.0 or later, its UI size setting also draws the Mods screen bigger or smaller. With 0.11.0 or later, Mod Manager's own `UiScale` under Interface sets a size for this mod alone; at 0, the default, it follows the Toolkit's.
+- [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.12.0 or later. With 0.10.0 or later, its UI size setting also draws the Mods screen bigger or smaller. With 0.11.0 or later, Mod Manager's own `UiScale` under Interface sets a size for this mod alone; at 0, the default, it follows the Toolkit's.
 
 ## Install
 
 1. Install the [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12) (if no other mods were installed before, start the game once so BepInEx finishes setup, then quit).
-2. Install Exiled's Toolkit 0.4.0 or later.
+2. Install Exiled's Toolkit 0.12.0 or later.
 3. Download `ModManager-x.y.z.zip` from the [latest release](https://github.com/AnExiledDev/SurvivalLog-ModManager/releases/latest) or from [Nexus Mods](https://www.nexusmods.com/survivallog/mods/73).
 4. Extract the zip into the game folder (the folder with `SurvivalLog.exe`). It holds a `BepInEx` folder, so the DLL lands in the right place. When asked, merge the folders. The result should be:
    `C:\Program Files (x86)\Steam\steamapps\common\Survival Log\BepInEx\plugins\ModManager.dll`
@@ -78,7 +78,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.20151 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.8.5 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.4.0 or later, update the Toolkit.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.8.5 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.12.0 or later, update the Toolkit.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.

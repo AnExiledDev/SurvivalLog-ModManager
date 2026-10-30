@@ -40,6 +40,10 @@ internal sealed class ModsSession
     private readonly KeyCapture _capture = new();
     private readonly GameItemTable _items;
     private readonly Func<KeyCode> _openKey;
+    private readonly Func<bool> _isOpenKeyDown;
+
+    /// <summary>Whether the player is typing in a text box in another mod's window or a game page, so the open key is text.</summary>
+    private static readonly Func<bool> IsTypingAnywhere = () => Typing.IsActive;
     private readonly Func<bool> _isCheckingForUpdates;
     private readonly Func<bool> _isShowingUpdateToast;
     private readonly Action<string> _log;
@@ -66,6 +70,7 @@ internal sealed class ModsSession
         _watch = watch;
         _mailbox = PageInbox.Listen(PageCommand.Prefix);
         _openKey = openKey;
+        _isOpenKeyDown = () => Input.GetKeyDown(_openKey());
         _isCheckingForUpdates = isCheckingForUpdates;
         _isShowingUpdateToast = isShowingUpdateToast;
         _log = log;
@@ -104,7 +109,7 @@ internal sealed class ModsSession
 
         if (_keyboard.IsClaimed || frame <= _typingEndedAtFrame + FramesAfterTyping) return;
 
-        if (Input.GetKeyDown(_openKey())) Toggle();
+        if (MenuHotkey.Fires(_openKey() != KeyCode.None, _isOpenKeyDown, IsTypingAnywhere)) Toggle();
         else if (_isOpen && Input.GetKeyDown(KeyCode.Escape) && !_page.Run(PageScript.Escape())) Close();
     }
 
@@ -400,7 +405,7 @@ internal sealed class ModsSession
 
         var (mods, otherErrors, errorsNotKept) = _catalog.Listing();
 
-        return new(mods, _catalog.Problems(), GameLanguage.IsChinese(), _openKey().ToString())
+        return new(mods, _catalog.Problems(), GameLanguage.IsChinese(), MenuHotkey.Name(_openKey().ToString()))
         {
             GameVersion = _catalog.GameVersion,
             OtherErrors = otherErrors,

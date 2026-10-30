@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.1
+
+- The key that opens the Mods screen is now unbound by default; use the Mods button in the Esc menu or on the title screen, or set a key in the settings.
+- The open key no longer fires while you type in a text box in any mod's window.
+- Exiled's Toolkit 0.12.0 or newer is now required.
+- Made for Survival Log 1.1.20151.
+
 ## 0.11.0
 
 - List settings can show a small picture of each choice, in the drop-down and in the closed box, so you can see what you are picking. A mod draws each picture with the new `ModManager.ChoicePreview` tag.

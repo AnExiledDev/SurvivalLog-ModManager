@@ -15,18 +15,18 @@ namespace ModManager;
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "com.dev.survivallog.modmanager";
-    public const string Version = "0.11.0";
+    public const string Version = "0.11.1";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
-    private const string ToolkitVersion = ">=0.4.0";
+    private const string ToolkitVersion = ">=0.12.0";
 
     public override void Load()
     {
         OptionalUiSize.Bind(Config);
 
-        var openKey = Config.Bind("Menu", "OpenKey", KeyCode.F10,
-            "The key that opens and closes the Mods screen. The Mods button in the Esc menu and on the title screen opens it too. Default: F10.\n" +
-            "打开和关闭「模组」界面的按键。Esc 菜单和标题画面中的「模组」按钮也能打开它。默认 F10。");
+        var openKey = Config.Bind("Menu", "OpenKey", Enum.Parse<KeyCode>(MenuHotkey.DefaultKey),
+            "The key that opens and closes the Mods screen. Unbound by default: the Mods button in the Esc menu and on the title screen opens it. Set a key here to open it from the keyboard too. The key does nothing while you type in a text box.\n" +
+            "打开和关闭「模组」界面的按键。默认不绑定：点击 Esc 菜单和标题画面中的「模组」按钮即可打开。在此设置按键后也可以用键盘打开。在输入框里打字时该按键不起作用。");
         var checkForUpdates = Config.Bind("Updates", "CheckForUpdates", true,
             "Each time the game starts, ask GitHub whether mods that name a GitHub repository have a newer release. Only GitHub is contacted, and no account or key is needed. Default: on.\n" +
             "每次启动游戏时，向 GitHub 查询标明了 GitHub 仓库的模组是否有新版本。只会连接 GitHub，不需要账号或密钥。默认开启。");
@@ -40,7 +40,7 @@ public sealed class Plugin : BasePlugin
         }
         catch (Exception ex) when (ex is MissingMethodException or TypeLoadException or MissingFieldException)
         {
-            Log.LogError("Mod Manager needs Exiled's Toolkit 0.4.0 or later, so the Mods screen is off: " + ex.Message);
+            Log.LogError("Mod Manager needs Exiled's Toolkit 0.12.0 or later, so the Mods screen is off: " + ex.Message);
         }
     }
 
