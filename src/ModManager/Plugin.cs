@@ -3,6 +3,7 @@ using System.IO;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
+using ExiledToolkit;
 using ExiledToolkit.Adapters;
 using ModManager.Adapters;
 using ModManager.Core;
@@ -15,10 +16,16 @@ namespace ModManager;
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "com.dev.survivallog.modmanager";
-    public const string Version = "0.11.1";
+    public const string Version = "0.12.0";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
-    private const string ToolkitVersion = ">=0.12.0";
+    private const string ToolkitVersion = ">=0.14.0";
+
+    internal const string EscButtonId = "modmanager.mods";
+    internal const string TitleButtonId = "modmanager.title";
+
+    /// <summary>First among the mods' buttons: the Toolkit's README lists the order each mod takes.</summary>
+    private const int MenuOrder = 100;
 
     public override void Load()
     {
@@ -40,7 +47,7 @@ public sealed class Plugin : BasePlugin
         }
         catch (Exception ex) when (ex is MissingMethodException or TypeLoadException or MissingFieldException)
         {
-            Log.LogError("Mod Manager needs Exiled's Toolkit 0.12.0 or later, so the Mods screen is off: " + ex.Message);
+            Log.LogError("Mod Manager needs Exiled's Toolkit 0.14.0 or later, so the Mods screen is off: " + ex.Message);
         }
     }
 
@@ -67,8 +74,16 @@ public sealed class Plugin : BasePlugin
         var session = new ModsSession(new ModsPage(log.Write), catalog, updates, checks, installer, watch, () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
 
         Ticker.Session = session;
+        AddMenuButtons(session);
         checkForUpdates.SettingChanged += (_, _) => session.CheckForUpdates(checkForUpdates.Value);
         AddComponent<Ticker>();
+    }
+
+    /// <summary>The Mods button in the Esc menu, right after Settings, and on the title screen, right before Exit. Exiled's Toolkit places them, so they fit with every other mod's.</summary>
+    private static void AddMenuButtons(ModsSession session)
+    {
+        GameMenu.Add(new GameMenuButton(EscButtonId, "Mods", GameMenuPlace.PauseTop, session.Open) { ChineseLabel = "模组", Order = MenuOrder });
+        GameMenu.Add(new GameMenuButton(TitleButtonId, "Mods", GameMenuPlace.Title, session.Open) { ChineseLabel = "模组", Order = MenuOrder });
     }
 
     /// <summary>The game writes its version to Version.txt beside its data; without it, mods are not checked against a version.</summary>

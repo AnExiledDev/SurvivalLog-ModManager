@@ -4,21 +4,23 @@ using Xunit;
 namespace ModManager.Tests;
 
 /// <summary>
-/// The Mods buttons go into the Esc menu and the title screen, so only those two pages are watched for changes. A
-/// watcher on any other game page (the trade map, the explore map, a shop) wakes on every change the game makes there,
-/// which costs every frame the map is busy and does nothing. Run in Jint on PageFake.js with fake game frames.
+/// The Mods buttons in the Esc menu and on the title screen are placed by Exiled's Toolkit, which fits every mod's
+/// buttons into the menu together. The Mods page must leave the game's pages alone: a button of its own would be
+/// placed outside that fit and push the menu off screen again, and a watcher on a game page wakes on every change the
+/// game makes there. Run in Jint on PageFake.js with fake game frames.
 /// </summary>
 public class MenuWatchTests
 {
     private const string Frames = """
         var watched = [];
+        var looked = [];
         function fakeFrame(url) {
           var win = { location: { href: url } };
           var doc = {
             body: new FakeEl('body'),
             defaultView: win,
-            querySelector: function () { return null; },
-            getElementById: function () { return null; }
+            querySelector: function (sel) { looked.push(url); return null; },
+            getElementById: function () { looked.push(url); return null; }
           };
           win.MutationObserver = function () { this.observe = function () { watched.push(url); }; };
           return { src: url, contentWindow: win, contentDocument: doc, addEventListener: function () {} };
@@ -26,38 +28,26 @@ public class MenuWatchTests
         var frames = [
           fakeFrame('file:///Res/UI/OutSetting/OutSetting.html'),
           fakeFrame('file:///Res/UI/MainUI/MainUI.html'),
-          fakeFrame('file:///Res/UI/TradeUI/TradeUI.html'),
-          fakeFrame('file:///Res/UI/PreDisasterMap/PreDisasterMap.html'),
-          fakeFrame('file:///Res/UI/CoreUI1/CoreUI1.html')
+          fakeFrame('file:///Res/UI/TradeUI/TradeUI.html')
         ];
         document.getElementsByTagName = function (tag) { return tag === 'iframe' ? frames : []; };
         """;
 
     [Fact]
-    public void Only_the_esc_menu_and_title_screen_are_watched()
+    public void The_esc_menu_and_title_screen_are_left_to_the_Toolkit()
     {
         var engine = Page();
 
-        Assert.Equal(2, (int)engine.Evaluate("watched.length").AsNumber());
-        Assert.True(engine.Evaluate("watched.some(function (u) { return /OutSetting/.test(u); })").AsBoolean());
-        Assert.True(engine.Evaluate("watched.some(function (u) { return /MainUI/.test(u); })").AsBoolean());
+        Assert.Equal(0, (int)engine.Evaluate("watched.length").AsNumber());
+        Assert.Equal(0, (int)engine.Evaluate("looked.length").AsNumber());
     }
 
-    [Fact]
-    public void A_frame_whose_page_changed_to_the_esc_menu_is_judged_by_its_page_not_its_src()
-    {
-        var engine = Page("frames[2].contentWindow.location.href = 'file:///Res/UI/OutSetting/OutSetting.html';");
-
-        Assert.Equal(3, (int)engine.Evaluate("watched.length").AsNumber());
-    }
-
-    private static Engine Page(string? before = null)
+    private static Engine Page()
     {
         var engine = new Engine();
 
         engine.Execute(Resource("ModManager.Tests.PageFake.js"));
         engine.Execute(Frames);
-        if (before != null) engine.Execute(before);
         engine.Execute(Resource("ModManager.page.js"));
 
         return engine;

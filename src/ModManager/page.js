@@ -6,7 +6,6 @@
   if (window.__modmanager) return;
 
   const PREFIX = 'slmod|modmanager|';
-  const MENU_POLL_MS = 1000;
   const STAGE_WIDTH = 1920;
   const STAGE_HEIGHT = 1080;
   const LANG_KEY = 'slmm-lang';
@@ -28,7 +27,6 @@
       footerNone: 'No changes this session. Everything saves the moment you change it.',
       footerSome: n => '<b>' + n + '</b> ' + (n === 1 ? 'setting' : 'settings') + ' changed this session, saved.',
       footerRestartHint: 'Some of them apply only after a restart: see the marks beside them.',
-      menuButton: 'Mods',
       groupOff: 'Off', offSub: 'off', statusOff: 'OFF', statusRequired: 'REQUIRED', pipRestart: 'RESTART',
       switchOnHint: 'turning it off applies next start', switchOffHint: 'turning it on applies next start',
       offNext: 'off from the next start', onNext: 'on from the next start',
@@ -115,7 +113,6 @@
       footerNone: '本次没有修改。每项设置一改就会保存。',
       footerSome: n => '本次修改了 <b>' + n + '</b> 项设置，已保存。',
       footerRestartHint: '其中有些需要重启游戏才会生效：见设置旁的标记。',
-      menuButton: '模组',
       groupOff: '已关闭', offSub: '已关闭', statusOff: '已关闭', statusRequired: '必需', pipRestart: '重启',
       switchOnHint: '关闭将在下次启动时生效', switchOffHint: '开启将在下次启动时生效',
       offNext: '下次启动时关闭', onNext: '下次启动时开启',
@@ -2239,160 +2236,6 @@
     renderCopyButton();
   }
 
-  // ===== MODS buttons in the game's own menus =====
-
-  function isCjk(text) {
-    return /[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef]/.test(text || '');
-  }
-
-  // The Esc menu: a button like the game's own, right after Settings.
-  function addEscButton(doc) {
-    const settings = doc.querySelector('.menu-list > .main-btn[data-i18n="settings"]');
-
-    if (!settings) return;
-
-    let button = doc.getElementById('slmm-esc');
-
-    if (!button) {
-      button = doc.createElement('div');
-      button.id = 'slmm-esc';
-      button.className = 'main-btn';
-      button.addEventListener('click', () => send('open'));
-    }
-
-    if (settings.nextElementSibling !== button) settings.parentNode.insertBefore(button, settings.nextElementSibling);
-
-    const label = isCjk(settings.textContent) ? WORDS.zh.menuButton : WORDS.en.menuButton;
-
-    // Written only when it differs: a write is a change the page watcher sees, and it would wake itself forever.
-    if (button.textContent !== label) button.textContent = label;
-  }
-
-  // The title screen: an item like the game's own, right before Exit. The game's click handler reads data-i18n, so
-  // this one has none and runs its own click.
-  function addTitleButton(doc) {
-    const exitText = doc.querySelector('.menu > .menu-item > .menu-text[data-i18n="exit"]');
-
-    if (!exitText) return;
-
-    const exit = exitText.parentNode;
-    let item = doc.getElementById('slmm-title');
-
-    if (!item) {
-      item = doc.createElement('div');
-      item.id = 'slmm-title';
-      item.className = 'menu-item';
-      item.innerHTML = '<div class="bar"></div><div class="menu-text"></div>';
-      item.addEventListener('click', () => {
-        item.classList.remove('clicked');
-        void item.offsetWidth;
-        item.classList.add('clicked');
-        setTimeout(() => send('open'), 300);
-        setTimeout(() => item.classList.remove('clicked'), 450);
-      });
-    }
-
-    if (exit.previousElementSibling !== item) exit.parentNode.insertBefore(item, exit);
-
-    const text = item.querySelector('.menu-text');
-    const label = isCjk(exitText.textContent) ? WORDS.zh.menuButton : WORDS.en.menuButton;
-
-    if (text.textContent !== label) text.textContent = label;
-  }
-
-  // Which of the two menu pages a frame holds: 'esc', 'title', or '' for every other page (maps, shops, the HUD).
-  function menuKind(frame) {
-    let src = String(frame.src || '');
-
-    try {
-      const win = frame.contentWindow;
-
-      if (win && win.location && win.location.href) src = String(win.location.href);
-    } catch (e) {
-      // A page from another origin: the src attribute is all there is.
-    }
-
-    if (/OutSetting\.html/.test(src)) return 'esc';
-    if (/MainUI\.html/.test(src)) return 'title';
-
-    return '';
-  }
-
-  function addButtonsTo(frame) {
-    try {
-      const kind = menuKind(frame);
-      const doc = frame.contentDocument;
-
-      if (!kind || !doc || !doc.body) return;
-
-      if (kind === 'esc') addEscButton(doc);
-      else addTitleButton(doc);
-    } catch (e) {
-      // A page from another origin, or one being torn down: try again next time.
-    }
-  }
-
-  function addMenuButtons() {
-    const frames = document.getElementsByTagName('iframe');
-
-    for (let i = 0; i < frames.length; i++) {
-      watchFrame(frames[i]);
-      addButtonsTo(frames[i]);
-    }
-  }
-
-  // The buttons go in the moment the game builds or changes a menu page, not on the next poll, so they show with the
-  // game's own. An observer runs before the next paint. Only the Esc menu and the title screen are watched: a watcher
-  // on any other page (a map, a shop) would wake on every change the game makes there and do nothing. A frame that
-  // loads a new page is looked at again on its load.
-  function watchFrame(frame) {
-    if (!frame.__slmmWatched) {
-      frame.__slmmWatched = true;
-      frame.addEventListener('load', () => watchFrame(frame));
-    }
-
-    try {
-      if (!menuKind(frame)) return;
-
-      const doc = frame.contentDocument;
-      const win = doc && doc.defaultView;
-
-      if (!doc || doc.__slmmWatched || !win || typeof win.MutationObserver === 'undefined') return;
-
-      doc.__slmmWatched = true;
-      new win.MutationObserver(() => addButtonsTo(frame)).observe(doc, { childList: true, subtree: true });
-      addButtonsTo(frame);
-    } catch (e) {
-      // A page from another origin: the poll still tries it.
-    }
-  }
-
-  // A new game page is a new iframe in this document.
-  function watchForFrames() {
-    if (typeof MutationObserver === 'undefined') return;
-
-    new MutationObserver(records => {
-      for (let i = 0; i < records.length; i++) {
-        const added = records[i].addedNodes;
-
-        for (let j = 0; j < added.length; j++) {
-          const node = added[j];
-
-          if (node.nodeType !== 1) continue;
-
-          if (node.tagName === 'IFRAME') {
-            watchFrame(node);
-            continue;
-          }
-
-          const frames = node.getElementsByTagName('iframe');
-
-          for (let k = 0; k < frames.length; k++) watchFrame(frames[k]);
-        }
-      }
-    }).observe(document.documentElement, { childList: true, subtree: true });
-  }
-
   // ===== Start =====
 
   document.head.appendChild(style);
@@ -2406,9 +2249,6 @@
   root.addEventListener('focusin', () => setTimeout(syncTyping, 0));
   root.addEventListener('focusout', () => setTimeout(syncTyping, 0));
   window.addEventListener('resize', fit);
-  watchForFrames();
-  setInterval(addMenuButtons, MENU_POLL_MS);
-  addMenuButtons();
 
   window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, escape: escape, tabsChanged: tabsChanged, icons: icons, banners: banners, items: items, copied: copied };
   sendReady();

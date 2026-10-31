@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0
+
+- The Mods button in the Esc menu and on the title screen is now placed by Exiled's Toolkit, along with every other mod's menu buttons, so the Esc menu stays on screen however many mods add buttons to it.
+- Exiled's Toolkit 0.14.0 or newer is now required.
+- Made for Survival Log 1.1.20151.
+
 ## 0.11.1
 
 - The key that opens the Mods screen is now unbound by default; use the Mods button in the Esc menu or on the title screen, or set a key in the settings.

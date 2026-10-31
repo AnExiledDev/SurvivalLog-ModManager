@@ -413,7 +413,8 @@ internal sealed class ModsSession
         };
     }
 
-    private void Open() => OpenScreen(null);
+    /// <summary>Opens the Mods screen: the Mods button in the Esc menu and on the title screen runs this.</summary>
+    public void Open() => OpenScreen(null);
 
     /// <param name="filter">The list filter to start on; null keeps the one the page had.</param>
     private void OpenScreen(string? filter)
