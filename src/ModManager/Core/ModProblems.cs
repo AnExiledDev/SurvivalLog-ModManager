@@ -170,7 +170,18 @@ public static class ProblemOwners
         foreach (var problem in problems)
         {
             var owner = OwnerOf(problem, owners);
-            var claimants = owner != null ? new[] { owner } : overlaps.Where(pair => ClashesOf(problem, pair.Value).Count > 0).Select(pair => pair.Key).ToArray();
+            var patchers = owner != null ? Array.Empty<string>() : overlaps.Where(pair => ClashesOf(problem, pair.Value).Count > 0).Select(pair => pair.Key).ToArray();
+
+            // Thrown by the game's own method, which the patched copy only called: no mod's code was running, so it is
+            // the game's error, listed once with the mods that patch the method instead of once under each of them.
+            if (owner == null && patchers.Length > 0 && IsThrownByGame(problem))
+            {
+                unclaimed.Add(new ModProblem(problem, PatchersOf(problem, patchers, overlaps)));
+
+                continue;
+            }
+
+            var claimants = owner != null ? new[] { owner } : patchers;
 
             if (claimants.Length == 0) unclaimed.Add(new ModProblem(problem, Array.Empty<ClashHint>()));
 
@@ -204,6 +215,20 @@ public static class ProblemOwners
 
         return owners.FirstOrDefault(owner => Roots(owner).Any(root => Names(problem.Message, root + ".")))?.Guid;
     }
+
+    /// <summary>
+    /// Il2CppInterop raises a game exception in managed code at the call into the game's method, so this frame in the
+    /// stack means the game's code threw it. A mod's own code that threw would be a frame of that mod's, found first.
+    /// </summary>
+    public static bool IsThrownByGame(Problem problem) =>
+        problem.Stack.Any(frame => frame.StartsWith("at Il2CppInterop.Runtime.Il2CppException.RaiseExceptionIfNecessary", StringComparison.Ordinal));
+
+    /// <summary>Each method the problem went through and every mod that patches it.</summary>
+    private static IReadOnlyList<ClashHint> PatchersOf(Problem problem, IReadOnlyList<string> patchers, IReadOnlyDictionary<string, IReadOnlyList<PatchOverlap>> overlaps) =>
+        patchers.SelectMany(guid => ClashesOf(problem, overlaps[guid]).Select(clash => (clash.Method, Guid: guid)))
+            .GroupBy(pair => pair.Method)
+            .Select(group => new ClashHint(group.Key, group.Select(pair => pair.Guid).Distinct().OrderBy(guid => guid, StringComparer.Ordinal).ToList()))
+            .ToList();
 
     private static IEnumerable<string> Roots(ProblemOwner owner) => owner.CodeRoots.Where(root => root.Length > 0 && !SharedRoots.Contains(root));
 

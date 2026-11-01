@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.1
+
+- An error the game's own code throws inside a method several mods patch now shows once on the game's ERRORS page, with the mods that patch that method, instead of as an error under every one of those mods.
+- Made for Survival Log 1.1.20151.
+
 ## 0.12.0
 
 - The Mods button in the Esc menu and on the title screen is now placed by Exiled's Toolkit, along with every other mod's menu buttons, so the Esc menu stays on screen however many mods add buttons to it.

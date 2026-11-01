@@ -238,6 +238,54 @@ public class ModProblemsTests
         Assert.Equal(new[] { "com.b.trap" }, byMod["com.a.hub"].Single().Clashes.Single().Guids);
     }
 
+    /// <summary>The Chromium crash of 2026-11-01 as the log has it: the game's own HandleMessageEmitted threw inside the
+    /// copy many mods patch, and no mod's code was in the stack.</summary>
+    [Fact]
+    public void An_error_the_game_threw_inside_a_patched_method_is_the_game_error_naming_the_patchers()
+    {
+        var problem = Logged(Error("Il2CppInterop",
+            "During invoking native->managed trampoline\n" +
+            "Exception: Il2CppInterop.Runtime.Il2CppException: System.Collections.Generic.KeyNotFoundException: The given key 'x' was not present in the dictionary.\n" +
+            "--- BEGIN IL2CPP STACK TRACE ---\n" +
+            "  at Vuplex.WebView.Internal.BaseWebView._handleJavaScriptResult (System.String resultCallbackId, System.String result) [0x00000] in BaseWebView.cs:678\n" +
+            "  at Vuplex.WebView.Internal.BaseWebView.HandleMessageEmitted (System.String serializedMessage) [0x00000] in BaseWebView.cs:750\n" +
+            "--- END IL2CPP STACK TRACE ---\n" +
+            "   at Il2CppInterop.Runtime.Il2CppException.RaiseExceptionIfNecessary(IntPtr returnedException) in Il2CppException.cs:line 36\n" +
+            "   at DMD<Vuplex.WebView.Internal.BaseWebView::HandleMessageEmitted>(BaseWebView this, String serializedMessage)\n" +
+            "   at (il2cpp -> managed) HandleMessageEmitted(IntPtr , IntPtr , Il2CppMethodInfo* )"));
+        var overlaps = new Dictionary<string, IReadOnlyList<PatchOverlap>>
+        {
+            ["com.b.trap"] = new[] { new PatchOverlap("com.a.hub", PatchRisk.MayClash, new[] { Shared("BaseWebView.HandleMessageEmitted") }) },
+            ["com.a.hub"] = new[] { new PatchOverlap("com.b.trap", PatchRisk.MayClash, new[] { Shared("BaseWebView.HandleMessageEmitted") }) },
+        };
+
+        var (byMod, unclaimed) = ProblemOwners.Assign(new[] { problem }, Owners, overlaps);
+
+        Assert.Empty(byMod);
+        Assert.Equal("BaseWebView.HandleMessageEmitted", unclaimed.Single().Clashes.Single().Method);
+        Assert.Equal(new[] { "com.a.hub", "com.b.trap" }, unclaimed.Single().Clashes.Single().Guids);
+    }
+
+    [Fact]
+    public void An_error_a_mod_threw_inside_a_patched_method_stays_with_that_mod()
+    {
+        var problem = Logged(Error("Il2CppInterop",
+            "During invoking native->managed trampoline\n" +
+            "at CraftingHub.Patches.Hook.Prefix()\n" +
+            "at Il2CppInterop.Runtime.Il2CppException.RaiseExceptionIfNecessary(IntPtr returnedException)\n" +
+            "at DMD<GameCore.Grid::Update>(GameCore.Grid this)"));
+        var overlaps = new Dictionary<string, IReadOnlyList<PatchOverlap>>
+        {
+            ["com.a.hub"] = new[] { new PatchOverlap("com.b.trap", PatchRisk.MayClash, new[] { Shared("Grid.Update") }) },
+            ["com.b.trap"] = new[] { new PatchOverlap("com.a.hub", PatchRisk.MayClash, new[] { Shared("Grid.Update") }) },
+        };
+
+        var (byMod, unclaimed) = ProblemOwners.Assign(new[] { problem }, Owners, overlaps);
+
+        Assert.Empty(unclaimed);
+        Assert.Equal(new[] { "com.a.hub" }, byMod.Keys);
+    }
+
     [Fact]
     public void An_error_no_mod_can_be_found_for_is_unclaimed()
     {
