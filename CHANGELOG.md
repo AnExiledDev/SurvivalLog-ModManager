@@ -2,6 +2,7 @@
 
 ## 0.12.1
 
+- **Warning:** needs Exiled's Toolkit 0.14.0 or newer. Update the Toolkit first.
 - An error the game's own code throws inside a method several mods patch now shows once on the game's ERRORS page, with the mods that patch that method, instead of as an error under every one of those mods.
 - Made for Survival Log 1.1.20151.
 
