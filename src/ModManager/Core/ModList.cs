@@ -34,7 +34,17 @@ public sealed record Hints(bool IsHidden, string? DisplayName, int Order, bool I
 
 /// <summary>A setting as read from a plugin's config, values written as in the .cfg file.</summary>
 /// <param name="Apply">What the setting says for itself about when a change takes effect; Unknown leaves it to the mod.</param>
-public sealed record FoundSetting(string Section, string Key, string Description, SettingKind Kind, string Default, string Current, Hints Hints, ApplyMode Apply = ApplyMode.Unknown);
+public sealed record FoundSetting(string Section, string Key, string Description, SettingKind Kind, string Default, string Current, Hints Hints, ApplyMode Apply = ApplyMode.Unknown)
+{
+    /// <summary>Set while a world plays, for a setting that is one of the Toolkit's world rules.</summary>
+    public WorldState? World { get; init; }
+}
+
+/// <summary>
+/// A world rule while a world plays: whether this world keeps its own value (then <see cref="Setting.Current"/> is that
+/// value), and the global value the cfg holds.
+/// </summary>
+public sealed record WorldState(bool IsSet, string Global);
 
 /// <summary>A setting ready to show. <see cref="AtStart"/> is its value when this game session first saw it.</summary>
 public sealed record Setting(SettingId Id, string Label, Description Description, SettingKind Kind, string Default, string Current, string AtStart, bool IsReadOnly)
@@ -48,6 +58,9 @@ public sealed record Setting(SettingId Id, string Label, Description Description
 
     /// <summary>The picture of each choice that has one, as the mod's own HTML.</summary>
     public IReadOnlyDictionary<string, string> ChoicePreview { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>Set while a world plays, for a setting that is one of the Toolkit's world rules.</summary>
+    public WorldState? World { get; init; }
 
     /// <summary>Its show-when rules hold. A setting that is not shown is still sent, so resetting the mod resets it too.</summary>
     public bool IsShown { get; init; } = true;
@@ -184,6 +197,7 @@ public static class ModList
             IsAdvanced = found.Hints.IsAdvanced,
             ChoiceZh = found.Hints.ChoiceZh,
             ChoicePreview = found.Hints.ChoicePreview,
+            World = found.World,
         };
     }
 }

@@ -24,6 +24,8 @@
       noSettingsTitle: 'NO SETTINGS', noSettingsBody: 'This mod has nothing to set.',
       mayRestart: 'MAY NEED RESTART', resetTo: v => 'Reset to ' + v, pressKey: 'PRESS A KEY', none: 'None',
       alsoUsed: list => 'Also used by ' + list + '.', readOnly: 'Read only',
+      worldSet: v => 'This world keeps its own value. Every other world: ' + v + '.', worldGlobal: 'Changes here are for every world.',
+      useGlobal: 'USE GLOBAL', keepWorld: 'THIS WORLD ONLY',
       footerNone: 'No changes this session. Everything saves the moment you change it.',
       footerSome: n => '<b>' + n + '</b> ' + (n === 1 ? 'setting' : 'settings') + ' changed this session, saved.',
       footerRestartHint: 'Some of them apply only after a restart: see the marks beside them.',
@@ -110,6 +112,8 @@
       noSettingsTitle: '无设置', noSettingsBody: '这个模组没有可以设置的内容。',
       mayRestart: '可能需要重启', resetTo: v => '恢复为 ' + v, pressKey: '请按一个键', none: '无',
       alsoUsed: list => '也被 ' + list + ' 使用。', readOnly: '只读',
+      worldSet: v => '这个存档使用自己的值。其他存档：' + v + '。', worldGlobal: '这里的改动对所有存档生效。',
+      useGlobal: '使用全局', keepWorld: '仅限这个存档',
       footerNone: '本次没有修改。每项设置一改就会保存。',
       footerSome: n => '本次修改了 <b>' + n + '</b> 项设置，已保存。',
       footerRestartHint: '其中有些需要重启游戏才会生效：见设置旁的标记。',
@@ -447,6 +451,9 @@
 #slmm .lab .ro { font-family: var(--mono); font-size: .7rem; color: #777; font-weight: 400; letter-spacing: 1px; border-left: 1px solid #444; padding-left: 8px; }
 #slmm .hint { font-size: .86rem; color: rgba(200,200,200,0.55); letter-spacing: .3px; margin-top: 3px; line-height: 1.45; white-space: pre-line; }
 #slmm .hint.note { color: var(--teal); }
+#slmm .hint.wld.on { color: var(--teal); }
+#slmm .wld-a { font-family: var(--mono); font-size: .72rem; letter-spacing: 1px; margin-left: 6px; color: var(--teal); cursor: pointer; border-bottom: 1px solid currentColor; white-space: nowrap; }
+#slmm .wld-a:hover { color: #fff; }
 #slmm .hint.warn { color: var(--red); opacity: .9; }
 #slmm .badge { justify-self: start; font-family: var(--mono); font-size: .7rem; letter-spacing: 1.5px; padding: 3px 7px; border-radius: 2px; white-space: nowrap; color: var(--amber); background: rgba(235,163,8,0.07); border: 1px solid rgba(235,163,8,0.35); }
 #slmm .ctl { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
@@ -1442,6 +1449,8 @@
 
     if (note) lines.push('<div class="hint ' + (note.warn ? 'warn' : 'note') + '">' + esc(state.lang === 'zh' ? note.zh : note.en) + '</div>');
 
+    if (s.world && !s.readOnly) lines.push(worldLine(s));
+
     const readOnly = s.readOnly ? '<span class="ro">' + esc(word('readOnly')) + '</span>' : '';
     const restartMark = restartBadge(s);
     const canReset = !s.readOnly;
@@ -1451,6 +1460,14 @@
       '<div>' + restartMark + '</div>' +
       '<div class="ctl' + (s.readOnly ? ' locked' : '') + '">' + control(m, s, index) + '</div>' +
       '<div class="reset' + (canReset ? ' can' : '') + '" data-act="reset" title="' + esc(word('resetTo')(shown(s, s.default))) + '">&#x21BA;</div></div>';
+  }
+
+  // A world rule while a world plays: which value is in play, and the link that moves it between this world and every world.
+  function worldLine(s) {
+    const text = s.world.set ? word('worldSet')(shown(s, s.world.global)) : word('worldGlobal');
+    const link = '<span class="wld-a" data-act="' + (s.world.set ? 'worldGlobal' : 'worldKeep') + '">' + esc(word(s.world.set ? 'useGlobal' : 'keepWorld')) + '</span>';
+
+    return '<div class="hint wld' + (s.world.set ? ' on' : '') + '">' + esc(text) + ' ' + link + '</div>';
   }
 
   // A changed setting says whether the change needs a restart; a setting the mod applies at once says nothing.
@@ -1863,6 +1880,7 @@
     else if (actName === 'copyList') send('copyList');
     else if (actName === 'resetMod') resetMod();
     else if (actName === 'reset' && row) resetRow(row);
+    else if ((actName === 'worldKeep' || actName === 'worldGlobal') && row) send('world', settingParts(row).slice(0, 3).concat([actName === 'worldKeep' ? 'keep' : 'global']));
     else if (actName === 'bind' && row) bind(row, act);
     else if (actName === 'pick' && row) togglePicker(row);
     else if (actName === 'pickItem' && row) pickItem(row, act.dataset.id);

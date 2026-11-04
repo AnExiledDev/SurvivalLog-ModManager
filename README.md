@@ -13,6 +13,7 @@ Open it with the Mods button in the Esc menu or on the title screen, or set a ke
 - **Search every setting**: type in the search box to find a setting across all mods by its name, section or description, or a mod by its name in either language.
 - **Shows what you changed**: settings that differ from the mod's default are marked, with a button to put each one back, or all of a mod's settings at once.
 - **Item pickers**: settings that hold game items or item categories get a searchable picker with the items' names and icons in the game's language, instead of a box for id numbers. Lists of items show as tags you add and remove, and item amounts get a number box each.
+- **Settings for one world**: a mod can let each world keep its own value of a setting (with Exiled's Toolkit 0.16.0 or newer). While you play, such a setting says whether this world keeps its own value, and the value every other world uses. A change to a value this world keeps goes to this world alone; USE GLOBAL sends it back to the shared value, and THIS WORLD ONLY makes the value this world's own.
 - **Tidy pages**: settings a mod marks as advanced sit in a folded "Advanced" group at the end of their section, and settings that only matter when another setting is on stay hidden until it is.
 - **Hotkey clashes**: a hotkey that another mod also uses is shown in red, with the name of the other mod. Mods can also list fixed hotkeys they use, which show on their page and count in the clash check.
 - **Errors this session**: warnings and errors in the BepInEx log are listed under the mod they came from, as they happen. A mod with any gets an ERROR or WARNING mark and an ERRORS tab with the message, the stack and how many times it happened, and the "Errors" filter shows only those mods. When an error went through game code that another mod also changes, the tab names that mod, so a real clash shows up as one. Errors that belong to no mod (BepInEx, the game itself) have their own ERRORS page beside MODS at the top.
@@ -78,7 +79,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.20151 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.12.1 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.14.0 or later, update the Toolkit.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.13.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.14.0 or later, update the Toolkit.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
@@ -204,6 +205,7 @@ Config.Bind("Loot", "LogRolls", false, new ConfigDescription("...", null, "ModMa
 | `ModManager.Control=Category` | An `int` setting holding a game item category id. Shown as a drop-down of the game's categories. |
 | `ModManager.ShowWhen=...` | Show the setting only while another setting of your mod has a value. `ShowWhen=Enabled` means that on/off setting is on; `ShowWhen=Mode=Custom\|Expert` means it holds either value (any case). Name a setting in another section as `Section.Key`. Several conditions joined by `;` must all hold. When the setting it depends on is hidden, this one is too. |
 | `ModManager.Advanced` | Put the setting in the folded "Advanced" group at the end of its section. |
+| `ModManager.WorldRule` | Each world may keep its own value of this live setting. Exiled's Toolkit 0.16.0 or newer plays it (see "World rules" in the [Toolkit's README](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit#world-rules)); while a world plays, the Mods screen shows which value is in play and offers USE GLOBAL or THIS WORLD ONLY. |
 | `ModManager.ChoiceZh=...` | The Chinese name of one choice of a list setting, shown when the Mods screen is in Chinese: `ChoiceZh=Custom=自定义`. One tag per choice. The value saved stays the choice itself. |
 | `ModManager.ChoicePreview=...` | A small picture of one choice of a list setting, as HTML: `ChoicePreview=Lamplight=<div style="...">...</div>`. One tag per choice; the first `=` after the choice ends its name, so the HTML may hold `=`. The drop-down then shows each picture beside its choice's name, and the picked one in the closed box; a choice without one shows its name alone. The HTML goes in as it is, inside a box 56 pixels high that cuts off anything bigger, and your mod's stylesheets are not on the Mods screen: use inline styles and inline SVG. |
 

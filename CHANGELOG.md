@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0
+
+- Settings that each world can keep for itself (a mod marks them, and Exiled's Toolkit 0.16.0 or newer plays them) now say, while you play, whether this world keeps its own value. A change to one this world keeps goes to this world alone, and USE GLOBAL sends the world back to the value every other world uses. THIS WORLD ONLY makes a setting this world's own, so later changes stay with it.
+- Made for Survival Log 1.1.20151.
+
 ## 0.12.1
 
 - **Warning:** needs Exiled's Toolkit 0.14.0 or newer. Update the Toolkit first.

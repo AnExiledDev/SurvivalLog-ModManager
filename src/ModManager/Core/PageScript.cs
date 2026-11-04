@@ -125,6 +125,7 @@ public static class PageScript
         json.Append(",\"apply\":").Append(Str(ApplyName(setting.Apply)));
         json.Append(",\"shown\":").Append(Bool(setting.IsShown));
         json.Append(",\"advanced\":").Append(Bool(setting.IsAdvanced));
+        json.Append(",\"world\":").Append(setting.World is { } world ? "{\"set\":" + Bool(world.IsSet) + ",\"global\":" + Str(world.Global) + "}" : "null");
         AppendKind(json, setting.Kind);
 
         // One name per option, null where the mod gave none, so the page keeps the option itself.

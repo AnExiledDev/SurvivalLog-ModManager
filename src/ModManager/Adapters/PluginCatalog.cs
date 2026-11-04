@@ -387,7 +387,9 @@ internal sealed class PluginCatalog
         var apply = ApplyModes.ForSetting(description?.Tags, LiveSettings.IsWatched(entry));
         var hints = HintsOf(description?.Tags) with { IsAdvanced = tags.IsAdvanced || IsAdvancedByAttributes(description?.Tags), ShowWhen = tags.ShowWhen, ChoiceZh = tags.ChoiceZh, ChoicePreview = tags.ChoicePreview };
 
-        return (new FoundSetting(entry.Definition.Section, entry.Definition.Key, description?.Description ?? "", kind, defaultValue, entry.GetSerializedValue(), hints, apply), ignored);
+        var world = tags.IsWorldRule ? WorldAccess.StateOf(entry) : null;
+
+        return (new FoundSetting(entry.Definition.Section, entry.Definition.Key, description?.Description ?? "", kind, defaultValue, entry.GetSerializedValue(), hints, apply) { World = world }, ignored);
     }
 
     /// <summary>AcceptableValueRange and AcceptableValueList are generic, so their values are read by name.</summary>

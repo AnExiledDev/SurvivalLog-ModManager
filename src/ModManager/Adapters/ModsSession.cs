@@ -139,6 +139,9 @@ internal sealed class ModsSession
             case PageCommand.Reset reset:
                 Write(reset.Id, setting => setting.Default);
                 break;
+            case PageCommand.WorldScope scope:
+                SetScope(scope.Id, scope.KeepForWorld);
+                break;
             case PageCommand.ResetMod resetMod:
                 ResetMod(resetMod.Guid);
                 break;
@@ -497,6 +500,15 @@ internal sealed class ModsSession
         var note = Apply(setting, valueFor(setting));
 
         Refresh(id.Guid, note);
+    }
+
+    private void SetScope(SettingId id, bool keepForWorld)
+    {
+        var entry = _catalog.EntryOf(id);
+        var done = entry != null && (keepForWorld ? WorldAccess.KeepForWorld(entry) : WorldAccess.UseGlobal(entry));
+
+        _log(done ? (keepForWorld ? "this world now keeps its own " : "this world now uses global ") + id : "could not change where " + id + " is kept");
+        Refresh(id.Guid, null);
     }
 
     private void ResetMod(string guid)

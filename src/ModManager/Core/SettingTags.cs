@@ -18,6 +18,9 @@ public sealed record SettingTagsRead(SettingControl? Control, IReadOnlyList<Show
 
     /// <summary>The picture of each choice that has one, as the mod's own HTML, by the choice as the mod spells it.</summary>
     public IReadOnlyDictionary<string, string> ChoicePreview { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The Toolkit's world rule tag: each world may keep its own value.</summary>
+    public bool IsWorldRule { get; init; }
 }
 
 /// <summary>
@@ -32,11 +35,15 @@ public static class SettingTags
     public const string ChoiceZhPrefix = ModInfoReader.Prefix + "ChoiceZh=";
     public const string ChoicePreviewPrefix = ModInfoReader.Prefix + "ChoicePreview=";
 
+    /// <summary>Read by Exiled's Toolkit, which plays each world's own value; the Mods screen shows which one is in play.</summary>
+    public const string WorldRuleTag = ModInfoReader.Prefix + "WorldRule";
+
     public static SettingTagsRead Read(IEnumerable<object?>? tags)
     {
         SettingControl? control = null;
         var rules = new List<ShowRule>();
         var isAdvanced = false;
+        var isWorldRule = false;
         var choiceZh = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var choicePreview = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var ignored = new List<string>();
@@ -58,6 +65,10 @@ public static class SettingTags
             {
                 isAdvanced = true;
             }
+            else if (tag == WorldRuleTag)
+            {
+                isWorldRule = true;
+            }
             else if (tag.StartsWith(ChoiceZhPrefix, StringComparison.Ordinal))
             {
                 AddChoiceZh(choiceZh, tag, ignored);
@@ -72,7 +83,7 @@ public static class SettingTags
             }
         }
 
-        return new SettingTagsRead(control, rules, isAdvanced, ignored) { ChoiceZh = choiceZh, ChoicePreview = choicePreview };
+        return new SettingTagsRead(control, rules, isAdvanced, ignored) { ChoiceZh = choiceZh, ChoicePreview = choicePreview, IsWorldRule = isWorldRule };
     }
 
     private static SettingControl? ControlOf(string name)

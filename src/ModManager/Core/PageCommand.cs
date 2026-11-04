@@ -74,6 +74,9 @@ public abstract record PageCommand
     /// <summary>Put the list of installed mods on the clipboard, for a bug report.</summary>
     public sealed record CopyList : PageCommand;
 
+    /// <summary>For a world rule while a world plays: keep the value for this world alone, or go back to global.</summary>
+    public sealed record WorldScope(SettingId Id, bool KeepForWorld) : PageCommand;
+
     public sealed record Unknown(string Text) : PageCommand;
 
     public static PageCommand Parse(string message)
@@ -95,6 +98,7 @@ public abstract record PageCommand
         ("close", 1) => new Close(),
         ("set", 5) => new Set(new SettingId(parts[1], parts[2], parts[3]), parts[4]),
         ("reset", 4) => new Reset(new SettingId(parts[1], parts[2], parts[3])),
+        ("world", 5) when parts[4] is "keep" or "global" => new WorldScope(new SettingId(parts[1], parts[2], parts[3]), parts[4] == "keep"),
         ("resetMod", 2) => new ResetMod(parts[1]),
         ("bind", 4) => new Bind(new SettingId(parts[1], parts[2], parts[3])),
         ("bindCancel", 1) => new BindCancel(),
