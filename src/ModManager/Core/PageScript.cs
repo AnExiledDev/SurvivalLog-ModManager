@@ -15,10 +15,8 @@ public sealed record ModNote(string Guid, bool IsWarning, BilingualText Text);
 /// <summary>The script calls sent to the Mods page, with their data written as JSON (which is also valid JavaScript).</summary>
 public static class PageScript
 {
-    private const string Api = "window.__modmanager";
-
-    /// <summary>Asks the page whether the script is still there; a page reload drops it.</summary>
-    public const string Probe = "if(!" + Api + ")window.vuplex&&window.vuplex.postMessage('" + PageCommand.Prefix + "noscript')";
+    /// <summary>The object page.js puts on the page; the Toolkit's page probe asks for it, and a page reload drops it.</summary>
+    public const string Api = "window.__modmanager";
 
     /// <param name="filter">A list filter to start on, such as "updates"; null keeps the page's own.</param>
     public static string Open(ModsView view, string? filter = null) => Call("open", ViewJson(view) + (filter == null ? "" : "," + Str(filter)));

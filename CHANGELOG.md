@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.1
+
+- **Warning:** needs Exiled's Toolkit 0.19.0 or newer. Update the Toolkit first.
+- Now uses Exiled's Toolkit for its shared parts.
+- Made for Survival Log 1.1.20719.
+
 ## 0.14.0
 
 - Item lists in mod settings now show as item cards with each item's picture, name and amount. Click a card to swap its item, drag cards to reorder them, and change an amount with the - and + buttons or the mouse wheel (hold Shift for 10 at a time).

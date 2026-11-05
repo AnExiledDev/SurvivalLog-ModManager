@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using ExiledToolkit;
-using ExiledToolkit.Adapters;
+using ExiledToolkit.Game;
+using ExiledToolkit.Kit;
+using ExiledToolkit.Web;
 using ModManager.Core;
 using UnityEngine;
 
@@ -29,7 +31,7 @@ internal sealed class ModsSession
     private const float ErrorLookSeconds = 1f;
     private const float ErrorRedrawSeconds = 2f;
 
-    private readonly ModsPage _page;
+    private readonly WebPage _page;
     private readonly PluginCatalog _catalog;
     private readonly UpdateBook _updates;
     private readonly UpdateChecks _checks;
@@ -60,7 +62,7 @@ internal sealed class ModsSession
     /// <summary>The language the item table was sent in to the page that is there now; null when it has not been sent.</summary>
     private bool _itemsSent;
 
-    public ModsSession(ModsPage page, PluginCatalog catalog, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
+    public ModsSession(WebPage page, PluginCatalog catalog, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
@@ -109,7 +111,7 @@ internal sealed class ModsSession
 
         if (_keyboard.IsClaimed || frame <= _typingEndedAtFrame + FramesAfterTyping) return;
 
-        if (MenuHotkey.Fires(_openKey() != KeyCode.None, _isOpenKeyDown, IsTypingAnywhere)) Toggle();
+        if (Hotkey.Fires(_openKey() != KeyCode.None, _isOpenKeyDown, IsTypingAnywhere)) Toggle();
         else if (_isOpen && Input.GetKeyDown(KeyCode.Escape) && !_page.Run(PageScript.Escape())) Close();
     }
 
@@ -430,8 +432,7 @@ internal sealed class ModsSession
         if (!_page.Run(PageScript.Open(view, filter))) return;
 
         _isOpen = true;
-        HotkeyGate.Hold(Holder);
-        ClickRouting.Capture(Holder, true);
+        InputGate.Opened(Holder);
     }
 
     private void Close()
@@ -447,8 +448,7 @@ internal sealed class ModsSession
         _isOpen = false;
         _capture.Stop();
         _keyboard.Release();
-        HotkeyGate.Release(Holder);
-        ClickRouting.Capture(Holder, false);
+        InputGate.Closed(Holder);
     }
 
     private void Focus(bool isTyping, int frame)

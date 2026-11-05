@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using ExiledToolkit.Game;
+using ExiledToolkit.Web;
 using GameCore.HotUpdate;
 using ModManager.Core;
 using UnityEngine;
@@ -42,13 +43,13 @@ internal sealed class GameItemTable
         {
             if (item == null) continue;
 
-            var english = Text(config, item.ItemName, LanguageType.English);
-            var chinese = Text(config, item.ItemName, LanguageType.Chinese) ?? NonEmpty(item.ItemName_Local);
+            var english = GameNames.Translate(config, item.ItemName, LanguageType.English);
+            var chinese = GameNames.Translate(config, item.ItemName, LanguageType.Chinese) ?? GameNames.NonEmpty(item.ItemName_Local);
 
             // An item whose name is still the raw key in both languages is left out.
             if (english == null && chinese == null) continue;
 
-            items.Add(new CatalogItem(item.ID, new Description(english ?? chinese!, chinese ?? english!), _icons.Resolve(NonEmpty(item.WebIcon) ?? NonEmpty(item.Icon)), item.Category)
+            items.Add(new CatalogItem(item.ID, new Description(english ?? chinese!, chinese ?? english!), _icons.Resolve(GameNames.NonEmpty(item.WebIcon) ?? GameNames.NonEmpty(item.Icon)), item.Category)
             {
                 Grams = item.weight,
                 Price = item.price,
@@ -108,55 +109,23 @@ internal sealed class GameItemTable
             {
                 var key = "ConstantText_Text_ItemType" + (int)category;
                 var fallback = Wording.LabelFromKey(category.ToString());
-                var english = Text(config, key, LanguageType.English) ?? fallback;
+                var english = GameNames.Translate(config, key, LanguageType.English) ?? fallback;
 
-                return new CategoryName((int)category, new Description(english, Text(config, key, LanguageType.Chinese) ?? english));
+                return new CategoryName((int)category, new Description(english, GameNames.Translate(config, key, LanguageType.Chinese) ?? english));
             })
             .ToList();
 
-    /// <summary>The icon files the game ships for its web UI, by path under the WebUI folder, which the Mods page can load as they are.</summary>
+    /// <summary>
+    /// The icon files the game ships for its web UI, by path under the WebUI folder, which the Mods page can load as they
+    /// are. The Toolkit walks the folder once for every mod, from the start; a walk not done yet is waited for, as this
+    /// read once walked the folder itself.
+    /// </summary>
     private IconIndex LoadIcons()
     {
-        var webUi = Path.Combine(Application.streamingAssetsPath, "WebUI");
+        var (icons, note) = WebIcons.StartScan().Result;
 
-        try
-        {
-            return IconIndex.Build(Directory.EnumerateFiles(Path.Combine(webUi, "Res"), "*.png", SearchOption.AllDirectories).Select(file => Path.GetRelativePath(webUi, file)));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _log("no item icons, the item pickers show names only: " + ex.Message);
+        if (icons.Count == 0) _log("no item icons, the item pickers show names only: " + note);
 
-            return IconIndex.Empty;
-        }
+        return icons;
     }
-
-    /// <summary>Null when the game has no text for the key in that language, so a name that is still the raw key is not shown.</summary>
-    private static string? Text(ConfigManager config, string? key, LanguageType language)
-    {
-        if (string.IsNullOrEmpty(key)) return null;
-
-        try
-        {
-            var text = config.GetLocalTxtByLanguage(key, language);
-
-            return string.IsNullOrWhiteSpace(text) || text == key ? null : text;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
-
-    private static string? NonEmpty(string? text) => string.IsNullOrWhiteSpace(text) ? null : text;
-}
-
-/// <summary>
-/// The game's singletons build themselves on first read, and one built before the game makes it breaks the game for
-/// the rest of the session, so only one the game already made is read.
-/// </summary>
-internal static class GameSingleton
-{
-    public static T? Existing<T>() where T : BaseSingleton<T>, new() =>
-        BaseSingleton<T>.IsInstanceCreated ? BaseSingleton<T>.Instance : null;
 }

@@ -4,7 +4,8 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
 using ExiledToolkit;
-using ExiledToolkit.Adapters;
+using ExiledToolkit.Kit;
+using ExiledToolkit.Web;
 using ModManager.Adapters;
 using ModManager.Core;
 using UnityEngine;
@@ -16,10 +17,10 @@ namespace ModManager;
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "com.dev.survivallog.modmanager";
-    public const string Version = "0.14.0";
+    public const string Version = "0.14.1";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
-    private const string ToolkitVersion = ">=0.14.0";
+    private const string ToolkitVersion = ">=0.19.0";
 
     internal const string EscButtonId = "modmanager.mods";
     internal const string TitleButtonId = "modmanager.title";
@@ -29,9 +30,9 @@ public sealed class Plugin : BasePlugin
 
     public override void Load()
     {
-        OptionalUiSize.Bind(Config);
+        ModUiSize.Bind(Config, "ModManager");
 
-        var openKey = Config.Bind("Menu", "OpenKey", Enum.Parse<KeyCode>(MenuHotkey.DefaultKey),
+        var openKey = Config.Bind("Menu", "OpenKey", Enum.Parse<KeyCode>(Hotkey.DefaultKey),
             "The key that opens and closes the Mods screen. Unbound by default: the Mods button in the Esc menu and on the title screen opens it. Set a key here to open it from the keyboard too. The key does nothing while you type in a text box.\n" +
             "打开和关闭「模组」界面的按键。默认不绑定：点击 Esc 菜单和标题画面中的「模组」按钮即可打开。在此设置按键后也可以用键盘打开。在输入框里打字时该按键不起作用。");
         var checkForUpdates = Config.Bind("Updates", "CheckForUpdates", true,
@@ -47,14 +48,14 @@ public sealed class Plugin : BasePlugin
         }
         catch (Exception ex) when (ex is MissingMethodException or TypeLoadException or MissingFieldException)
         {
-            Log.LogError("Mod Manager needs Exiled's Toolkit 0.14.0 or later, so the Mods screen is off: " + ex.Message);
+            Log.LogError("Mod Manager needs Exiled's Toolkit 0.19.0 or later, so the Mods screen is off: " + ex.Message);
         }
     }
 
     /// <summary>Kept apart from Load so a Toolkit that is too old fails here, where Load can catch it.</summary>
     private void Start(ConfigEntry<KeyCode> openKey, ConfigEntry<bool> checkForUpdates, ConfigEntry<bool> showToast)
     {
-        var log = new ToolkitLog(Log, Path.Combine(Paths.BepInExRootPath, "mod-manager.log"));
+        var log = new ModLog(Log, "mod-manager.log");
         var startLine = $"===== Mod Manager {Version} started";
         var watch = new LogWatch(Paths.BepInExRootPath, startLine, log.Write);
 
@@ -71,8 +72,11 @@ public sealed class Plugin : BasePlugin
         var pins = new RepositoryPins(Path.Combine(Paths.BepInExRootPath, "mod-manager", "repositories"), log.Write);
         var installer = new UpdateInstaller(updates, shelf, pins, userAgent, log.Write);
         var catalog = new PluginCatalog(folders, updates, shelf.Versions, watch.Book, Guid, ReadGameVersion(log.Write), log.Write);
-        var session = new ModsSession(new ModsPage(log.Write), catalog, updates, checks, installer, watch, () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
+        var page = new WebPage(typeof(Plugin).Assembly, "ModManager.page.js", PageScript.Api, PageCommand.Prefix + "noscript", log.Write);
+        var session = new ModsSession(page, catalog, updates, checks, installer, watch, () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
 
+        // Walked on a worker from now, so the item pickers usually find the icons ready.
+        WebIcons.StartScan();
         Ticker.Session = session;
         AddMenuButtons(session);
         checkForUpdates.SettingChanged += (_, _) => session.CheckForUpdates(checkForUpdates.Value);
