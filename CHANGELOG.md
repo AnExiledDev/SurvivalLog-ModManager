@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.0
+
+- Item lists in mod settings now show as item cards with each item's picture, name and amount. Click a card to swap its item, drag cards to reorder them, and change an amount with the - and + buttons or the mouse wheel (hold Shift for 10 at a time).
+- ADD ITEM opens a window of every item in the game, sorted into the game's categories with the items recipes use first. Search by name in English or Chinese, or by id, and see each item's weight, value and how many recipes use it before you add it.
+- A crafting recipe setting shows the item it makes, with the recipe's total pieces, weight and value.
+- A setting for what dismantling gives back shows the items you get while it is left blank, and SET BY HAND turns that into a list you can edit. It warns you when it would give back more than the recipe is worth.
+- When a mod cannot use a list (for example, the game already has a recipe with exactly those materials), the reason shows under the list.
+- The plain text of a list sits below its cards; click it to type or paste a list.
+- Mod authors: new tags `ModManager.MaxKinds`, `ModManager.MaxCount`, `ModManager.AutoWhenBlank`, `ModManager.Makes` and `ModManager.ReturnsOf`, and an optional `ModManagerAnswers` class. See "For mod authors" in the README.
+- Made for Survival Log 1.1.20151.
+
 ## 0.13.0
 
 - Settings that each world can keep for itself (a mod marks them, and Exiled's Toolkit 0.16.0 or newer plays them) now say, while you play, whether this world keeps its own value. A change to one this world keeps goes to this world alone, and USE GLOBAL sends the world back to the value every other world uses. THIS WORLD ONLY makes a setting this world's own, so later changes stay with it.

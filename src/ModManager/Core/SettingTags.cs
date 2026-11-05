@@ -21,6 +21,15 @@ public sealed record SettingTagsRead(SettingControl? Control, IReadOnlyList<Show
 
     /// <summary>The Toolkit's world rule tag: each world may keep its own value.</summary>
     public bool IsWorldRule { get; init; }
+
+    /// <summary>The limits an item list's tags set.</summary>
+    public ItemRules Rules { get; init; } = ItemRules.None;
+
+    /// <summary>The item a recipe list makes, for the workbench card.</summary>
+    public int? Makes { get; init; }
+
+    /// <summary>The recipe setting a give-back list belongs to: a key, or "Section.Key".</summary>
+    public string? ReturnsOf { get; init; }
 }
 
 /// <summary>
@@ -34,6 +43,11 @@ public static class SettingTags
     public const string AdvancedTag = ModInfoReader.Prefix + "Advanced";
     public const string ChoiceZhPrefix = ModInfoReader.Prefix + "ChoiceZh=";
     public const string ChoicePreviewPrefix = ModInfoReader.Prefix + "ChoicePreview=";
+    public const string MaxKindsPrefix = ModInfoReader.Prefix + "MaxKinds=";
+    public const string MaxCountPrefix = ModInfoReader.Prefix + "MaxCount=";
+    public const string AutoWhenBlankTag = ModInfoReader.Prefix + "AutoWhenBlank";
+    public const string MakesPrefix = ModInfoReader.Prefix + "Makes=";
+    public const string ReturnsOfPrefix = ModInfoReader.Prefix + "ReturnsOf=";
 
     /// <summary>Read by Exiled's Toolkit, which plays each world's own value; the Mods screen shows which one is in play.</summary>
     public const string WorldRuleTag = ModInfoReader.Prefix + "WorldRule";
@@ -47,6 +61,9 @@ public static class SettingTags
         var choiceZh = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var choicePreview = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var ignored = new List<string>();
+        int? maxKinds = null, maxCount = null, makes = null;
+        var autoWhenBlank = false;
+        string? returnsOf = null;
 
         foreach (var tag in (tags ?? Array.Empty<object?>()).OfType<string>().Select(tag => tag.Trim()))
         {
@@ -77,13 +94,60 @@ public static class SettingTags
             {
                 AddChoicePreview(choicePreview, tag, ignored);
             }
+            else if (tag.StartsWith(MaxKindsPrefix, StringComparison.Ordinal))
+            {
+                maxKinds ??= Positive(tag, MaxKindsPrefix, ignored);
+            }
+            else if (tag.StartsWith(MaxCountPrefix, StringComparison.Ordinal))
+            {
+                maxCount ??= Positive(tag, MaxCountPrefix, ignored);
+            }
+            else if (tag == AutoWhenBlankTag)
+            {
+                autoWhenBlank = true;
+            }
+            else if (tag.StartsWith(MakesPrefix, StringComparison.Ordinal))
+            {
+                makes ??= Positive(tag, MakesPrefix, ignored);
+            }
+            else if (tag.StartsWith(ReturnsOfPrefix, StringComparison.Ordinal))
+            {
+                var target = tag.Substring(ReturnsOfPrefix.Length).Trim();
+
+                if (target.Length > 0) returnsOf ??= target;
+                else ignored.Add(tag + " names no setting");
+            }
             else if (tag.StartsWith(ModInfoReader.Prefix, StringComparison.Ordinal) && tag != ApplyModes.LiveTag && tag != ApplyModes.RestartTag)
             {
                 ignored.Add(tag + " is not a tag the Mod Manager knows");
             }
         }
 
-        return new SettingTagsRead(control, rules, isAdvanced, ignored) { ChoiceZh = choiceZh, ChoicePreview = choicePreview, IsWorldRule = isWorldRule };
+        var itemRules = new ItemRules(maxKinds, maxCount, autoWhenBlank);
+
+        // These only mean something on an item list, so without one they are named rather than kept.
+        if (control is not (SettingControl.ItemList or SettingControl.ItemCounts) && (itemRules != ItemRules.None || makes != null || returnsOf != null))
+        {
+            ignored.Add("MaxKinds, MaxCount, AutoWhenBlank, Makes and ReturnsOf need ModManager.Control=ItemList or ItemCounts, so they are not used");
+            itemRules = ItemRules.None;
+            makes = null;
+            returnsOf = null;
+        }
+
+        return new SettingTagsRead(control, rules, isAdvanced, ignored)
+        {
+            ChoiceZh = choiceZh, ChoicePreview = choicePreview, IsWorldRule = isWorldRule, Rules = itemRules, Makes = makes, ReturnsOf = returnsOf,
+        };
+    }
+
+    /// <summary>A whole number of 1 or more after the prefix, else null with the reason.</summary>
+    private static int? Positive(string tag, string prefix, List<string> ignored)
+    {
+        if (int.TryParse(tag.Substring(prefix.Length).Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var value) && value > 0) return value;
+
+        ignored.Add(tag + " must be a whole number, 1 or more");
+
+        return null;
     }
 
     private static SettingControl? ControlOf(string name)
@@ -205,7 +269,7 @@ public static class ShowRules
     }
 
     /// <summary>A plain key in the setting's own section first, then in any section; then "Section.Key", split at the last dot.</summary>
-    private static int Find(string target, string ownSection, IReadOnlyList<FoundSetting> settings)
+    internal static int Find(string target, string ownSection, IReadOnlyList<FoundSetting> settings)
     {
         var sameSection = IndexOf(settings, setting => setting.Section == ownSection && setting.Key == target);
 

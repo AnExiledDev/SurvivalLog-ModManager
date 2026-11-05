@@ -30,10 +30,15 @@ public abstract record SettingKind
     public sealed record Item : SettingKind;
 
     /// <summary>Several items, written as ids separated by commas ("1203,1405"). Stored in a text setting.</summary>
-    public sealed record ItemList : SettingKind;
+    /// <param name="MaxKinds">The most items the list may hold; null for no limit.</param>
+    /// <param name="AutoWhenBlank">A blank value lets the mod choose the list, so "none" stands for an empty one.</param>
+    public sealed record ItemList(int? MaxKinds = null, bool AutoWhenBlank = false) : SettingKind;
 
     /// <summary>Items with an amount each, written "id:count" separated by commas ("1203:5,1405:2"). Stored in a text setting.</summary>
-    public sealed record ItemCounts : SettingKind;
+    /// <param name="MaxKinds">The most different items the list may hold; null for no limit.</param>
+    /// <param name="MaxCount">The most of one item; null for no limit.</param>
+    /// <param name="AutoWhenBlank">A blank value lets the mod choose the list, so "none" stands for an empty one.</param>
+    public sealed record ItemCounts(int? MaxKinds = null, int? MaxCount = null, bool AutoWhenBlank = false) : SettingKind;
 
     /// <summary>One of the game's item categories, by its number. Stored in a whole-number setting.</summary>
     public sealed record Category : SettingKind;
@@ -46,6 +51,12 @@ public enum SettingControl
     ItemList,
     ItemCounts,
     Category,
+}
+
+/// <summary>What a mod's tags say an item list may hold. <see cref="None"/> leaves the list open.</summary>
+public sealed record ItemRules(int? MaxKinds, int? MaxCount, bool AutoWhenBlank)
+{
+    public static readonly ItemRules None = new(null, null, false);
 }
 
 /// <summary>The values a setting's author declared acceptable, read off BepInEx's AcceptableValue classes.</summary>
@@ -88,25 +99,32 @@ public static class SettingKinds
 
     /// <summary>
     /// The asked-for control when the setting can hold its values: Item and Category need a whole-number setting,
-    /// ItemList and ItemCounts a string. Otherwise the setting keeps its own control, with the reason.
+    /// ItemList and ItemCounts a string. Otherwise the setting keeps its own control, with the reason. The list limits
+    /// go on the lists that can use them; a limit the control has no use for is named in the problem.
     /// </summary>
-    public static (SettingKind Kind, string? Problem) WithControl(Type type, SettingKind kind, SettingControl control)
+    public static (SettingKind Kind, string? Problem) WithControl(Type type, SettingKind kind, SettingControl control, ItemRules? rules = null)
     {
         var needsWhole = control is SettingControl.Item or SettingControl.Category;
         var fits = needsWhole ? kind is SettingKind.Number { IsWhole: true } : type == typeof(string);
+        var limits = rules ?? ItemRules.None;
 
         if (!fits) return (kind, "the control " + control + " needs " + (needsWhole ? "a whole-number setting" : "a string setting") + ", so it is not used");
 
         SettingKind chosen = control switch
         {
             SettingControl.Item => new SettingKind.Item(),
-            SettingControl.ItemList => new SettingKind.ItemList(),
-            SettingControl.ItemCounts => new SettingKind.ItemCounts(),
+            SettingControl.ItemList => new SettingKind.ItemList(limits.MaxKinds, limits.AutoWhenBlank),
+            SettingControl.ItemCounts => new SettingKind.ItemCounts(limits.MaxKinds, limits.MaxCount, limits.AutoWhenBlank),
             SettingControl.Category => new SettingKind.Category(),
             _ => throw new ArgumentOutOfRangeException(nameof(control), control, null),
         };
 
-        return (chosen, null);
+        string? problem = null;
+
+        if (needsWhole && limits != ItemRules.None) problem = "MaxKinds, MaxCount and AutoWhenBlank are for ItemList and ItemCounts, so they are not used on " + control;
+        else if (control == SettingControl.ItemList && limits.MaxCount != null) problem = "MaxCount is for ItemCounts, so it is not used on ItemList";
+
+        return (chosen, problem);
     }
 
     private static SettingKind Number(bool isWhole, Acceptable acceptable) =>

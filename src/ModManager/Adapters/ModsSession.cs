@@ -58,7 +58,7 @@ internal sealed class ModsSession
     private int _errorsShown;
 
     /// <summary>The language the item table was sent in to the page that is there now; null when it has not been sent.</summary>
-    private bool? _itemsSentIn;
+    private bool _itemsSent;
 
     public ModsSession(ModsPage page, PluginCatalog catalog, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
@@ -119,12 +119,12 @@ internal sealed class ModsSession
         {
             case PageCommand.Ready:
                 Forget();
-                _itemsSentIn = null;
+                _itemsSent = false;
                 SendPictures();
                 break;
             case PageCommand.NoScript:
                 Forget();
-                _itemsSentIn = null;
+                _itemsSent = false;
                 _page.Install();
                 break;
             case PageCommand.Open:
@@ -245,16 +245,16 @@ internal sealed class ModsSession
         if (banners.Count > 0) _page.Run(PageScript.Banners(banners));
     }
 
-    /// <summary>Sent with the screen, once per page and language, and only when some mod shows an item or category control.</summary>
+    /// <summary>Sent with the screen, once per page, and only when some mod shows an item or category control.</summary>
     private void SendItems(ModsView view)
     {
-        if (_itemsSentIn == view.IsChinese || !GameItems.AreNeeded(view.Mods)) return;
+        if (_itemsSent || !GameItems.AreNeeded(view.Mods)) return;
 
-        var (items, categories) = _items.Read(view.IsChinese);
+        var (items, categories) = _items.Read();
 
         if (items.Count == 0) return;
 
-        if (_page.Run(PageScript.Items(items, categories))) _itemsSentIn = view.IsChinese;
+        if (_page.Run(PageScript.Items(items, categories))) _itemsSent = true;
     }
 
     private void CopyList()

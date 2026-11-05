@@ -31,14 +31,21 @@ public static class PageScript
     public static string Banners(IReadOnlyDictionary<string, string> banners) =>
         Call("banners", "{" + string.Join(",", banners.OrderBy(banner => banner.Key, StringComparer.Ordinal).Select(banner => Str(banner.Key) + ":" + Str(banner.Value))) + "}");
 
-    /// <summary>The game's items and item categories for the item pickers, sent once per page and language.</summary>
+    /// <summary>
+    /// The game's items and item categories for the item pickers, sent once per page. Each item carries both names,
+    /// its weight in grams (g), its price (v) and how many recipes take it (uses); the keys are short since there are
+    /// thousands of items.
+    /// </summary>
     public static string Items(IReadOnlyList<CatalogItem> items, IReadOnlyList<CategoryName> categories)
     {
-        var itemsJson = List(items, item => "{\"id\":" + item.Id.ToString(CultureInfo.InvariantCulture) + ",\"name\":" + Str(item.Name) + ",\"icon\":" + (item.Icon == null ? "null" : Str(item.Icon)) + ",\"cat\":" + item.Category.ToString(CultureInfo.InvariantCulture) + "}");
-        var categoriesJson = List(categories, category => "{\"id\":" + category.Id.ToString(CultureInfo.InvariantCulture) + ",\"name\":" + Str(category.Name) + "}");
+        var itemsJson = List(items, item => "{\"id\":" + Int(item.Id) + ",\"en\":" + Str(item.Name.English) + ",\"zh\":" + Str(item.Name.Chinese) + ",\"icon\":" + (item.Icon == null ? "null" : Str(item.Icon)) +
+            ",\"cat\":" + Int(item.Category) + ",\"g\":" + Int(item.Grams) + ",\"v\":" + Int(item.Price) + ",\"uses\":" + Int(item.RecipeUses) + "}");
+        var categoriesJson = List(categories, category => "{\"id\":" + Int(category.Id) + ",\"en\":" + Str(category.Name.English) + ",\"zh\":" + Str(category.Name.Chinese) + "}");
 
         return Call("items", "{\"items\":" + itemsJson + ",\"categories\":" + categoriesJson + "}");
     }
+
+    private static string Int(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>Says whether the mod list reached the clipboard.</summary>
     public static string Copied(bool isCopied) => Call("copied", Bool(isCopied));
@@ -140,8 +147,25 @@ public static class PageScript
             json.Append(",\"optionsPreview\":").Append(List(pictured.Options, option => setting.ChoicePreview.TryGetValue(option, out var html) ? Str(html) : "null"));
         }
 
+        if (setting.Kind is SettingKind.ItemList or SettingKind.ItemCounts) AppendItemField(json, setting);
+
         return json.Append('}').ToString();
     }
+
+    /// <summary>What an item list's card field needs beyond its value: the recipe it makes, its give-back pair and the mod's answers.</summary>
+    private static void AppendItemField(StringBuilder json, Setting setting)
+    {
+        var answer = setting.Answer;
+
+        json.Append(",\"makes\":").Append(setting.Makes is { } makes ? Int(makes) : "null");
+        json.Append(",\"returnsOf\":").Append(setting.ReturnsOf is { } of ? "{\"section\":" + Str(of.Section) + ",\"key\":" + Str(of.Key) + "}" : "null");
+        json.Append(",\"checked\":").Append(Bool(answer.IsChecked));
+        json.Append(",\"problem\":").Append(Text(answer.Problem));
+        json.Append(",\"blank\":").Append(answer.Blank == null ? "null" : Str(answer.Blank));
+        json.Append(",\"blankNote\":").Append(Text(answer.BlankNote));
+    }
+
+    private static string Text(Description? text) => text == null ? "null" : "{\"en\":" + Str(text.English) + ",\"zh\":" + Str(text.Chinese) + "}";
 
     private static void AppendKind(StringBuilder json, SettingKind kind)
     {
@@ -167,11 +191,14 @@ public static class PageScript
             case SettingKind.Item:
                 json.Append(",\"kind\":\"item\"");
                 break;
-            case SettingKind.ItemList:
-                json.Append(",\"kind\":\"itemList\"");
+            case SettingKind.ItemList list:
+                json.Append(",\"kind\":\"itemList\",\"maxKinds\":").Append(list.MaxKinds is { } kinds ? Int(kinds) : "null");
+                json.Append(",\"auto\":").Append(Bool(list.AutoWhenBlank));
                 break;
-            case SettingKind.ItemCounts:
-                json.Append(",\"kind\":\"itemCounts\"");
+            case SettingKind.ItemCounts counts:
+                json.Append(",\"kind\":\"itemCounts\",\"maxKinds\":").Append(counts.MaxKinds is { } most ? Int(most) : "null");
+                json.Append(",\"maxCount\":").Append(counts.MaxCount is { } each ? Int(each) : "null");
+                json.Append(",\"auto\":").Append(Bool(counts.AutoWhenBlank));
                 break;
             case SettingKind.Category:
                 json.Append(",\"kind\":\"category\"");

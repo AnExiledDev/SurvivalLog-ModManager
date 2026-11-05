@@ -498,19 +498,58 @@ public class PageScriptTests
         Assert.Equal("控制台", hotkey.GetProperty("zh").GetString());
     }
 
+    // The page switches language on its own and weighs and prices lists, so each item comes with both names, its weight, price and recipe uses.
     [Fact]
-    public void The_item_table_reaches_the_page_with_icons_and_categories()
+    public void The_item_table_reaches_the_page_with_both_names_icons_weights_prices_and_categories()
     {
-        var script = PageScript.Items(new[] { new CatalogItem(1203, "Apple", "Res/Food/apple.png", 1), new CatalogItem(7, "Rope", null, 9) }, new[] { new CategoryName(1, "Food") });
+        var apple = new CatalogItem(1203, new Description("Apple", "苹果"), "Res/Food/apple.png", 1) { Grams = 150, Price = 4, RecipeUses = 12 };
+        var script = PageScript.Items(new[] { apple, new CatalogItem(7, new Description("Rope", "绳子"), null, 9) }, new[] { new CategoryName(1, new Description("Food", "食物")) });
         var argument = script.Substring(script.IndexOf(".items(", System.StringComparison.Ordinal) + 7).TrimEnd(')');
 
         using var json = JsonDocument.Parse(argument);
         var items = json.RootElement.GetProperty("items");
+        var category = json.RootElement.GetProperty("categories")[0];
 
         Assert.Equal(1203, items[0].GetProperty("id").GetInt32());
+        Assert.Equal("Apple", items[0].GetProperty("en").GetString());
+        Assert.Equal("苹果", items[0].GetProperty("zh").GetString());
         Assert.Equal("Res/Food/apple.png", items[0].GetProperty("icon").GetString());
+        Assert.Equal(150, items[0].GetProperty("g").GetInt32());
+        Assert.Equal(4, items[0].GetProperty("v").GetInt32());
+        Assert.Equal(12, items[0].GetProperty("uses").GetInt32());
         Assert.Equal(JsonValueKind.Null, items[1].GetProperty("icon").ValueKind);
-        Assert.Equal("Food", json.RootElement.GetProperty("categories")[0].GetProperty("name").GetString());
+        Assert.Equal(0, items[1].GetProperty("uses").GetInt32());
+        Assert.Equal("Food", category.GetProperty("en").GetString());
+        Assert.Equal("食物", category.GetProperty("zh").GetString());
+    }
+
+    [Fact]
+    public void An_item_lists_limits_recipe_give_back_pair_and_the_mods_answers_reach_the_page()
+    {
+        var materials = Setting("Materials", new SettingKind.ItemCounts(7, 99)) with { Makes = 64001, Answer = new ModAnswer(true, new Description("Another turbine takes these.", "另一台用了。"), null, null) };
+        var returns = Setting("Returns", new SettingKind.ItemCounts(7, 99, AutoWhenBlank: true)) with
+        {
+            ReturnsOf = new SettingId("g", "General", "Materials"),
+            Answer = new ModAnswer(false, null, "20004:3,20104:2", new Description("Half of the materials.", "材料的一半。")),
+        };
+        var open = Setting("Open", new SettingKind.ItemList());
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(Loaded(materials, returns, open)));
+        var settings = json.RootElement.GetProperty("settings");
+
+        Assert.Equal(7, settings[0].GetProperty("maxKinds").GetInt32());
+        Assert.Equal(99, settings[0].GetProperty("maxCount").GetInt32());
+        Assert.Equal(64001, settings[0].GetProperty("makes").GetInt32());
+        Assert.True(settings[0].GetProperty("checked").GetBoolean());
+        Assert.Equal("另一台用了。", settings[0].GetProperty("problem").GetProperty("zh").GetString());
+        Assert.False(settings[0].GetProperty("auto").GetBoolean());
+        Assert.True(settings[1].GetProperty("auto").GetBoolean());
+        Assert.Equal("Materials", settings[1].GetProperty("returnsOf").GetProperty("key").GetString());
+        Assert.Equal("20004:3,20104:2", settings[1].GetProperty("blank").GetString());
+        Assert.Equal("Half of the materials.", settings[1].GetProperty("blankNote").GetProperty("en").GetString());
+        Assert.Equal(JsonValueKind.Null, settings[2].GetProperty("maxKinds").ValueKind);
+        Assert.Equal(JsonValueKind.Null, settings[2].GetProperty("problem").ValueKind);
+        Assert.Equal(JsonValueKind.Null, settings[2].GetProperty("blank").ValueKind);
     }
 
     [Fact]

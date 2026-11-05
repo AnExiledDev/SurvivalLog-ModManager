@@ -95,8 +95,22 @@
       rollbackButton: version => 'ROLL BACK TO ' + version,
       rolledBack: version => 'Rolled back to ' + version + '. Restart the game to use it.',
       rollbackFailed: reason => 'Could not roll back: ' + reason + '.',
-      advanced: 'Advanced', hotkeys: 'HOTKEYS', linkChangelog: 'CHANGELOG', add: '+ ADD', remove: 'Remove',
-      findItem: 'FIND AN ITEM', noItemMatches: 'No item matches.', moreItems: n => n + ' more, type to narrow it down',
+      advanced: 'Advanced', hotkeys: 'HOTKEYS', linkChangelog: 'CHANGELOG', remove: 'Remove',
+      addItem: 'ADD ITEM', setByHand: 'SET BY HAND', swapItem: 'Pick another item', nothing: 'Nothing', ofCount: n => 'of ' + n,
+      editText: 'Edit as text', blankText: '(blank)', noneText: '(nothing)', kinds: 'items', blankChooses: 'blank, the mod chooses',
+      modCanUse: 'The mod can use this list.', modCannotUse: 'The mod cannot use this list as it is.',
+      autoNote: 'Left blank, so the mod chooses this list.', byHandNote: 'Set by hand. Reset it to let the mod choose again.',
+      profit: (back, made) => 'Worth more than what it takes to make (' + back + ' against ' + made + '): making it and taking it down makes a profit.',
+      atBench: 'AT THE WORKBENCH', noMaterials: 'No materials yet', pieces: 'pieces', kgCarry: 'kg to carry', tradeValue: 'trade value',
+      givesBack: 'Taking it down gives back', autoMark: 'auto', byHandMark: 'by hand',
+      usedInRecipes: 'Used in recipes', everyItem: 'Every item', searchItems: n => 'Search ' + n + ' items by name, 中文 or id', used: 'used',
+      pickAdd: 'ADD', pickSet: 'SET COUNT', pickSwap: 'SWAP IN', pickOne: 'PICK', pickIn: 'IN THE LIST',
+      titleAdd: 'ADD AN ITEM', titleSwap: name => 'SWAP ' + name, titleOne: 'PICK AN ITEM',
+      clickToSee: 'Click an item to see it here.', dblClickAdds: 'Double-click adds it at once',
+      category: 'Category', weight: 'Weight', value: 'Value', recipes: 'Recipes',
+      usesIn: n => n ? 'a material in ' + n + ' of the game\'s recipes' : 'not used by any of the game\'s recipes',
+      listFull: n => n + ' items already. Remove one first.', noMatch: q => 'No item matches "' + q + '".',
+      showing: (n, of) => 'Showing ' + n + ' of ' + of + '. Scroll for more, or search.',
       copyList: 'COPY MOD LIST', copied: 'COPIED', copyFailed: 'COULD NOT COPY', copyHint: 'Copies every mod with its version and state, and the errors this session, to paste into a bug report.'
     },
     zh: {
@@ -183,8 +197,22 @@
       rollbackButton: version => '退回到 ' + version,
       rolledBack: version => '已退回到 ' + version + '。重启游戏后生效。',
       rollbackFailed: reason => '无法退回：' + reason + '。',
-      advanced: '高级', hotkeys: '快捷键', linkChangelog: '更新日志', add: '+ 添加', remove: '移除',
-      findItem: '搜索物品', noItemMatches: '没有匹配的物品。', moreItems: n => '还有 ' + n + ' 个，输入文字缩小范围',
+      advanced: '高级', hotkeys: '快捷键', linkChangelog: '更新日志', remove: '移除',
+      addItem: '添加物品', setByHand: '手动设置', swapItem: '换一个物品', nothing: '无', ofCount: n => '共 ' + n,
+      editText: '以文本编辑', blankText: '（留空）', noneText: '（无）', kinds: '种', blankChooses: '留空，由模组决定',
+      modCanUse: '模组可以使用这份清单。', modCannotUse: '模组无法按现在的样子使用这份清单。',
+      autoNote: '留空，由模组决定这份清单。', byHandNote: '已手动设置。重置后由模组重新决定。',
+      profit: (back, made) => '返还价值高于制作所需（' + back + ' 对 ' + made + '）：做了再拆可以赚钱。',
+      atBench: '工作台', noMaterials: '还没有材料', pieces: '件数', kgCarry: '公斤', tradeValue: '交易价值',
+      givesBack: '拆除后返还', autoMark: '自动', byHandMark: '手动',
+      usedInRecipes: '常用材料', everyItem: '全部物品', searchItems: n => '按名称、英文或 id 搜索 ' + n + ' 种物品', used: '已用',
+      pickAdd: '添加', pickSet: '设置数量', pickSwap: '替换', pickOne: '选择', pickIn: '已在清单中',
+      titleAdd: '添加物品', titleSwap: name => '替换 ' + name, titleOne: '选择物品',
+      clickToSee: '点击物品可在这里查看。', dblClickAdds: '双击直接添加',
+      category: '类别', weight: '重量', value: '价值', recipes: '配方',
+      usesIn: n => n ? '游戏中 ' + n + ' 个配方的材料' : '游戏配方都不用它',
+      listFull: n => '已经有 ' + n + ' 种物品，请先移除一种。', noMatch: q => '没有物品符合「' + q + '」。',
+      showing: (n, of) => '已显示 ' + n + ' / ' + of + '，继续滚动或搜索。',
       copyList: '复制模组列表', copied: '已复制', copyFailed: '无法复制', copyHint: '复制所有模组及其版本和状态，以及这次游戏的错误，可粘贴到问题反馈中。'
     }
   };
@@ -209,6 +237,10 @@
     banners: {},
     items: null,
     picker: null,
+    drafts: {},
+    editing: null,
+    drag: null,
+    flash: null,
     openAdvanced: {},
     side: '',
     rail: {},
@@ -219,7 +251,9 @@
   };
 
   const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite', issues: 'linkIssues', changelog: 'linkChangelog' };
-  const PICKER_LIMIT = 60;
+  const PICKER_PAGE = 300;
+  const DRAFT_MS = 300;
+  const NO_ITEMS = 'none';
   const COPIED_MS = 2500;
 
   // ===== Talking to the C# side =====
@@ -615,25 +649,137 @@
 #slmm .ipk-pick:hover { border-color: var(--amber); }
 #slmm .ipk-pick .ipk-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: left; }
 #slmm .ico-sq { flex-shrink: 0; width: 28px; height: 28px; border-radius: 3px; background: rgba(255,255,255,0.06); object-fit: contain; display: block; }
-#slmm .ipk-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-#slmm .ipk-tag { display: flex; align-items: center; gap: 7px; padding: 3px 4px 3px 4px; border: 1px solid rgba(255,255,255,0.14); border-radius: 3px; font-size: .88rem; color: #ddd; max-width: 100%; }
-#slmm .ipk-tag .ico-sq { width: 22px; height: 22px; }
-#slmm .ipk-tag .num { width: 64px; padding: 3px 6px; font-size: .88rem; }
-#slmm .ipk-x { cursor: pointer; color: #888; padding: 0 5px; font-size: 1rem; line-height: 1; }
-#slmm .ipk-x:hover { color: var(--red); }
-#slmm .ipk-add { font-family: var(--mono); font-size: .78rem; letter-spacing: 1px; color: var(--amber); border: 1px dashed rgba(235,163,8,0.5); border-radius: 3px; padding: 4px 10px; cursor: pointer; }
-#slmm .ipk-add:hover { background: rgba(235,163,8,0.12); }
-#slmm .ipk-panel { position: absolute; top: calc(100% + 4px); right: 0; width: 380px; background: #121214; border: 1px solid #555; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.85); z-index: 30; padding: 8px; }
-#slmm .ipk-find { width: 100%; background: #000; border: 1px solid #444; border-radius: 3px; color: #eee; font: 700 .95rem var(--body); padding: 7px 10px; outline: none; user-select: text; }
-#slmm .ipk-find:focus { border-color: var(--amber); }
-#slmm .ipk-list { max-height: 300px; overflow-y: auto; margin-top: 6px; }
-#slmm .ipk-list::-webkit-scrollbar { width: 6px; }
-#slmm .ipk-list::-webkit-scrollbar-thumb { background: rgba(235,163,8,0.35); border-radius: 3px; }
-#slmm .ipk-item { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 3px; cursor: pointer; color: #ccc; font-size: .92rem; font-weight: 700; }
-#slmm .ipk-item:hover { background: rgba(235,163,8,0.15); color: #fff; }
-#slmm .ipk-item.selected { color: var(--amber); }
-#slmm .ipk-item i { margin-left: auto; font-style: normal; font-family: var(--mono); font-size: .72rem; color: #666; font-weight: 400; }
-#slmm .ipk-more { padding: 6px; font-family: var(--mono); font-size: .75rem; color: #777; }
+/* An item list drawn as cards (ItemList, ItemCounts), and the big item picker. */
+#slmm .row.wide { grid-template-columns: 1fr 34px; align-items: start; }
+#slmm .row.wide .mf-host { grid-column: 1 / -1; }
+#slmm .row.wide .lab .badge { margin-left: 4px; }
+#slmm .mf-host.locked { opacity: .45; pointer-events: none; }
+#slmm .mf { --slot: 128px; display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 22px; margin-top: 12px; }
+#slmm .mf.solo { grid-template-columns: minmax(0, 1fr); }
+#slmm .mf-slots { display: flex; gap: 12px; flex-wrap: wrap; }
+#slmm .mf .slot { position: relative; width: var(--slot); height: 178px; border: 1px solid rgba(220,188,120,0.18); background: linear-gradient(180deg, rgba(44,36,26,0.92), rgba(20,17,13,0.95)); border-radius: 3px; display: flex; flex-direction: column; align-items: center; padding: 10px 8px 8px; transition: border-color .15s, transform .15s, box-shadow .15s; }
+#slmm .mf .slot.plain { height: 150px; }
+#slmm .mf .slot:hover { border-color: rgba(255,200,58,0.6); box-shadow: 0 6px 22px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,200,58,0.12) inset; transform: translateY(-2px); }
+#slmm .mf .slot.drag { opacity: .35; }
+#slmm .mf .slot.over { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(143,199,191,0.35); }
+#slmm .mf .tile { position: relative; width: 84px; height: 84px; border-radius: 3px; background: radial-gradient(circle at 50% 40%, rgba(255,214,140,0.16), rgba(0,0,0,0) 70%), #0e0c0a; border: 1px solid rgba(255,255,255,0.07); display: grid; place-items: center; cursor: grab; }
+#slmm .mf .tile img { width: 72px; height: 72px; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.7)); pointer-events: none; }
+#slmm .mf .tile .noimg { font: 700 .8rem var(--mono); color: #666; }
+#slmm .mf .qty { position: absolute; right: -6px; bottom: -6px; min-width: 30px; padding: 2px 7px; background: #0b0a09; border: 1px solid var(--amber); color: var(--amber); font: 700 .9rem var(--mono); text-align: center; border-radius: 2px; box-shadow: 0 2px 6px rgba(0,0,0,0.7); }
+#slmm .mf .qty.pop { animation: mf-pop .22s; }
+#slmm .mf .nm { margin-top: 10px; height: 2.5em; font-size: .86rem; line-height: 1.25em; color: #eee; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#slmm .mf .stp { margin-top: auto; display: flex; align-items: stretch; border: 1px solid rgba(255,255,255,0.14); border-radius: 2px; overflow: hidden; }
+#slmm .mf .stp span { width: 30px; display: grid; place-items: center; cursor: pointer; color: #aaa; font: 700 1.05rem var(--mono); background: rgba(255,255,255,0.04); }
+#slmm .mf .stp span:hover { background: rgba(235,163,8,0.2); color: var(--amber); }
+#slmm .mf .stp input { width: 44px; background: #000; border: 0; color: #fff; text-align: center; font: 700 .95rem var(--mono); outline: none; padding: 4px 0; user-select: text; }
+#slmm .mf .sx, #slmm .mf .sw { position: absolute; top: 4px; width: 22px; height: 22px; display: grid; place-items: center; color: #888; cursor: pointer; border-radius: 2px; opacity: 0; transition: opacity .15s; font-size: .85rem; }
+#slmm .mf .sx { right: 4px; }
+#slmm .mf .sw { left: 4px; font-size: .8rem; }
+#slmm .mf .slot:hover .sx, #slmm .mf .slot:hover .sw { opacity: 1; }
+#slmm .mf .sx:hover { background: rgba(200,50,50,0.25); color: #ff8080; }
+#slmm .mf .sw:hover { background: rgba(143,199,191,0.2); color: var(--teal); }
+#slmm .mf .slot.add { border-style: dashed; border-color: rgba(235,163,8,0.4); background: rgba(235,163,8,0.03); cursor: pointer; justify-content: center; gap: 10px; color: var(--amber); }
+#slmm .mf .slot.add .plus { width: 54px; height: 54px; border-radius: 50%; border: 1px solid rgba(235,163,8,0.55); display: grid; place-items: center; font-size: 1.9rem; line-height: 1; transition: background .15s, transform .15s; }
+#slmm .mf .slot.add:hover .plus { background: rgba(235,163,8,0.18); transform: scale(1.06); }
+#slmm .mf .slot.add .al { font: 700 .78rem var(--mono); letter-spacing: 2px; text-align: center; }
+#slmm .mf .slot.auto { height: 160px; border-color: rgba(143,199,191,0.18); background: linear-gradient(180deg, rgba(26,34,33,0.85), rgba(14,17,17,0.95)); }
+#slmm .mf .slot.auto:hover { transform: none; box-shadow: none; border-color: rgba(143,199,191,0.35); }
+#slmm .mf .slot.auto .tile { cursor: default; }
+#slmm .mf .slot.auto .qty { border-color: var(--teal); color: var(--teal); }
+#slmm .mf .slot.auto .from { margin-top: auto; font: .72rem var(--mono); color: #6f8582; letter-spacing: 1px; }
+#slmm .mf .slot.auto.none { justify-content: center; color: #6f8582; }
+#slmm .mf .slot.add.hand { height: 160px; border-color: rgba(143,199,191,0.45); background: rgba(143,199,191,0.03); color: var(--teal); }
+#slmm .mf .slot.add.hand .plus { border-color: rgba(143,199,191,0.55); font-size: 1.4rem; }
+#slmm .mf .slot.add.hand:hover .plus { background: rgba(143,199,191,0.16); }
+#slmm .mf-under { display: flex; align-items: center; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+#slmm .mf-status { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--teal); }
+#slmm .mf-status.bad { color: #ff8a7a; }
+#slmm .mf-status.note { color: #9fb8b4; }
+#slmm .mf-status i { font-style: normal; width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; font: 700 .75rem var(--mono); background: rgba(143,199,191,0.15); border: 1px solid rgba(143,199,191,0.5); }
+#slmm .mf-status.bad i { background: rgba(255,90,90,0.12); border-color: rgba(255,90,90,0.6); }
+#slmm .mf-status.note i { background: rgba(143,199,191,0.08); border-color: rgba(143,199,191,0.35); font-style: italic; }
+#slmm .mf-cap { display: flex; align-items: center; gap: 8px; font: .78rem var(--mono); color: #777; letter-spacing: 1px; }
+#slmm .mf-cap b { color: #bbb; font-weight: 400; }
+#slmm .mf-pips { display: flex; gap: 3px; }
+#slmm .mf-pips i { width: 10px; height: 10px; border: 1px solid rgba(235,163,8,0.4); border-radius: 1px; }
+#slmm .mf-pips i.on { background: var(--amber); box-shadow: 0 0 6px rgba(235,163,8,0.5); }
+#slmm .mf-text { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+#slmm .mf-text code { font: .85rem var(--mono); color: #9a9a9a; background: #000; border: 1px solid #2c2c2c; padding: 5px 10px; border-radius: 2px; cursor: text; }
+#slmm .mf-text code:hover { color: #ddd; border-color: #555; }
+#slmm .mf-text .mf-in { width: 420px; background: #000; border: 1px solid var(--amber); color: #fff; font: .9rem var(--mono); padding: 6px 10px; outline: none; border-radius: 2px; user-select: text; }
+#slmm .mf-warn { grid-column: 1 / -1; display: flex; gap: 12px; align-items: flex-start; padding: 10px 14px; border: 1px solid rgba(255,90,90,0.4); background: rgba(255,90,90,0.06); color: #f0c0b8; font-size: .9rem; line-height: 1.5; border-radius: 2px; }
+#slmm .mf-warn b { color: #ff9a8a; }
+#slmm .mf-card { border: 1px solid rgba(220,188,120,0.2); background: linear-gradient(180deg, rgba(36,30,22,0.95), rgba(16,14,11,0.97)); border-radius: 3px; overflow: hidden; align-self: start; }
+#slmm .mf-card .hd2 { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid rgba(220,188,120,0.12); background: rgba(0,0,0,0.25); }
+#slmm .mf-card .hd2 img { width: 46px; height: 46px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8)); }
+#slmm .mf-card .hd2 .t { color: #fff; font-weight: 700; font-size: .98rem; }
+#slmm .mf-card .hd2 .s { font: .72rem var(--mono); letter-spacing: 2px; color: var(--amber); opacity: .8; }
+#slmm .mf-card .ln { display: flex; align-items: center; gap: 10px; padding: 5px 14px; font-size: .88rem; color: #ddd; }
+#slmm .mf-card .ln img { width: 26px; height: 26px; object-fit: contain; }
+#slmm .mf-card .ln .n { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#slmm .mf-card .ln .n.dim { color: #777; }
+#slmm .mf-card .ln .c { font: 700 .88rem var(--mono); color: var(--amber); }
+#slmm .mf-card .stats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid rgba(220,188,120,0.12); border-bottom: 1px solid rgba(220,188,120,0.12); margin-top: 8px; }
+#slmm .mf-card .stats div { padding: 9px 12px; border-right: 1px solid rgba(220,188,120,0.1); }
+#slmm .mf-card .stats div:last-child { border-right: 0; }
+#slmm .mf-card .stats b { display: block; font: 700 1.1rem var(--mono); color: #fff; }
+#slmm .mf-card .stats span { font: .68rem var(--mono); letter-spacing: 1.5px; color: #8a7f6c; text-transform: uppercase; }
+#slmm .mf-card .back { padding: 10px 14px 12px; }
+#slmm .mf-card .back .bt { font: .68rem var(--mono); letter-spacing: 1.5px; color: #8a7f6c; text-transform: uppercase; margin-bottom: 6px; }
+#slmm .mf-card .back .chs { display: flex; gap: 8px; flex-wrap: wrap; }
+#slmm .mf-card .back .ch { display: flex; align-items: center; gap: 5px; padding: 3px 8px 3px 4px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 2px; font: .8rem var(--mono); color: #ccc; }
+#slmm .mf-card .back .ch img { width: 20px; height: 20px; object-fit: contain; }
+#slmm .pk-veil { position: absolute; inset: 0; z-index: 30; background: rgba(0,0,0,0.62); display: flex; align-items: center; justify-content: center; animation: slmm-fade .15s both; }
+#slmm .pk { width: 1460px; height: 840px; display: grid; grid-template-rows: auto minmax(0, 1fr); background: #121110; border: 1px solid rgba(235,163,8,0.35); box-shadow: 0 30px 80px rgba(0,0,0,0.85), 0 0 40px rgba(235,163,8,0.08); border-radius: 3px; }
+#slmm .pk-hd { display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+#slmm .pk-hd .ti { font: 700 .82rem var(--mono); letter-spacing: 3px; color: var(--amber); white-space: nowrap; max-width: 520px; overflow: hidden; text-overflow: ellipsis; }
+#slmm .pk-hd .ti em { font-style: normal; color: #fff; letter-spacing: 1px; }
+#slmm .pk-q { flex: 1; position: relative; }
+#slmm .pk-q svg { position: absolute; left: 12px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); color: #777; }
+#slmm .pk-find { width: 100%; background: #000; border: 1px solid #444; border-radius: 3px; padding: 10px 12px 10px 40px; color: #fff; font: 700 1rem var(--body); outline: none; user-select: text; }
+#slmm .pk-find:focus { border-color: var(--amber); box-shadow: 0 0 12px rgba(235,163,8,0.2); }
+#slmm .pk-hd .used { font: .8rem var(--mono); color: #888; white-space: nowrap; }
+#slmm .pk-hd .used b { color: var(--amber); }
+#slmm .pk-bd { display: grid; grid-template-columns: 250px minmax(0, 1fr) 330px; min-height: 0; }
+#slmm .pk-cats { border-right: 1px solid var(--line); overflow: auto; padding: 8px 0; }
+#slmm .pk-cat { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; color: #aaa; cursor: pointer; font-size: .92rem; border-left: 3px solid transparent; }
+#slmm .pk-cat:hover { background: rgba(255,255,255,0.03); color: #fff; }
+#slmm .pk-cat.on { border-left-color: var(--amber); background: linear-gradient(90deg, rgba(235,163,8,0.16), transparent); color: #fff; }
+#slmm .pk-cat i { font: normal .75rem var(--mono); color: #666; }
+#slmm .pk-cat.star { color: var(--amber); }
+#slmm .pk-sep { height: 1px; background: var(--line); margin: 8px 16px; }
+#slmm .pk-grid { overflow: auto; padding: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); grid-auto-rows: 132px; gap: 10px; align-content: start; }
+#slmm .pk-cats::-webkit-scrollbar, #slmm .pk-grid::-webkit-scrollbar, #slmm .pk-info::-webkit-scrollbar { width: 6px; }
+#slmm .pk-cats::-webkit-scrollbar-thumb, #slmm .pk-grid::-webkit-scrollbar-thumb, #slmm .pk-info::-webkit-scrollbar-thumb { background: rgba(235,163,8,0.35); border-radius: 3px; }
+#slmm .pk .it { position: relative; border: 1px solid rgba(255,255,255,0.07); background: linear-gradient(180deg, rgba(40,34,26,0.7), rgba(18,16,13,0.9)); border-radius: 3px; display: flex; flex-direction: column; align-items: center; padding: 8px 6px 6px; cursor: pointer; transition: border-color .12s, background .12s, transform .12s; }
+#slmm .pk .it:hover, #slmm .pk .it.hi { border-color: rgba(255,200,58,0.7); background: linear-gradient(180deg, rgba(70,56,30,0.8), rgba(24,20,14,0.95)); transform: translateY(-1px); }
+#slmm .pk .it img { width: 60px; height: 60px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.7)); pointer-events: none; }
+#slmm .pk .it .noimg { width: 60px; height: 60px; display: grid; place-items: center; font: 700 .75rem var(--mono); color: #555; }
+#slmm .pk .it .in { margin-top: 6px; font-size: .76rem; line-height: 1.2em; height: 2.4em; overflow: hidden; color: #ddd; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#slmm .pk .it .id { font: .66rem var(--mono); color: #666; margin-top: 2px; }
+#slmm .pk .it .got { position: absolute; top: 5px; right: 5px; font: 700 .72rem var(--mono); color: #111; background: var(--amber); padding: 1px 5px; border-radius: 2px; }
+#slmm .pk .it.taken { border-color: rgba(235,163,8,0.45); }
+#slmm .pk-none { grid-column: 1 / -1; padding: 60px 0; text-align: center; color: #777; }
+#slmm .pk-more { grid-column: 1 / -1; text-align: center; padding: 10px; font: .8rem var(--mono); color: #888; cursor: pointer; }
+#slmm .pk-info { border-left: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+#slmm .pk-info .big { width: 100%; aspect-ratio: 1.3; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.07); border-radius: 3px; background: radial-gradient(circle at 50% 45%, rgba(255,214,140,0.18), rgba(0,0,0,0) 65%), #0d0b09; display: grid; place-items: center; }
+#slmm .pk-info .big img { width: 150px; height: 150px; object-fit: contain; filter: drop-shadow(0 6px 8px rgba(0,0,0,0.8)); }
+#slmm .pk-info .t { color: #fff; font-weight: 700; font-size: 1.15rem; }
+#slmm .pk-info .t2 { color: #9a8f7a; font-size: .9rem; margin-top: -8px; }
+#slmm .pk-info dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: .88rem; }
+#slmm .pk-info dt { font: .72rem var(--mono); letter-spacing: 1.5px; color: #7a6e5a; text-transform: uppercase; padding-top: 2px; }
+#slmm .pk-info dd { color: #ddd; }
+#slmm .pk-info .act { margin-top: auto; display: flex; gap: 10px; align-items: center; }
+#slmm .pk-info .act .stp { display: flex; border: 1px solid rgba(255,255,255,0.14); border-radius: 2px; overflow: hidden; }
+#slmm .pk-info .act .stp span { width: 34px; display: grid; place-items: center; cursor: pointer; color: #aaa; font: 700 1.1rem var(--mono); background: rgba(255,255,255,0.04); }
+#slmm .pk-info .act .stp span:hover { background: rgba(235,163,8,0.2); color: var(--amber); }
+#slmm .pk-info .act .stp input { width: 50px; background: #000; border: 0; color: #fff; text-align: center; font: 700 1rem var(--mono); outline: none; padding: 8px 0; user-select: text; }
+#slmm .pk-info .go { flex: 1; text-align: center; padding: 10px; background: rgba(235,163,8,0.2); border: 1px solid var(--amber); color: var(--amber); font: 700 .9rem var(--mono); letter-spacing: 2px; cursor: pointer; border-radius: 2px; }
+#slmm .pk-info .go:hover { background: rgba(235,163,8,0.35); color: #fff; }
+#slmm .pk-info .go.off { opacity: .35; pointer-events: none; }
+#slmm .pk-info .empty-info { margin: auto; color: #666; text-align: center; font-size: .9rem; line-height: 1.6; }
+#slmm .pk-keys { font: .72rem var(--mono); color: #666; letter-spacing: 1px; }
+@keyframes mf-pop { 0% { transform: scale(1); } 50% { transform: scale(1.25); } 100% { transform: scale(1); } }
 `;
 
   // ===== The window =====
@@ -668,6 +814,7 @@
     <div class="pane"></div>
   </div>
   <div class="ft"><div class="status-dot"></div><div class="ft-t"></div><div class="key-btn" data-act="copyList"></div></div>
+  <div class="pk-host"></div>
 </div></div>`;
 
   const $ = selector => root.querySelector(selector);
@@ -788,7 +935,9 @@
     renderFooter();
     list.scrollTop = listScroll;
     pane.scrollTop = paneScroll;
-    focusPicker();
+
+    if (state.picker || $('.pk-host').firstChild) drawPicker(false);
+
     syncTyping();
   }
 
@@ -1455,6 +1604,14 @@
     const restartMark = restartBadge(s);
     const canReset = !s.readOnly;
 
+    // An item list takes the row's whole width for its cards, under the label, with the restart mark beside the label.
+    if (isListField(s)) {
+      return '<div class="row wide' + (isChanged(s) ? ' chg' : '') + (id === state.pending ? ' flash' : '') + '" data-row="' + index + '">' +
+        '<div><div class="lab">' + show(s.label) + readOnly + restartMark + '</div>' + lines.join('') + '</div>' +
+        '<div class="reset' + (canReset ? ' can' : '') + '" data-act="reset" title="' + esc(word('resetTo')(shown(s, s.default))) + '">&#x21BA;</div>' +
+        '<div class="mf-host' + (s.readOnly ? ' locked' : '') + '">' + itemField(m, s) + '</div></div>';
+    }
+
     return '<div class="row' + (isChanged(s) ? ' chg' : '') + (id === state.pending ? ' flash' : '') + '" data-row="' + index + '">' +
       '<div><div class="lab">' + show(s.label) + readOnly + '</div>' + lines.join('') + '</div>' +
       '<div>' + restartMark + '</div>' +
@@ -1488,9 +1645,11 @@
 
     if (s.kind === 'category') return categoryName(value);
 
-    if (s.kind === 'itemList') return idsOf(value).map(itemName).join(', ') || word('none');
+    if (isList(s) && s.auto && value === '') return word('blankChooses');
 
-    if (s.kind === 'itemCounts') return countsOf(value).map(c => itemName(c.id) + ' x' + c.count).join(', ') || word('none');
+    if (s.kind === 'itemList') return entriesOf(s, value).map(e => itemName(e.id)).join(', ') || word('none');
+
+    if (s.kind === 'itemCounts') return entriesOf(s, value).map(e => itemName(e.id) + ' x' + e.count).join(', ') || word('none');
 
     return value;
   }
@@ -1510,9 +1669,7 @@
         return '<div class="keycap' + (isListening ? ' listening' : '') + (conflicts(m, s).length ? ' conflict' : '') + '" data-act="bind">' + esc(label) + '</div>';
       }
       case 'item':
-      case 'itemList':
-      case 'itemCounts':
-        if (state.items) return itemControl(m, s);
+        if (state.items) return itemPick(s);
         break;
       case 'category':
         if (state.items) return categoryControl(s);
@@ -1527,17 +1684,19 @@
 
   // ===== Item and category controls =====
 
-  const idsOf = value => String(value).split(',').map(part => part.trim()).filter(Boolean);
-  const countsOf = value => idsOf(value).map(pair => ({ id: pair.split(':')[0], count: pair.split(':')[1] || '1' }));
-  const countsText = counts => counts.map(c => c.id + ':' + c.count).join(',');
+  const isList = s => s.kind === 'itemList' || s.kind === 'itemCounts';
+  const isListField = s => isList(s) && !!state.items;
   const itemOf = id => state.items.byId[String(id)];
+  const itemText = item => (state.lang === 'zh' ? item.zh : item.en);
+  const textOf = text => (state.lang === 'zh' ? text.zh : text.en);
+  const icon = (item, cls) => (item && item.icon ? '<img src="' + esc(item.icon) + '" alt=""' + (cls ? ' class="' + cls + '"' : '') + '>' : '<span class="noimg">?</span>');
 
   function itemName(id) {
     if (String(id) === '0') return word('none');
 
     const item = itemOf(id);
 
-    return item ? item.name : '#' + id;
+    return item ? itemText(item) : '#' + id;
   }
 
   function categoryName(id) {
@@ -1545,7 +1704,7 @@
 
     const category = state.items.categories.find(c => String(c.id) === String(id));
 
-    return category ? category.name : '#' + id;
+    return category ? textOf(category) : '#' + id;
   }
 
   function itemIcon(id) {
@@ -1554,107 +1713,475 @@
     return item && item.icon ? '<img class="ico-sq" src="' + esc(item.icon) + '" alt="">' : '<span class="ico-sq"></span>';
   }
 
-  function itemControl(m, s) {
-    const isPicking = state.picker && state.picker.id === settingId(m, s);
-    const panel = isPicking ? pickerPanel(s) : '';
+  // A list's entries, in order: "1203,7" or "1203:5,7:2". "none" is a list the mod would fill in when blank, set to hold nothing.
+  function entriesOf(s, value) {
+    const text = String(value).trim();
 
-    if (s.kind === 'item') return '<div class="ipk"><div class="ipk-pick" data-act="pick">' + itemIcon(s.current) + '<span class="ipk-name">' + esc(itemName(s.current)) + '</span><span class="dd-arrow"></span></div>' + panel + '</div>';
+    if (!text || (s.auto && text.toLowerCase() === NO_ITEMS)) return [];
 
-    const remove = index => '<span class="ipk-x" data-act="dropItem" data-index="' + index + '" title="' + esc(word('remove')) + '">&#x2715;</span>';
-    const tags = s.kind === 'itemList'
-      ? idsOf(s.current).map((id, i) => '<span class="ipk-tag">' + itemIcon(id) + esc(itemName(id)) + remove(i) + '</span>')
-      : countsOf(s.current).map((c, i) => '<span class="ipk-tag">' + itemIcon(c.id) + esc(itemName(c.id)) + '<input class="num" data-input="count" data-index="' + i + '" value="' + esc(c.count) + '">' + remove(i) + '</span>');
+    return text.split(',').map(part => part.trim()).filter(Boolean).map(part => {
+      const pair = part.split(':');
 
-    return '<div class="ipk"><div class="ipk-tags">' + tags.join('') + '<span class="ipk-add" data-act="pick">' + esc(word('add')) + '</span></div>' + panel + '</div>';
+      return { id: pair[0].trim(), count: s.kind === 'itemCounts' ? (pair[1] || '1').trim() : '1' };
+    });
   }
 
-  function pickerPanel(s) {
-    return '<div class="ipk-panel"><input class="ipk-find" placeholder="' + esc(word('findItem')) + '" value="' + esc(state.picker.query) + '" spellcheck="false" autocomplete="off">' +
-      '<div class="ipk-list">' + pickerItems(s) + '</div></div>';
+  // What is written back. An emptied list the mod fills in when blank is saved as "none", so it stays empty.
+  function valueText(s, entries) {
+    if (!entries.length) return s.auto ? NO_ITEMS : '';
+
+    return entries.map(e => (s.kind === 'itemCounts' ? e.id + ':' + e.count : e.id)).join(',');
   }
 
-  // The items matching the picker's search, by name or exact id, capped so a page of thousands stays quick.
-  function pickerItems(s) {
-    const q = state.picker.query.trim().toLowerCase();
-    const chosen = s.kind === 'item' ? [s.current] : s.kind === 'itemList' ? idsOf(s.current) : countsOf(s.current).map(c => c.id);
-    const matches = state.items.list.filter(item => !q || item.name.toLowerCase().indexOf(q) >= 0 || String(item.id) === q);
-    const none = s.kind === 'item' && !q ? [{ id: 0, name: word('none'), icon: null, cat: -1 }] : [];
-    const shown = none.concat(matches.slice(0, PICKER_LIMIT));
-    const line = item => '<div class="ipk-item' + (chosen.indexOf(String(item.id)) >= 0 ? ' selected' : '') + '" data-act="pickItem" data-id="' + item.id + '">' +
-      (item.icon ? '<img class="ico-sq" src="' + esc(item.icon) + '" alt="">' : '<span class="ico-sq"></span>') + esc(item.name) + (item.cat >= 0 ? '<i>' + esc(categoryName(item.cat)) + '</i>' : '') + '</div>';
-    const more = matches.length > PICKER_LIMIT ? '<div class="ipk-more">' + esc(word('moreItems')(matches.length - PICKER_LIMIT)) + '</div>' : '';
+  const lineText = (s, entries) => entries.map(e => (s.kind === 'itemCounts' ? e.id + ':' + e.count : e.id)).join(', ');
+  const isAuto = (m, s) => s.auto && valueNow(m, s) === '';
+  const valueNow = (m, s) => (state.drafts[settingId(m, s)] !== undefined ? state.drafts[settingId(m, s)] : s.current);
 
-    return shown.length ? shown.map(line).join('') + more : '<div class="ipk-more">' + esc(word('noItemMatches')) + '</div>';
+  // The list as it shows now: a count still being stepped, else the value; a blank the mod fills in shows the mod's list.
+  function listOf(m, s) {
+    if (isAuto(m, s)) return s.blank ? entriesOf(s, s.blank) : [];
+
+    return entriesOf(s, valueNow(m, s));
+  }
+
+  const clampCount = (s, n) => Math.max(1, Math.min(s.maxCount || 9999, Math.round(n) || 1));
+  const worth = entries => entries.reduce((sum, e) => sum + (itemOf(e.id) ? itemOf(e.id).v : 0) * Number(e.count), 0);
+  const settingOf = (m, ref) => (ref ? m.settings.find(o => o.section === ref.section && o.key === ref.key) : null);
+  const givesBackFor = (m, s) => m.settings.find(o => o.returnsOf && o.returnsOf.section === s.section && o.returnsOf.key === s.key);
+
+  // A single item: its icon and name, opening the big picker.
+  function itemPick(s) {
+    return '<div class="ipk"><div class="ipk-pick" data-act="pick">' + itemIcon(s.current) + '<span class="ipk-name">' + esc(itemName(s.current)) + '</span><span class="dd-arrow"></span></div></div>';
+  }
+
+  // An item list as cards: each item with its picture, name and amount, an add card, the mod's verdict and the list as text.
+  function itemField(m, s) {
+    const id = settingId(m, s);
+    const auto = isAuto(m, s);
+    const list = listOf(m, s);
+    const max = s.maxKinds;
+    const recipe = settingOf(m, s.returnsOf);
+    let slots = '';
+
+    list.forEach((e, i) => {
+      slots += auto ? autoSlot(s, e, recipe ? listOf(m, recipe) : null) : slot(m, s, e, i);
+    });
+
+    if (auto && !list.length) slots += '<div class="slot auto none"><div class="nm">' + esc(word('nothing')) + '</div></div>';
+
+    if (auto) slots += '<div class="slot add hand" data-act="byHand"><div class="plus">&#x270E;</div><div class="al">' + esc(word('setByHand')) + '</div></div>';
+    else if (!max || list.length < max) slots += '<div class="slot add' + (s.kind === 'itemList' ? ' plain' : '') + '" data-act="pick"><div class="plus">+</div><div class="al">' + esc(word('addItem')) + '</div></div>';
+
+    const pips = max && max <= 12 ? '<span class="mf-pips">' + '<i class="on"></i>'.repeat(Math.min(list.length, max)) + '<i></i>'.repeat(Math.max(0, max - list.length)) + '</span>' : '';
+    const cap = max && !auto ? '<span class="mf-cap">' + pips + '<b>' + list.length + '</b> / ' + max + ' ' + esc(word('kinds')) + '</span>' : '';
+    const text = state.editing === id
+      ? '<input class="mf-in" data-input="text" value="' + esc(auto ? '' : lineText(s, list) || (s.auto ? NO_ITEMS : '')) + '" spellcheck="false" autocomplete="off">'
+      : '<code data-act="editText" title="' + esc(word('editText')) + '">' + esc(auto ? word('blankText') : lineText(s, list) || word('noneText')) + '</code>';
+    const warn = s.problem ? '<div class="mf-warn"><span>&#x26A0;</span><div>' + esc(textOf(s.problem)) + '</div></div>' : '';
+    const card = s.makes ? recipeCard(m, s, list) : '';
+
+    return '<div class="mf' + (card ? '' : ' solo') + '">' + warn +
+      '<div><div class="mf-slots">' + slots + '</div><div class="mf-under">' + statusOf(m, s, list, recipe) + cap + '<div class="mf-text">' + text + '</div></div></div>' + card + '</div>';
+  }
+
+  function slot(m, s, e, i) {
+    const item = itemOf(e.id);
+    const counts = s.kind === 'itemCounts';
+    const title = (item ? item.en + ' / ' + item.zh + '  ' : '') + '#' + e.id;
+    const pop = state.flash === settingId(m, s) + '\n' + e.id ? ' pop' : '';
+    const dragged = state.drag && state.drag.id === settingId(m, s) && state.drag.from === i ? ' drag' : '';
+
+    return '<div class="slot' + (counts ? '' : ' plain') + dragged + '" data-slot="' + i + '" title="' + esc(title) + '">' +
+      '<span class="sw" data-act="swap" data-index="' + i + '" title="' + esc(word('swapItem')) + '">&#x21C4;</span>' +
+      '<span class="sx" data-act="dropItem" data-index="' + i + '" title="' + esc(word('remove')) + '">&#x2715;</span>' +
+      '<div class="tile" data-act="swap" data-index="' + i + '">' + icon(item) + (counts ? '<span class="qty' + pop + '">&times;' + esc(e.count) + '</span>' : '') + '</div>' +
+      '<div class="nm">' + esc(item ? itemText(item) : '#' + e.id) + '</div>' +
+      (counts ? '<div class="stp"><span data-act="dec" data-index="' + i + '">&minus;</span><input data-input="count" data-index="' + i + '" value="' + esc(e.count) + '" inputmode="numeric"><span data-act="inc" data-index="' + i + '">+</span></div>' : '') +
+      '</div>';
+  }
+
+  // One item of the list the mod chose for a blank value, with how many the recipe it belongs to takes.
+  function autoSlot(s, e, recipe) {
+    const item = itemOf(e.id);
+    const from = recipe ? recipe.find(r => r.id === e.id) : null;
+
+    return '<div class="slot auto" title="' + esc((item ? item.en + ' / ' + item.zh + '  ' : '') + '#' + e.id) + '"><div class="tile">' + icon(item) +
+      (s.kind === 'itemCounts' ? '<span class="qty">&times;' + esc(e.count) + '</span>' : '') + '</div>' +
+      '<div class="nm">' + esc(item ? itemText(item) : '#' + e.id) + '</div>' + (from ? '<div class="from">' + esc(word('ofCount')(from.count)) + '</div>' : '') + '</div>';
+  }
+
+  // The mod's verdict first; then whether a give-back list is worth more than its recipe; then how the list was set.
+  function statusOf(m, s, list, recipe) {
+    const line = (cls, mark, text) => '<div class="mf-status' + cls + '"><i>' + mark + '</i>' + esc(text) + '</div>';
+
+    if (s.problem) return line(' bad', '!', word('modCannotUse'));
+
+    if (isAuto(m, s)) return line(' note', 'i', s.blankNote ? textOf(s.blankNote) : word('autoNote'));
+
+    if (recipe && worth(list) > worth(listOf(m, recipe))) return line(' bad', '!', word('profit')(worth(list), worth(listOf(m, recipe))));
+
+    if (s.auto) return line('', '&#x2713;', word('byHandNote'));
+
+    return s.checked ? line('', '&#x2713;', word('modCanUse')) : '';
+  }
+
+  // How the recipe reads at the workbench, what it weighs and is worth, and what taking the thing down gives back.
+  function recipeCard(m, s, list) {
+    const made = itemOf(s.makes);
+    const back = givesBackFor(m, s);
+    const grams = list.reduce((sum, e) => sum + (itemOf(e.id) ? itemOf(e.id).g : 0) * Number(e.count), 0);
+    const pieces = list.reduce((sum, e) => sum + Number(e.count), 0);
+    const lines = list.map(e => '<div class="ln">' + icon(itemOf(e.id)) + '<span class="n">' + esc(itemName(e.id)) + '</span><span class="c">&times;' + esc(e.count) + '</span></div>').join('');
+    let backPart = '';
+
+    if (back) {
+      const chips = listOf(m, back).map(e => '<span class="ch">' + icon(itemOf(e.id)) + '&times;' + esc(e.count) + '</span>').join('');
+
+      backPart = '<div class="back"><div class="bt">' + esc(word('givesBack')) + ' &middot; ' + esc(word(isAuto(m, back) ? 'autoMark' : 'byHandMark')) + '</div><div class="chs">' + (chips || '<span class="ch">-</span>') + '</div></div>';
+    }
+
+    return '<div class="mf-card"><div class="hd2">' + (made && made.icon ? '<img src="' + esc(made.icon) + '" alt="">' : '') +
+      '<div><div class="s">' + esc(word('atBench')) + '</div><div class="t">' + esc(itemName(s.makes)) + '</div></div></div>' +
+      (lines || '<div class="ln"><span class="n dim">' + esc(word('noMaterials')) + '</span></div>') +
+      '<div class="stats"><div><b>' + pieces + '</b><span>' + esc(word('pieces')) + '</span></div>' +
+      '<div><b>' + (grams / 1000).toLocaleString('en', { maximumFractionDigits: 1 }) + '</b><span>' + esc(word('kgCarry')) + '</span></div>' +
+      '<div><b>' + worth(list).toLocaleString('en') + '</b><span>' + esc(word('tradeValue')) + '</span></div></div>' + backPart + '</div>';
   }
 
   function categoryControl(s) {
-    const options = [{ id: 0, name: word('none') }].concat(state.items.categories);
-    const items = options.map(c => '<div class="dd-item' + (String(c.id) === s.current ? ' selected' : '') + '" data-value="' + c.id + '">' + esc(c.name) + '</div>').join('');
+    const options = [{ id: 0, en: word('none'), zh: word('none') }].concat(state.items.categories);
+    const items = options.map(c => '<div class="dd-item' + (String(c.id) === s.current ? ' selected' : '') + '" data-value="' + c.id + '">' + esc(textOf(c)) + '</div>').join('');
 
     return '<div class="dd"><div class="dd-trigger"><span>' + esc(categoryName(s.current)) + '</span><span class="dd-arrow"></span></div><div class="dd-list">' + items + '</div></div>';
   }
 
-  function openPicker(row) {
-    state.picker = { id: settingId(row.mod, row.setting), query: '' };
+  // ===== Changing an item list =====
+
+  function writeList(row, entries, flashId) {
+    state.flash = flashId ? settingId(row.mod, row.setting) + '\n' + flashId : null;
+    write(row, valueText(row.setting, entries));
+  }
+
+  function dropItem(row, index) {
+    writeList(row, listOf(row.mod, row.setting).filter((e, i) => i !== index));
+  }
+
+  function setItemCount(row, index, count) {
+    const list = listOf(row.mod, row.setting);
+
+    if (!list[index]) return;
+
+    list[index].count = String(clampCount(row.setting, parseInt(count, 10)));
+    writeList(row, list, list[index].id);
+  }
+
+  let draftTimer = 0;
+  let draftId = null;
+
+  // Steps and wheel turns show at once and are written once they stop, so a run of clicks is one write, not twenty.
+  function bump(row, index, delta) {
+    const s = row.setting;
+    const id = settingId(row.mod, s);
+    const list = listOf(row.mod, s);
+
+    if (!list[index]) return;
+
+    list[index].count = String(clampCount(s, Number(list[index].count) + delta));
+    state.drafts[id] = valueText(s, list);
+    state.flash = id + '\n' + list[index].id;
+    draftId = id;
     render();
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(() => {
+      draftId = null;
+
+      if (state.drafts[id] !== undefined) write(row, state.drafts[id]);
+    }, DRAFT_MS);
+  }
+
+  function moveItem(row, from, to) {
+    const list = listOf(row.mod, row.setting);
+    const moved = list.splice(from, 1)[0];
+
+    list.splice(to, 0, moved);
+    writeList(row, list);
+  }
+
+  function editText(row) {
+    state.editing = settingId(row.mod, row.setting);
+    render();
+
+    const input = pane.querySelector('.mf-in');
+
+    if (input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
+  }
+
+  // ===== The item picker =====
+
+  const pickerRow = () => (state.picker ? state.rows.find(r => settingId(r.mod, r.setting) === state.picker.id) : null);
+
+  // The slot being swapped, or null to add; a single item has no slots.
+  function openPicker(row, slotIndex) {
+    const s = row.setting;
+    const list = isList(s) ? listOf(row.mod, s) : [];
+    const swapping = slotIndex !== null && list[slotIndex] ? list[slotIndex] : null;
+    const pick = swapping ? swapping.id : s.kind === 'item' && s.current !== '0' ? s.current : null;
+
+    state.editing = null;
+    state.picker = { id: settingId(row.mod, s), slot: swapping ? slotIndex : null, q: '', cat: 'common', pick: pick, count: swapping ? Number(swapping.count) || 1 : 1, shown: PICKER_PAGE, top: true };
+    drawPicker(true);
   }
 
   function closePicker() {
     if (!state.picker) return;
 
     state.picker = null;
-    root.querySelectorAll('.ipk-panel').forEach(panel => panel.remove());
+    drawPicker(false);
+    syncTyping();
   }
 
-  // A single item closes the picker; a list keeps it open, with the keyboard in its search box, to add more.
-  function pickItem(row, id) {
+  function matches(item, q) {
+    const low = q.toLowerCase();
+
+    return item.en.toLowerCase().indexOf(low) >= 0 || item.zh.indexOf(q) >= 0 || String(item.id).indexOf(low) === 0;
+  }
+
+  // The items on show: the search over every item, most used by recipes first, else the chosen shelf.
+  function shelf() {
+    const p = state.picker;
+    const all = state.items.list;
+    const q = p.q.trim();
+
+    if (q) return all.filter(item => matches(item, q)).sort((a, b) => b.uses - a.uses || a.id - b.id);
+
+    if (p.cat === 'common') return state.items.common;
+
+    if (p.cat === 'all') return all;
+
+    return all.filter(item => String(item.cat) === String(p.cat));
+  }
+
+  // Draws the picker into its own layer above the window. The search box is made once, so typing keeps the keyboard.
+  function drawPicker(isNew) {
+    const host = $('.pk-host');
+    const p = state.picker;
+    const row = pickerRow();
+
+    if (!p || !row || !state.items) {
+      host.innerHTML = '';
+
+      return;
+    }
+
+    if (isNew || !host.firstChild) {
+      host.innerHTML = '<div class="pk-veil"><div class="pk"><div class="pk-hd"><div class="ti"></div>' +
+        '<div class="pk-q"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input class="pk-find" spellcheck="false" autocomplete="off"></div>' +
+        '<div class="used"></div><div class="close-btn" data-act="pkClose">&#x2715;</div></div>' +
+        '<div class="pk-bd"><div class="pk-cats"></div><div class="pk-grid"></div><div class="pk-info"></div></div></div></div>';
+    }
+
+    fillPicker(row);
+
+    const find = host.querySelector('.pk-find');
+
+    if (isNew && find) {
+      find.placeholder = word('searchItems')(state.items.list.length.toLocaleString('en'));
+      find.focus();
+    }
+  }
+
+  function fillPicker(row) {
+    const host = $('.pk-host');
+    const p = state.picker;
+    const s = row.setting;
+    const list = isList(s) ? listOf(row.mod, s) : [];
+    const grid = host.querySelector('.pk-grid');
+    const top = p.top ? 0 : grid.scrollTop;
+    const swapping = p.slot !== null ? list[p.slot] : null;
+    const title = s.kind === 'item' ? word('titleOne') : swapping ? word('titleSwap')(itemName(swapping.id)) : word('titleAdd');
+
+    host.querySelector('.ti').innerHTML = esc(title) + ' &middot; <em>' + (s.section ? esc(s.section) + ' &middot; ' : '') + esc(s.label) + '</em>';
+    host.querySelector('.used').innerHTML = isList(s) && s.maxKinds ? '<b>' + list.length + '</b> / ' + s.maxKinds + ' ' + esc(word('used')) : '';
+    host.querySelector('.pk-find').placeholder = word('searchItems')(state.items.list.length.toLocaleString('en'));
+    host.querySelector('.pk-cats').innerHTML = pickerShelves();
+    grid.innerHTML = pickerGrid(s, list);
+    grid.scrollTop = top;
+    host.querySelector('.pk-info').innerHTML = pickerInfo(s, list);
+    p.top = false;
+  }
+
+  function pickerShelves() {
+    const p = state.picker;
+    const on = cat => (!p.q.trim() && String(p.cat) === String(cat) ? ' on' : '');
+    let out = '<div class="pk-cat star' + on('common') + '" data-cat="common"><span>&#x2605; ' + esc(word('usedInRecipes')) + '</span><i>' + state.items.common.length + '</i></div>' +
+      '<div class="pk-cat' + on('all') + '" data-cat="all"><span>' + esc(word('everyItem')) + '</span><i>' + state.items.list.length + '</i></div><div class="pk-sep"></div>';
+
+    for (const c of state.items.shelves) out += '<div class="pk-cat' + on(c.id) + '" data-cat="' + c.id + '"><span>' + esc(textOf(c)) + '</span><i>' + state.items.perCat[c.id] + '</i></div>';
+
+    return out;
+  }
+
+  function pickerGrid(s, list) {
+    const p = state.picker;
+    const found = shelf();
+    const inList = {};
+    const tile = item => {
+      const got = inList[String(item.id)];
+
+      return '<div class="it' + (String(item.id) === String(p.pick) ? ' hi' : '') + (got ? ' taken' : '') + '" data-id="' + item.id + '">' + (got && s.kind === 'itemCounts' ? '<span class="got">&times;' + esc(got) + '</span>' : '') +
+        (item.icon ? '<img loading="lazy" src="' + esc(item.icon) + '" alt="">' : '<span class="noimg">?</span>') + '<div class="in">' + esc(itemText(item)) + '</div><div class="id">#' + item.id + '</div></div>';
+    };
+
+    for (const e of list) inList[e.id] = e.count;
+
+    let out = s.kind === 'item' && !p.q.trim() ? '<div class="it' + (String(p.pick) === '0' ? ' hi' : '') + '" data-id="0"><span class="noimg">-</span><div class="in">' + esc(word('none')) + '</div><div class="id">#0</div></div>' : '';
+
+    out += found.slice(0, p.shown).map(tile).join('');
+
+    if (!found.length) return '<div class="pk-none">' + esc(word('noMatch')(p.q.trim())) + '</div>';
+
+    if (found.length > p.shown) out += '<div class="pk-more" data-act="pkMore">' + esc(word('showing')(p.shown, found.length)) + '</div>';
+
+    return out;
+  }
+
+  function pickerInfo(s, list) {
+    const p = state.picker;
+    const item = p.pick !== null && String(p.pick) !== '0' ? itemOf(p.pick) : null;
+
+    if (p.pick === null || (String(p.pick) !== '0' && !item)) {
+      return '<div class="empty-info">' + esc(word('clickToSee')) + '<br><span class="pk-keys">' + esc(word('dblClickAdds')) + '</span></div>';
+    }
+
+    const at = list.findIndex(e => e.id === String(p.pick));
+    const isFull = isList(s) && p.slot === null && at < 0 && !!s.maxKinds && list.length >= s.maxKinds;
+    const isIn = s.kind === 'itemList' && p.slot === null && at >= 0;
+    const verb = s.kind === 'item' ? 'pickOne' : p.slot !== null ? 'pickSwap' : isIn ? 'pickIn' : at >= 0 ? 'pickSet' : 'pickAdd';
+    const stepper = s.kind === 'itemCounts' ? '<div class="stp"><span data-act="pkDec">&minus;</span><input data-input="pkCount" value="' + p.count + '" inputmode="numeric"><span data-act="pkInc">+</span></div>' : '';
+    const go = '<div class="go' + (isFull || isIn ? ' off' : '') + '" data-act="pkGo">' + esc(word(verb)) + '</div>';
+
+    if (!item) return '<div class="t">' + esc(word('none')) + '</div><div class="act">' + go + '</div>';
+
+    return '<div class="big">' + icon(item) + '</div><div class="t">' + esc(itemText(item)) + '</div><div class="t2">' + esc(state.lang === 'zh' ? item.en : item.zh) + '</div>' +
+      '<dl><dt>id</dt><dd>' + item.id + '</dd><dt>' + esc(word('category')) + '</dt><dd>' + esc(categoryName(item.cat)) + '</dd>' +
+      '<dt>' + esc(word('weight')) + '</dt><dd>' + (item.g / 1000).toLocaleString('en', { maximumFractionDigits: 2 }) + ' kg</dd><dt>' + esc(word('value')) + '</dt><dd>' + item.v + '</dd>' +
+      '<dt>' + esc(word('recipes')) + '</dt><dd>' + esc(word('usesIn')(item.uses)) + '</dd></dl>' +
+      (isFull ? '<div class="mf-status bad"><i>!</i>' + esc(word('listFull')(s.maxKinds)) + '</div>' : '') +
+      '<div class="act">' + stepper + go + '</div>';
+  }
+
+  // Clicking an item shows it, with the amount it already has; double-clicking puts it in.
+  function pickTile(id, andCommit) {
+    const p = state.picker;
+    const row = pickerRow();
+
+    if (!row) return;
+
+    const list = isList(row.setting) ? listOf(row.mod, row.setting) : [];
+    const got = list.find(e => e.id === String(id));
+
+    p.pick = String(id);
+    p.count = got ? Number(got.count) : p.slot !== null && list[p.slot] ? Number(list[p.slot].count) : 1;
+
+    if (andCommit) commit();
+    else fillPicker(row);
+  }
+
+  // Puts the picked item in: in place of the one being swapped, onto the amount it already has, or at the end.
+  function commit() {
+    const p = state.picker;
+    const row = pickerRow();
+
+    if (!p || !row || p.pick === null) return;
+
     const s = row.setting;
 
     if (s.kind === 'item') {
       closePicker();
-      write(row, id);
+      write(row, String(p.pick));
 
       return;
     }
 
-    focusPicker();
+    const list = listOf(row.mod, s);
+    const id = String(p.pick);
+    const count = String(s.kind === 'itemCounts' ? clampCount(s, p.count) : 1);
+    const at = list.findIndex(e => e.id === id);
 
-    if (s.kind === 'itemList') {
-      const ids = idsOf(s.current);
+    // Swapping in an item the list already has elsewhere merges the two into that one.
+    if (p.slot !== null && at >= 0 && at !== p.slot) {
+      list[at].count = count;
+      list.splice(p.slot, 1);
+    } else if (p.slot !== null) {
+      list[p.slot] = { id: id, count: count };
+    } else if (at >= 0) {
+      if (s.kind === 'itemList') return;
 
-      if (ids.indexOf(id) < 0) write(row, ids.concat([id]).join(','));
+      list[at].count = count;
+    } else if (!s.maxKinds || list.length < s.maxKinds) {
+      list.push({ id: id, count: count });
+    } else {
+      return;
+    }
+
+    closePicker();
+    writeList(row, list, id);
+  }
+
+  // A second click on an item puts it in. The first click redraws the grid, so the browser's own double-click never
+  // reaches the item and the click count is read instead.
+  function onPickerClick(target, shift, second) {
+    const p = state.picker;
+    const act = target.closest('[data-act]');
+    const actName = act ? act.dataset.act : '';
+    const row = pickerRow();
+
+    if (!row || actName === 'pkClose' || target.classList.contains('pk-veil')) {
+      closePicker();
 
       return;
     }
 
-    const counts = countsOf(s.current);
+    const cat = target.closest('.pk-cat');
+    const tile = target.closest('.it');
 
-    if (!counts.some(c => c.id === id)) write(row, countsText(counts.concat([{ id: id, count: '1' }])));
+    if (cat) {
+      p.cat = cat.dataset.cat;
+      p.q = '';
+      p.shown = PICKER_PAGE;
+      p.top = true;
+      $('.pk-host .pk-find').value = '';
+      fillPicker(row);
+    } else if (tile) {
+      pickTile(tile.dataset.id, second);
+    } else if (actName === 'pkDec' || actName === 'pkInc') {
+      p.count = clampCount(row.setting, p.count + (actName === 'pkInc' ? 1 : -1) * (shift ? 10 : 1));
+      fillPicker(row);
+    } else if (actName === 'pkGo') {
+      commit();
+    } else if (actName === 'pkMore') {
+      p.shown += PICKER_PAGE;
+      fillPicker(row);
+    }
   }
 
-  function dropItem(row, index) {
-    const s = row.setting;
+  // The grid grows by a page as it is scrolled near its end.
+  function onPickerScroll(e) {
+    const grid = e.target;
+    const p = state.picker;
 
-    if (s.kind === 'itemList') write(row, idsOf(s.current).filter((id, i) => i !== index).join(','));
-    else write(row, countsText(countsOf(s.current).filter((c, i) => i !== index)));
-  }
+    if (!p || !grid.classList || !grid.classList.contains('pk-grid') || !grid.querySelector('.pk-more')) return;
 
-  function setItemCount(row, index, count) {
-    const counts = countsOf(row.setting.current);
+    if (grid.scrollTop + grid.clientHeight < grid.scrollHeight - 200) return;
 
-    if (counts[index]) counts[index].count = count.trim();
+    p.shown += PICKER_PAGE;
 
-    write(row, countsText(counts));
-  }
+    const row = pickerRow();
 
-  // A redraw replaces the picker's search box; give it the keyboard back so typing carries on.
-  function focusPicker() {
-    const find = state.picker ? pane.querySelector('.ipk-find') : null;
-
-    if (!find || document.activeElement === find) return;
-
-    find.focus();
-    find.setSelectionRange(find.value.length, find.value.length);
+    if (row) fillPicker(row);
   }
 
 
@@ -1788,7 +2315,13 @@
 
     if (state.binding && actName !== 'bind') cancelBinding();
 
-    if (state.picker && !target.closest('.ipk-panel') && actName !== 'pick') closePicker();
+    // The picker covers the window, so every click while it is open is the picker's.
+    if (state.picker) {
+      if (target.closest('.pk-host')) onPickerClick(target, e.shiftKey, e.detail >= 2);
+      else closePicker();
+
+      return;
+    }
 
     if (target.closest('[data-own]')) return;
 
@@ -1882,15 +2415,62 @@
     else if (actName === 'reset' && row) resetRow(row);
     else if ((actName === 'worldKeep' || actName === 'worldGlobal') && row) send('world', settingParts(row).slice(0, 3).concat([actName === 'worldKeep' ? 'keep' : 'global']));
     else if (actName === 'bind' && row) bind(row, act);
-    else if (actName === 'pick' && row) togglePicker(row);
-    else if (actName === 'pickItem' && row) pickItem(row, act.dataset.id);
+    else if (actName === 'pick' && row) openPicker(row, null);
+    else if (actName === 'swap' && row) openPicker(row, Number(act.dataset.index));
     else if (actName === 'dropItem' && row) dropItem(row, Number(act.dataset.index));
-    else if (!target.closest('.ipk-panel')) pickOption(target, row);
+    else if ((actName === 'dec' || actName === 'inc') && row) bump(row, Number(act.dataset.index), (actName === 'inc' ? 1 : -1) * (e.shiftKey ? 10 : 1));
+    else if (actName === 'byHand' && row) writeList(row, listOf(row.mod, row.setting));
+    else if (actName === 'editText' && row) editText(row);
+    else pickOption(target, row);
   }
 
-  function togglePicker(row) {
-    if (state.picker && state.picker.id === settingId(row.mod, row.setting)) closePicker();
-    else openPicker(row);
+  // The wheel over an item's card steps its amount, one a notch.
+  function onWheel(e) {
+    const card = e.target.closest('.mf .slot[data-slot]');
+    const row = card ? rowOf(card) : null;
+
+    if (!row || row.setting.kind !== 'itemCounts' || row.setting.readOnly) return;
+
+    e.preventDefault();
+    bump(row, Number(card.dataset.slot), e.deltaY < 0 ? 1 : -1);
+  }
+
+  // Cards are reordered by holding one and letting go over another; a press and release on the same card is a click.
+  function onMouseDown(e) {
+    const tile = e.button === 0 ? e.target.closest('.mf .slot[data-slot] .tile') : null;
+    const row = tile ? rowOf(tile) : null;
+
+    if (!row || row.setting.readOnly) return;
+
+    state.drag = { id: settingId(row.mod, row.setting), from: Number(tile.closest('.slot').dataset.slot) };
+  }
+
+  function onMouseOver(e) {
+    if (!state.drag) return;
+
+    root.querySelectorAll('.mf .slot.over').forEach(el => el.classList.remove('over'));
+
+    const card = e.target.closest('.mf .slot[data-slot]');
+    const row = card ? rowOf(card) : null;
+
+    if (row && settingId(row.mod, row.setting) === state.drag.id && Number(card.dataset.slot) !== state.drag.from) card.classList.add('over');
+  }
+
+  function onMouseUp(e) {
+    const drag = state.drag;
+
+    if (!drag) return;
+
+    root.querySelectorAll('.mf .slot.over').forEach(el => el.classList.remove('over'));
+
+    const card = e.target.closest('.mf .slot[data-slot]');
+    const row = card ? rowOf(card) : null;
+    const to = card ? Number(card.dataset.slot) : -1;
+
+    state.drag = null;
+
+    // The click that follows lands on the row of cards, which does nothing, so only a release on the same card opens the picker.
+    if (row && settingId(row.mod, row.setting) === drag.id && to !== drag.from) moveItem(row, drag.from, to);
   }
 
   function select(guid) {
@@ -1901,6 +2481,7 @@
     state.query = '';
     state.tab = '';
     state.side = '';
+    state.editing = null;
     searchBox.value = '';
     render();
     pane.scrollTop = 0;
@@ -1954,7 +2535,26 @@
       return;
     }
 
+    if (target.dataset.input === 'pkCount') {
+      const picking = pickerRow();
+
+      if (picking) {
+        state.picker.count = clampCount(picking.setting, parseInt(target.value, 10));
+        fillPicker(picking);
+      }
+
+      return;
+    }
+
     if (!row) return;
+
+    // The list typed as text is written as it is; the C# side reads it and says why when it cannot. Esc has already
+    // ended the edit when the browser sends the change of the line it is removing, and that change is dropped.
+    if (target.classList.contains('mf-in')) {
+      if (state.editing === null) return;
+
+      state.editing = null;
+    }
 
     if (target.dataset.input === 'toggle') write(row, target.checked ? 'true' : 'false');
     else if (target.dataset.input === 'range' || target.dataset.input === 'number' || target.dataset.input === 'text') write(row, target.value);
@@ -1973,12 +2573,14 @@
       return;
     }
 
-    if (target.classList.contains('ipk-find')) {
-      const row = rowOf(target);
+    if (target.classList.contains('pk-find') && state.picker) {
+      const picking = pickerRow();
 
-      state.picker.query = target.value;
+      state.picker.q = target.value;
+      state.picker.shown = PICKER_PAGE;
+      state.picker.top = true;
 
-      if (row) target.parentElement.querySelector('.ipk-list').innerHTML = pickerItems(row.setting);
+      if (picking) fillPicker(picking);
 
       return;
     }
@@ -1994,8 +2596,23 @@
   }
 
   // The keyboard reaches this page only while a text field has focus; Esc there leaves the field, not the screen.
+  // Enter in the picker's search puts in the item shown on the right, else the first one found.
   function onKeyDown(e) {
-    if (e.key !== 'Escape' || e.defaultPrevented || !isTextField(e.target)) return;
+    if (e.defaultPrevented || !isTextField(e.target)) return;
+
+    if (e.key === 'Enter' && e.target.classList.contains('pk-find') && state.picker) {
+      e.preventDefault();
+
+      const first = shelf()[0];
+
+      if (state.picker.pick === null && first) state.picker.pick = String(first.id);
+
+      commit();
+
+      return;
+    }
+
+    if (e.key !== 'Escape') return;
 
     e.preventDefault();
 
@@ -2003,12 +2620,26 @@
       searchBox.value = '';
       state.query = '';
       render();
-    } else if (e.target.classList.contains('ipk-find')) {
+    } else if (state.picker && e.target.closest('.pk-host')) {
       closePicker();
-      syncTyping();
+    } else if (e.target.classList.contains('mf-in')) {
+      state.editing = null;
+      render();
     } else {
       e.target.blur();
     }
+  }
+
+  // Leaving the list's text line without a change puts the cards back.
+  function onFocusOut(e) {
+    if (!e.target.classList || !e.target.classList.contains('mf-in')) return;
+
+    setTimeout(() => {
+      if (!state.editing || document.activeElement === e.target) return;
+
+      state.editing = null;
+      render();
+    }, 0);
   }
 
   function isTextField(el) {
@@ -2139,6 +2770,8 @@
     state.modNote = null;
     state.notesAsked = {};
     state.picker = null;
+    state.drafts = {};
+    state.editing = null;
     state.copied = null;
 
     if (!modByGuid(state.selected)) state.selected = view.mods.length ? (view.mods.find(m => m.loaded) || view.mods[0]).guid : null;
@@ -2161,11 +2794,15 @@
 
     for (const id of Object.keys(state.notes)) if (id.indexOf(mod.guid + '\n') === 0) delete state.notes[id];
 
+    // A count still being stepped stays on show until it is written; the rest now show what the mod has.
+    for (const id of Object.keys(state.drafts)) if (id.indexOf(mod.guid + '\n') === 0 && id !== draftId) delete state.drafts[id];
+
     if (note) state.notes[mod.guid + '\n' + note.section + '\n' + note.key] = note;
 
     state.binding = null;
     render();
     state.pending = null;
+    state.flash = null;
   }
 
   // A switch flip can change more than one mod, so the whole list comes back; the selection and language stay. With no
@@ -2206,6 +2843,12 @@
   function escape() {
     if (!root.classList.contains('on')) return;
 
+    if (state.picker) {
+      closePicker();
+
+      return;
+    }
+
     const shown = state.ownShown;
 
     if (shown && callTab(shown.tab, 'escape') === true) return;
@@ -2232,12 +2875,24 @@
   }
 
   // The game's item table, in the game's language, for the item and category controls. Sent before the screen opens.
+  // The picker's first shelf is the items recipes take most; its category shelves put the ones with the most recipe
+  // materials first, so Materials leads, then the rest in the game's order.
   function items(table) {
     const byId = {};
+    const perCat = {};
+    const usedPerCat = {};
 
-    for (const item of table.items) byId[String(item.id)] = item;
+    for (const item of table.items) {
+      byId[String(item.id)] = item;
+      perCat[item.cat] = (perCat[item.cat] || 0) + 1;
 
-    state.items = { list: table.items, byId: byId, categories: table.categories };
+      if (item.uses) usedPerCat[item.cat] = (usedPerCat[item.cat] || 0) + 1;
+    }
+
+    const common = table.items.filter(item => item.uses > 0).sort((a, b) => b.uses - a.uses || a.id - b.id);
+    const shelves = table.categories.filter(c => perCat[c.id]).sort((a, b) => (usedPerCat[b.id] || 0) - (usedPerCat[a.id] || 0) || a.id - b.id);
+
+    state.items = { list: table.items, byId: byId, categories: table.categories, common: common, perCat: perCat, shelves: shelves };
 
     if (root.classList.contains('on')) render();
   }
@@ -2264,8 +2919,17 @@
   root.addEventListener('change', onChange);
   root.addEventListener('input', onInput);
   root.addEventListener('keydown', onKeyDown);
+  root.addEventListener('wheel', onWheel, { passive: false });
+  root.addEventListener('mousedown', onMouseDown);
+  root.addEventListener('mouseover', onMouseOver);
+  root.addEventListener('mouseup', onMouseUp);
+  // A scroll does not bubble, so the picker's grid is watched on the way down.
+  root.addEventListener('scroll', onPickerScroll, true);
   root.addEventListener('focusin', () => setTimeout(syncTyping, 0));
-  root.addEventListener('focusout', () => setTimeout(syncTyping, 0));
+  root.addEventListener('focusout', e => {
+    onFocusOut(e);
+    setTimeout(syncTyping, 0);
+  });
   window.addEventListener('resize', fit);
 
   window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, escape: escape, tabsChanged: tabsChanged, icons: icons, banners: banners, items: items, copied: copied };

@@ -30,6 +30,7 @@ internal sealed class PluginCatalog
     private readonly string _selfGuid;
     private readonly Action<string> _log;
     private readonly HashSet<string> _reportedFailures = new();
+    private readonly ModAnswers _answers;
     private readonly Dictionary<string, IReadOnlyList<PluginFile>> _files = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Where each DLL moved this session, by where it was when the game started.</summary>
@@ -49,6 +50,7 @@ internal sealed class PluginCatalog
         _selfGuid = selfGuid;
         GameVersion = gameVersion;
         _log = log;
+        _answers = new ModAnswers(log);
     }
 
     public string? GameVersion { get; }
@@ -227,7 +229,7 @@ internal sealed class PluginCatalog
         var guid = plugin.Metadata.GUID;
         var location = plugin.Location;
         var info = InfoOf(guid, location);
-        ModState state = plugin.Instance is BasePlugin loaded ? new ModState.Loaded(ModList.Arrange(guid, Found(guid, loaded.Config), _startValues, info.SettingsApply)) : new ModState.NotLoaded();
+        ModState state = plugin.Instance is BasePlugin loaded ? new ModState.Loaded(ModList.Arrange(guid, Found(guid, loaded.Config, loaded.GetType().Assembly), _startValues, info.SettingsApply)) : new ModState.NotLoaded();
         ModSwitch modSwitch = location != null && _folders.IsOn(location) && nodes.FirstOrDefault(node => node.Guid == guid) is { } node
             ? SwitchPlanner.ForLoaded(node, nodes, _selfGuid, _folders.IsOn(CurrentPath(location)))
             : new ModSwitch.Unavailable();
@@ -342,7 +344,7 @@ internal sealed class PluginCatalog
     /// One setting that can't be read is skipped (and logged once) rather than hiding the whole mod. A tag or rule the
     /// Mod Manager cannot use is logged once too, so the mod's author can find out why.
     /// </summary>
-    private IEnumerable<FoundSetting> Found(string guid, ConfigFile config)
+    private IEnumerable<FoundSetting> Found(string guid, ConfigFile config, Assembly assembly)
     {
         var found = new List<FoundSetting>();
 
@@ -351,6 +353,8 @@ internal sealed class PluginCatalog
             try
             {
                 var (setting, ignored) = Read(entry);
+
+                if (setting.Kind is SettingKind.ItemList or SettingKind.ItemCounts) setting = setting with { Answer = _answers.For(guid, assembly, setting.Section, setting.Key) };
 
                 found.Add(setting);
 
@@ -362,7 +366,7 @@ internal sealed class PluginCatalog
             }
         }
 
-        foreach (var problem in ShowRules.Problems(found)) ReportOnce(guid + "/show/" + problem, "in " + guid + ", " + problem);
+        foreach (var problem in ShowRules.Problems(found).Concat(ModList.LinkProblems(found))) ReportOnce(guid + "/show/" + problem, "in " + guid + ", " + problem);
 
         return found;
     }
@@ -376,7 +380,7 @@ internal sealed class PluginCatalog
 
         if (tags.Control is { } control)
         {
-            var (withControl, problem) = SettingKinds.WithControl(entry.SettingType, kind, control);
+            var (withControl, problem) = SettingKinds.WithControl(entry.SettingType, kind, control, tags.Rules);
 
             kind = withControl;
 
@@ -385,7 +389,7 @@ internal sealed class PluginCatalog
 
         var defaultValue = TomlTypeConverter.ConvertToString(entry.DefaultValue, entry.SettingType);
         var apply = ApplyModes.ForSetting(description?.Tags, LiveSettings.IsWatched(entry));
-        var hints = HintsOf(description?.Tags) with { IsAdvanced = tags.IsAdvanced || IsAdvancedByAttributes(description?.Tags), ShowWhen = tags.ShowWhen, ChoiceZh = tags.ChoiceZh, ChoicePreview = tags.ChoicePreview };
+        var hints = HintsOf(description?.Tags) with { IsAdvanced = tags.IsAdvanced || IsAdvancedByAttributes(description?.Tags), ShowWhen = tags.ShowWhen, ChoiceZh = tags.ChoiceZh, ChoicePreview = tags.ChoicePreview, Makes = tags.Makes, ReturnsOf = tags.ReturnsOf };
 
         var world = tags.IsWorldRule ? WorldAccess.StateOf(entry) : null;
 

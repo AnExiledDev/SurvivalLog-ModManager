@@ -12,7 +12,7 @@ Open it with the Mods button in the Esc menu or on the title screen, or set a ke
 - **Checked before saving**: a number outside its range is moved to the nearest end and the screen says so. A value the mod cannot take is refused with the reason, and the file is left as it was.
 - **Search every setting**: type in the search box to find a setting across all mods by its name, section or description, or a mod by its name in either language.
 - **Shows what you changed**: settings that differ from the mod's default are marked, with a button to put each one back, or all of a mod's settings at once.
-- **Item pickers**: settings that hold game items or item categories get a searchable picker with the items' names and icons in the game's language, instead of a box for id numbers. Lists of items show as tags you add and remove, and item amounts get a number box each.
+- **Item pickers**: settings that hold game items or item categories show the items themselves, with their pictures and names in the game's language, instead of id numbers. A list of items shows as a row of item cards: click a card to swap its item, drag cards to reorder them, and use the - and + buttons or the mouse wheel to change an amount (hold Shift for 10 at a time). ADD ITEM opens a window of every item in the game, sorted into the game's categories with the items recipes use first, searchable by name in either language or by id, with each item's weight, value and how many recipes use it. A crafting recipe also shows what it makes and its total pieces, weight and value. A list of what taking something down gives back shows the items you get when it is left blank, warns when it would give back more than the recipe is worth, and SET BY HAND turns that into a list you edit. A mod can say why it cannot use a list (for example, when the game already has a recipe with exactly those materials), and the screen shows that reason under the list. The plain text of the list sits below the cards; click it to type or paste a list.
 - **Settings for one world**: a mod can let each world keep its own value of a setting (with Exiled's Toolkit 0.16.0 or newer). While you play, such a setting says whether this world keeps its own value, and the value every other world uses. A change to a value this world keeps goes to this world alone; USE GLOBAL sends it back to the shared value, and THIS WORLD ONLY makes the value this world's own.
 - **Tidy pages**: settings a mod marks as advanced sit in a folded "Advanced" group at the end of their section, and settings that only matter when another setting is on stay hidden until it is.
 - **Hotkey clashes**: a hotkey that another mod also uses is shown in red, with the name of the other mod. Mods can also list fixed hotkeys they use, which show on their page and count in the clash check.
@@ -79,7 +79,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.20151 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.13.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.14.0 or later, update the Toolkit.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.14.0 started`. If it says the Mods screen is off because it needs Exiled's Toolkit 0.14.0 or later, update the Toolkit.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
@@ -194,14 +194,21 @@ Config.Bind("Loot", "Mode", "Simple", new ConfigDescription("...", new Acceptabl
 Config.Bind("Loot", "BonusItem", 0, new ConfigDescription("...", null, "ModManager.Control=Item", "ModManager.ShowWhen=Mode=Custom"));
 Config.Bind("Loot", "Blocked", "", new ConfigDescription("...", null, "ModManager.Control=ItemList"));
 Config.Bind("Start", "Kit", "1203:5,7:2", new ConfigDescription("...", null, "ModManager.Control=ItemCounts"));
+Config.Bind("Turbine", "Materials", "20004:5,20104:3", new ConfigDescription("...", null, "ModManager.Control=ItemCounts", "ModManager.MaxKinds=7", "ModManager.MaxCount=99", "ModManager.Makes=910001"));
+Config.Bind("Turbine", "Returns", "", new ConfigDescription("...", null, "ModManager.Control=ItemCounts", "ModManager.AutoWhenBlank", "ModManager.ReturnsOf=Materials"));
 Config.Bind("Loot", "LogRolls", false, new ConfigDescription("...", null, "ModManager.Advanced"));
 ```
 
 | Tag | What it does |
 | --- | --- |
 | `ModManager.Control=Item` | An `int` setting holding a game item id. Shown as a searchable item picker; `0` reads as None. |
-| `ModManager.Control=ItemList` | A `string` of item ids separated by commas, such as `1203,7`. Shown as item tags with an add button. Saved without spaces, each item once. |
-| `ModManager.Control=ItemCounts` | A `string` of `id:amount` pairs separated by commas, such as `1203:5,7:2`. Shown as item tags with an amount box each. An item listed twice or an amount under 1 is refused. |
+| `ModManager.Control=ItemList` | A `string` of item ids separated by commas, such as `1203,7`. Shown as item cards with an ADD ITEM card. Saved without spaces, each item once. |
+| `ModManager.Control=ItemCounts` | A `string` of `id:amount` pairs separated by commas, such as `1203:5,7:2`. Shown as item cards with an amount each. An item listed twice or an amount under 1 is refused. Saved without spaces; a default written with spaces still counts as unchanged. |
+| `ModManager.MaxKinds=N` | An item list holds at most N different items. The ADD ITEM card goes away at N, and a longer list is refused. |
+| `ModManager.MaxCount=N` | No amount in an `ItemCounts` list goes over N; a bigger one is brought down to N, like a number past the end of its range. |
+| `ModManager.AutoWhenBlank` | A blank list means your mod picks the items. The screen shows the list your `ModManagerAnswers.Blank` gives (see below) in teal with a SET BY HAND button, and a list set to hold nothing is saved as `none`, so it stays apart from blank. |
+| `ModManager.Makes=<item id>` | The list is a crafting recipe for that item. A workbench card beside the list shows the item, and the recipe's total pieces, weight and value. |
+| `ModManager.ReturnsOf=<Key>` | The list is what taking down the thing made by that recipe setting gives back. Name a setting in another section as `Section.Key`. The screen warns when it gives back more value than the recipe takes. |
 | `ModManager.Control=Category` | An `int` setting holding a game item category id. Shown as a drop-down of the game's categories. |
 | `ModManager.ShowWhen=...` | Show the setting only while another setting of your mod has a value. `ShowWhen=Enabled` means that on/off setting is on; `ShowWhen=Mode=Custom\|Expert` means it holds either value (any case). Name a setting in another section as `Section.Key`. Several conditions joined by `;` must all hold. When the setting it depends on is hidden, this one is too. |
 | `ModManager.Advanced` | Put the setting in the folded "Advanced" group at the end of its section. |
@@ -210,6 +217,25 @@ Config.Bind("Loot", "LogRolls", false, new ConfigDescription("...", null, "ModMa
 | `ModManager.ChoicePreview=...` | A small picture of one choice of a list setting, as HTML: `ChoicePreview=Lamplight=<div style="...">...</div>`. One tag per choice; the first `=` after the choice ends its name, so the HTML may hold `=`. The drop-down then shows each picture beside its choice's name, and the picked one in the closed box; a choice without one shows its name alone. The HTML goes in as it is, inside a box 56 pixels high that cuts off anything bigger, and your mod's stylesheets are not on the Mods screen: use inline styles and inline SVG. |
 
 Item and category names come from the game in the player's language. A control on a setting of the wrong type, a rule naming a setting that does not exist, or a loop of rules is passed over (the setting shows as usual) and `BepInEx\mod-manager.log` says why. Hidden settings keep their values and search skips them.
+
+Your mod can also answer questions about its item lists, with no reference to the Mod Manager: give it a public static class named `ModManagerAnswers` (any namespace) with any of these methods. Each takes the setting's section and key, and the Mod Manager asks again every time a setting changes, so an answer can depend on your other settings.
+
+```csharp
+public static class ModManagerAnswers
+{
+    // Why your mod cannot use the list as it stands, "English\nChinese"; "" when it can. A list with no problem then
+    // shows "The mod can use this list."
+    public static string Problem(string section, string key) => "";
+
+    // For an AutoWhenBlank list: the list a blank value stands for right now, written like the setting.
+    public static string Blank(string section, string key) => "";
+
+    // A line under that list saying where it comes from, "English\nChinese".
+    public static string BlankNote(string section, string key) => "";
+}
+```
+
+A method that throws is logged once in `BepInEx\mod-manager.log` and counts as no answer.
 
 ### Dependencies and incompatibilities
 

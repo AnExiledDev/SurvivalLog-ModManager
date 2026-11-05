@@ -30,6 +30,24 @@ public sealed record Hints(bool IsHidden, string? DisplayName, int Order, bool I
 
     /// <summary>The picture of each choice that has one, as the mod's own HTML.</summary>
     public IReadOnlyDictionary<string, string> ChoicePreview { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>The item a recipe list makes, for the workbench card.</summary>
+    public int? Makes { get; init; }
+
+    /// <summary>The recipe setting a give-back list belongs to, as the mod named it: a key, or "Section.Key".</summary>
+    public string? ReturnsOf { get; init; }
+}
+
+/// <summary>
+/// What a mod says about an item list's value as it stands, through its ModManagerAnswers class: why it cannot use
+/// it, and what a blank value stands for. Asked afresh each time the settings are read, since both can hang on the
+/// mod's other settings.
+/// </summary>
+/// <param name="IsChecked">The mod checks this setting, so no problem means it can use the value.</param>
+/// <param name="Blank">The list a blank value stands for now, written like the setting; null when the mod gives none.</param>
+public sealed record ModAnswer(bool IsChecked, Description? Problem, string? Blank, Description? BlankNote)
+{
+    public static readonly ModAnswer None = new(false, null, null, null);
 }
 
 /// <summary>A setting as read from a plugin's config, values written as in the .cfg file.</summary>
@@ -38,6 +56,8 @@ public sealed record FoundSetting(string Section, string Key, string Description
 {
     /// <summary>Set while a world plays, for a setting that is one of the Toolkit's world rules.</summary>
     public WorldState? World { get; init; }
+
+    public ModAnswer Answer { get; init; } = ModAnswer.None;
 }
 
 /// <summary>
@@ -64,6 +84,14 @@ public sealed record Setting(SettingId Id, string Label, Description Description
 
     /// <summary>Its show-when rules hold. A setting that is not shown is still sent, so resetting the mod resets it too.</summary>
     public bool IsShown { get; init; } = true;
+
+    /// <summary>The item a recipe list makes, for the workbench card.</summary>
+    public int? Makes { get; init; }
+
+    /// <summary>The recipe setting of this mod that this give-back list belongs to.</summary>
+    public SettingId? ReturnsOf { get; init; }
+
+    public ModAnswer Answer { get; init; } = ModAnswer.None;
 
     public bool IsChanged => Current != Default;
 
@@ -179,25 +207,41 @@ public static class ModList
             .OrderBy(entry => sections.IndexOf(entry.setting.Section))
             .ThenByDescending(entry => entry.setting.Hints.Order)
             .ThenBy(entry => entry.index)
-            .Select(entry => Show(guid, entry.setting, startValues, modApply) with { IsShown = entry.isShown })
+            .Select(entry => Show(guid, entry.setting, all, startValues, modApply) with { IsShown = entry.isShown })
             .ToList();
     }
 
     public static IReadOnlyList<ModEntry> SortByName(IEnumerable<ModEntry> mods) =>
         mods.OrderBy(mod => mod.DisplayName, StringComparer.OrdinalIgnoreCase).ThenBy(mod => mod.Guid, StringComparer.Ordinal).ToList();
 
-    private static Setting Show(string guid, FoundSetting found, StartValues startValues, ApplyMode modApply)
+    /// <summary>Give-back lists whose ReturnsOf names no setting of the mod, for the log.</summary>
+    public static IReadOnlyList<string> LinkProblems(IReadOnlyList<FoundSetting> settings) =>
+        settings
+            .Where(setting => setting.Hints.ReturnsOf is { } target && ShowRules.Find(target, setting.Section, settings) < 0)
+            .Select(setting => "ReturnsOf of " + setting.Section + "." + setting.Key + " names " + setting.Hints.ReturnsOf + ", which is not a setting of this mod")
+            .ToList();
+
+    /// <summary>
+    /// Item lists are compared and shown as the Mod Manager writes them, so "1203:5, 7:2" in a mod's default and the
+    /// "1203:5,7:2" saved after an edit count as the same value.
+    /// </summary>
+    private static Setting Show(string guid, FoundSetting found, IReadOnlyList<FoundSetting> all, StartValues startValues, ApplyMode modApply)
     {
         var id = new SettingId(guid, found.Section, found.Key);
         var label = found.Hints.DisplayName is { Length: > 0 } name && name.Trim().Length > 0 ? name : Wording.LabelFromKey(found.Key);
+        var current = ValueInput.Canonical(found.Kind, found.Current);
+        var returnsOf = found.Hints.ReturnsOf is { } target ? ShowRules.Find(target, found.Section, all) : -1;
 
-        return new Setting(id, label, Wording.SplitDescription(found.Description), found.Kind, found.Default, found.Current, startValues.Remember(id, found.Current), found.Hints.IsReadOnly)
+        return new Setting(id, label, Wording.SplitDescription(found.Description), found.Kind, ValueInput.Canonical(found.Kind, found.Default), current, startValues.Remember(id, current), found.Hints.IsReadOnly)
         {
             Apply = found.Apply != ApplyMode.Unknown ? found.Apply : modApply,
             IsAdvanced = found.Hints.IsAdvanced,
             ChoiceZh = found.Hints.ChoiceZh,
             ChoicePreview = found.Hints.ChoicePreview,
             World = found.World,
+            Makes = found.Hints.Makes,
+            ReturnsOf = returnsOf >= 0 ? new SettingId(guid, all[returnsOf].Section, all[returnsOf].Key) : null,
+            Answer = found.Answer,
         };
     }
 }

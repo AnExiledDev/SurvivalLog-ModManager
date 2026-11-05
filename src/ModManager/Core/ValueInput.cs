@@ -34,10 +34,26 @@ public static class ValueInput
         SettingKind.Hotkey hotkey => Hotkey(hotkey, raw),
         SettingKind.Text => new Normalized.Accepted(raw, WasClamped: false),
         SettingKind.Item or SettingKind.Category => Id(raw.Trim()),
-        SettingKind.ItemList => ItemList(raw),
-        SettingKind.ItemCounts => ItemCounts(raw),
+        SettingKind.ItemList list => ItemList(list, raw),
+        SettingKind.ItemCounts counts => ItemCounts(counts, raw),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
+
+    /// <summary>
+    /// An item list as the Mod Manager writes it, limits aside, so values that differ only in spacing compare equal.
+    /// Any other value, and a list that cannot be read, comes back as it is.
+    /// </summary>
+    public static string Canonical(SettingKind kind, string value)
+    {
+        var open = kind switch
+        {
+            SettingKind.ItemList list => ItemList(new SettingKind.ItemList(AutoWhenBlank: list.AutoWhenBlank), value),
+            SettingKind.ItemCounts counts => ItemCounts(new SettingKind.ItemCounts(AutoWhenBlank: counts.AutoWhenBlank), value),
+            _ => null,
+        };
+
+        return open is Normalized.Accepted accepted ? accepted.Value : value;
+    }
 
     private static Normalized Toggle(string raw)
     {
@@ -98,9 +114,14 @@ public static class ValueInput
     private static Normalized Id(string raw) =>
         IdOf(raw) is { } id ? new Normalized.Accepted(id.ToString(CultureInfo.InvariantCulture), false) : Reject("Must be a whole number, 0 or more.", "必须是不小于 0 的整数。");
 
+    /// <summary>The word a list the mod fills in when blank is saved as when it is set to hold nothing.</summary>
+    public const string NoItems = "none";
+
     /// <summary>Spaces and empty entries are dropped and an item listed twice is kept once, so the cfg holds the plain "1203,1405".</summary>
-    private static Normalized ItemList(string raw)
+    private static Normalized ItemList(SettingKind.ItemList kind, string raw)
     {
+        if (kind.AutoWhenBlank && IsNoItems(raw)) return new Normalized.Accepted(NoItems, false);
+
         var ids = new List<int>();
 
         foreach (var part in Entries(raw))
@@ -110,13 +131,21 @@ public static class ValueInput
             if (!ids.Contains(id)) ids.Add(id);
         }
 
+        if (kind.MaxKinds is { } most && ids.Count > most) return TooMany(most);
+
         return new Normalized.Accepted(string.Join(",", ids.Select(id => id.ToString(CultureInfo.InvariantCulture))), false);
     }
 
-    /// <summary>An item listed twice is refused rather than merged, since either amount could be the one meant.</summary>
-    private static Normalized ItemCounts(string raw)
+    /// <summary>
+    /// An item listed twice is refused rather than merged, since either amount could be the one meant. An amount over
+    /// the mod's limit is brought down to it, like a number past the end of its range.
+    /// </summary>
+    private static Normalized ItemCounts(SettingKind.ItemCounts kind, string raw)
     {
+        if (kind.AutoWhenBlank && IsNoItems(raw)) return new Normalized.Accepted(NoItems, false);
+
         var counts = new List<(int Id, int Count)>();
+        var wasClamped = false;
 
         foreach (var part in Entries(raw))
         {
@@ -128,11 +157,23 @@ public static class ValueInput
 
             if (counts.Any(entry => entry.Id == id)) return Reject("Item listed twice: " + id, "物品重复：" + id);
 
+            if (kind.MaxCount is { } most && count > most)
+            {
+                count = most;
+                wasClamped = true;
+            }
+
             counts.Add((id, count));
         }
 
-        return new Normalized.Accepted(string.Join(",", counts.Select(entry => entry.Id.ToString(CultureInfo.InvariantCulture) + ":" + entry.Count.ToString(CultureInfo.InvariantCulture))), false);
+        if (kind.MaxKinds is { } kinds && counts.Count > kinds) return TooMany(kinds);
+
+        return new Normalized.Accepted(string.Join(",", counts.Select(entry => entry.Id.ToString(CultureInfo.InvariantCulture) + ":" + entry.Count.ToString(CultureInfo.InvariantCulture))), wasClamped);
     }
+
+    private static bool IsNoItems(string raw) => raw.Trim().Equals(NoItems, StringComparison.OrdinalIgnoreCase);
+
+    private static Normalized.Rejected TooMany(int most) => Reject("At most " + most + " different items.", "最多 " + most + " 种物品。");
 
     private static IEnumerable<string> Entries(string raw) => raw.Split(',').Select(part => part.Trim()).Where(part => part.Length > 0);
 
