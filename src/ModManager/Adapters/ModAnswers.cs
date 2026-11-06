@@ -11,6 +11,7 @@ namespace ModManager.Adapters;
 /// mod needs no reference to the Mod Manager. Each method takes the setting's section and key and returns a string,
 /// and each is optional: Problem says why the mod cannot use the value as it stands ("" when it can), Blank gives the
 /// list a blank value stands for now, and BlankNote a line about that list. Problem and BlankNote are "English\nChinese".
+/// Entries gives what a List setting picks from, one entry per line (see <see cref="ListEntries"/>).
 /// A method that throws is logged once and counts as no answer.
 /// </summary>
 internal sealed class ModAnswers
@@ -28,9 +29,10 @@ internal sealed class ModAnswers
         _log = log;
     }
 
-    private sealed record Methods(MethodInfo? Problem, MethodInfo? Blank, MethodInfo? BlankNote);
+    private sealed record Methods(MethodInfo? Problem, MethodInfo? Blank, MethodInfo? BlankNote, MethodInfo? Entries);
 
-    public ModAnswer For(string guid, Assembly assembly, string section, string key)
+    /// <param name="withEntries">Also ask for the entries, which only a List setting has.</param>
+    public ModAnswer For(string guid, Assembly assembly, string section, string key, bool withEntries = false)
     {
         var methods = MethodsOf(assembly);
 
@@ -39,8 +41,9 @@ internal sealed class ModAnswers
         var (problemAsked, problem) = Ask(guid, methods.Problem, section, key);
         var (_, blank) = Ask(guid, methods.Blank, section, key);
         var (_, note) = Ask(guid, methods.BlankNote, section, key);
+        var entries = withEntries ? ListEntries.Parse(Ask(guid, methods.Entries, section, key).Text) : Array.Empty<ListEntry>();
 
-        return new ModAnswer(problemAsked, Words(problem), blank?.Trim(), Words(note));
+        return new ModAnswer(problemAsked, Words(problem), blank?.Trim(), Words(note)) { Entries = entries };
     }
 
     private static Description? Words(string? text) => string.IsNullOrWhiteSpace(text) ? null : Wording.SplitDescription(text);
@@ -69,7 +72,7 @@ internal sealed class ModAnswers
         if (_byAssembly.TryGetValue(assembly, out var known)) return known;
 
         var type = TypesOf(assembly).FirstOrDefault(type => type.Name == TypeName && type.IsAbstract && type.IsSealed);
-        var methods = type == null ? null : new Methods(Method(type, "Problem"), Method(type, "Blank"), Method(type, "BlankNote"));
+        var methods = type == null ? null : new Methods(Method(type, "Problem"), Method(type, "Blank"), Method(type, "BlankNote"), Method(type, "Entries"));
 
         _byAssembly[assembly] = methods;
 

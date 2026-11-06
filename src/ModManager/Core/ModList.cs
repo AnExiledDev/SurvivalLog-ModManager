@@ -48,6 +48,9 @@ public sealed record Hints(bool IsHidden, string? DisplayName, int Order, bool I
 public sealed record ModAnswer(bool IsChecked, Description? Problem, string? Blank, Description? BlankNote)
 {
     public static readonly ModAnswer None = new(false, null, null, null);
+
+    /// <summary>The entries a List setting picks from, as the mod gives them; empty for an item list.</summary>
+    public IReadOnlyList<ListEntry> Entries { get; init; } = Array.Empty<ListEntry>();
 }
 
 /// <summary>A setting as read from a plugin's config, values written as in the .cfg file.</summary>

@@ -62,6 +62,9 @@ internal sealed class ModsSession
     /// <summary>The language the item table was sent in to the page that is there now; null when it has not been sent.</summary>
     private bool _itemsSent;
 
+    /// <summary>The Entries call last sent for each List setting to the page that is there now.</summary>
+    private readonly Dictionary<string, string> _entriesSent = new();
+
     public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
@@ -99,7 +102,7 @@ internal sealed class ModsSession
 
         if (hasChecked) TellUpdatesOnce();
 
-        if ((hasChecked || hasInstalled) && _isOpen) _page.Run(PageScript.Refresh(View()));
+        if ((hasChecked || hasInstalled) && _isOpen) _page.Run(PageScript.Refresh(Shown()));
         else RedrawForNewErrors(now);
 
         if (_capture.Target != null)
@@ -122,11 +125,13 @@ internal sealed class ModsSession
             case PageCommand.Ready:
                 Forget();
                 _itemsSent = false;
+                _entriesSent.Clear();
                 SendPictures();
                 break;
             case PageCommand.NoScript:
                 Forget();
                 _itemsSent = false;
+                _entriesSent.Clear();
                 _page.Install();
                 break;
             case PageCommand.Open:
@@ -160,7 +165,7 @@ internal sealed class ModsSession
                 ShowConfigFile(show.Guid);
                 break;
             case PageCommand.Switch flip:
-                _page.Run(PageScript.Replace(View(), _catalog.Switch(flip.Guid, flip.IsOn)));
+                _page.Run(PageScript.Replace(Shown(), _catalog.Switch(flip.Guid, flip.IsOn)));
                 break;
             case PageCommand.OpenLink link:
                 OpenLink(link.Guid, link.Kind);
@@ -208,7 +213,7 @@ internal sealed class ModsSession
         if (isOn) _checks.Start(UpdateRepositories());
         else _checks.Stop();
 
-        if (_isOpen) _page.Run(PageScript.Refresh(View()));
+        if (_isOpen) _page.Run(PageScript.Refresh(Shown()));
     }
 
     private IEnumerable<string> UpdateRepositories() => _catalog.Mods().Select(mod => mod.Info.UpdateRepository).OfType<string>();
@@ -324,7 +329,7 @@ internal sealed class ModsSession
 
     private void RefreshOpen()
     {
-        if (_isOpen) _page.Run(PageScript.Refresh(View()));
+        if (_isOpen) _page.Run(PageScript.Refresh(Shown()));
     }
 
     /// <summary>Turns on what the mod needs, then what those need, and says what could not be turned on.</summary>
@@ -364,7 +369,7 @@ internal sealed class ModsSession
 
         var isWarning = failed.Count > 0 || missing.Count > 0 || wrongVersion.Count > 0;
 
-        _page.Run(PageScript.Replace(View(), new ModNote(guid, isWarning, NeedsNotes.TurnedOn(turnedOn, missing, failed, wrongVersion))));
+        _page.Run(PageScript.Replace(Shown(), new ModNote(guid, isWarning, NeedsNotes.TurnedOn(turnedOn, missing, failed, wrongVersion))));
     }
 
     private void FetchNotes(string guid)
@@ -400,7 +405,35 @@ internal sealed class ModsSession
         if (!_isOpen || _watch.Book.Version == _errorsShown || now - _errorsDrawnAt < ErrorRedrawSeconds) return;
 
         _errorsDrawnAt = now;
-        _page.Run(PageScript.Refresh(View()));
+        _page.Run(PageScript.Refresh(Shown()));
+    }
+
+    /// <summary>The view, with any List setting's entries that changed sent first, so the redraw has them.</summary>
+    private ModsView Shown()
+    {
+        var view = View();
+
+        SendEntries(view.Mods);
+
+        return view;
+    }
+
+    private void SendEntries(IEnumerable<ModEntry> mods)
+    {
+        foreach (var mod in mods)
+        {
+            if (mod.State is not ModState.Loaded loaded) continue;
+
+            foreach (var setting in loaded.Settings.Where(setting => setting.Kind is SettingKind.EntryList))
+            {
+                var id = PageScript.EntriesId(setting.Id);
+                var script = PageScript.Entries(id, setting.Answer.Entries);
+
+                if (_entriesSent.TryGetValue(id, out var sent) && sent == script) continue;
+
+                if (_page.Run(script)) _entriesSent[id] = script;
+            }
+        }
     }
 
     private ModsView View()
@@ -428,6 +461,7 @@ internal sealed class ModsSession
 
         _page.Install();
         SendItems(view);
+        SendEntries(view.Mods);
 
         if (!_page.Run(PageScript.Open(view, filter))) return;
 
@@ -537,7 +571,10 @@ internal sealed class ModsSession
     {
         var mod = _catalog.Mod(guid);
 
-        if (mod != null) _page.Run(PageScript.Update(mod, note));
+        if (mod == null) return;
+
+        SendEntries(new[] { mod });
+        _page.Run(PageScript.Update(mod, note));
     }
 
     /// <summary>The address is taken from the mod's own info, which only holds checked web addresses.</summary>

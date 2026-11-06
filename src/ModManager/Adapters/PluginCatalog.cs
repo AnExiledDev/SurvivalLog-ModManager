@@ -357,7 +357,7 @@ internal sealed class PluginCatalog
             {
                 var (setting, ignored) = Read(entry);
 
-                if (setting.Kind is SettingKind.ItemList or SettingKind.ItemCounts) setting = setting with { Answer = _answers.For(guid, assembly, setting.Section, setting.Key) };
+                if (setting.Kind is SettingKind.ItemList or SettingKind.ItemCounts or SettingKind.EntryList) setting = setting with { Answer = _answers.For(guid, assembly, setting.Section, setting.Key, setting.Kind is SettingKind.EntryList) };
 
                 found.Add(setting);
 
@@ -383,7 +383,7 @@ internal sealed class PluginCatalog
 
         if (tags.Control is { } control)
         {
-            var (withControl, problem) = SettingKinds.WithControl(entry.SettingType, kind, control, tags.Rules);
+            var (withControl, problem) = SettingKinds.WithControl(entry.SettingType, kind, control, tags.Rules, tags.Entry);
 
             kind = withControl;
 

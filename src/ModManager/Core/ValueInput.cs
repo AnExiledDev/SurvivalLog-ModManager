@@ -36,6 +36,7 @@ public static class ValueInput
         SettingKind.Item or SettingKind.Category => Id(raw.Trim()),
         SettingKind.ItemList list => ItemList(list, raw),
         SettingKind.ItemCounts counts => ItemCounts(counts, raw),
+        SettingKind.EntryList list => EntryList(list, raw),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 
@@ -49,6 +50,7 @@ public static class ValueInput
         {
             SettingKind.ItemList list => ItemList(new SettingKind.ItemList(AutoWhenBlank: list.AutoWhenBlank), value),
             SettingKind.ItemCounts counts => ItemCounts(new SettingKind.ItemCounts(AutoWhenBlank: counts.AutoWhenBlank), value),
+            SettingKind.EntryList list => EntryList(list with { MaxKinds = null }, value),
             _ => null,
         };
 
@@ -170,6 +172,66 @@ public static class ValueInput
 
         return new Normalized.Accepted(string.Join(",", counts.Select(entry => entry.Id.ToString(CultureInfo.InvariantCulture) + ":" + entry.Count.ToString(CultureInfo.InvariantCulture))), wasClamped);
     }
+
+    /// <summary>
+    /// The mod's own ids, each written once. An entry that carries a choice takes one of the mod's, spelled as the mod
+    /// spells it; one that carries a number is brought into its range. An entry listed twice is refused when it
+    /// carries a value, since either could be the one meant, and kept once otherwise.
+    /// </summary>
+    private static Normalized EntryList(SettingKind.EntryList kind, string raw)
+    {
+        if (kind.AutoWhenBlank && IsNoItems(raw)) return new Normalized.Accepted(NoItems, false);
+
+        var carries = kind.Choices != null || kind.HasNumber;
+        var entries = new List<(string Id, string? Value)>();
+        var wasClamped = false;
+
+        foreach (var part in Entries(raw))
+        {
+            var pair = part.Split(':');
+            var id = pair[0].Trim();
+
+            if (id.Length == 0 || id.IndexOfAny(Blanks) >= 0 || pair.Length > 2 || (pair.Length == 2) != carries)
+            {
+                return carries ? Reject("Not an entry and its value, such as 12:" + Example(kind) + ": " + part, "不是「编号:值」格式，例如 12:" + Example(kind) + "：" + part) : Reject("Not an entry id: " + part, "不是有效的编号：" + part);
+            }
+
+            if (entries.Any(entry => entry.Id.Equals(id, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (carries) return Reject("Listed twice: " + id, "重复：" + id);
+
+                continue;
+            }
+
+            string? value = null;
+
+            if (kind.Choices is { } choices)
+            {
+                value = choices.FirstOrDefault(choice => choice.Equals(pair[1].Trim(), StringComparison.OrdinalIgnoreCase));
+
+                if (value == null) return Reject("Must be one of " + string.Join(", ", choices) + ": " + part, "只能是 " + string.Join("、", choices) + " 之一：" + part);
+            }
+            else if (kind.HasNumber)
+            {
+                if (!double.TryParse(pair[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) || !double.IsFinite(number)) return Reject("The value must be a number: " + part, "值必须是数字：" + part);
+
+                var clamped = Clamp(number, kind.Min, kind.Max);
+
+                wasClamped |= clamped != number;
+                value = clamped.ToString(CultureInfo.InvariantCulture);
+            }
+
+            entries.Add((id, value));
+        }
+
+        if (kind.MaxKinds is { } most && entries.Count > most) return Reject("At most " + most + " entries.", "最多 " + most + " 项。");
+
+        return new Normalized.Accepted(string.Join(",", entries.Select(entry => entry.Value == null ? entry.Id : entry.Id + ":" + entry.Value)), wasClamped);
+    }
+
+    private static readonly char[] Blanks = { ' ', '\t' };
+
+    private static string Example(SettingKind.EntryList kind) => kind.Choices is { Count: > 0 } choices ? choices[0] : (kind.Min ?? 1).ToString(CultureInfo.InvariantCulture);
 
     private static bool IsNoItems(string raw) => raw.Trim().Equals(NoItems, StringComparison.OrdinalIgnoreCase);
 

@@ -43,6 +43,18 @@ public static class PageScript
         return Call("items", "{\"items\":" + itemsJson + ",\"categories\":" + categoriesJson + "}");
     }
 
+    /// <summary>The name a List setting's entries go by on the page.</summary>
+    public static string EntriesId(SettingId id) => id.Guid + "\n" + id.Section + "\n" + id.Key;
+
+    /// <summary>The entries one List setting picks from, sent when they first arrive or change.</summary>
+    public static string Entries(string id, IReadOnlyList<ListEntry> entries)
+    {
+        var json = List(entries, entry => "{\"id\":" + Str(entry.Id) + ",\"en\":" + Str(entry.Name.English) + ",\"zh\":" + Str(entry.Name.Chinese) +
+            ",\"icon\":" + (entry.Icon == null ? "null" : Str(entry.Icon)) + ",\"group\":" + Text(entry.Group) + ",\"note\":" + Text(entry.Note) + "}");
+
+        return Call("entries", Str(id) + "," + json);
+    }
+
     private static string Int(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>Says whether the mod list reached the clipboard.</summary>
@@ -145,7 +157,15 @@ public static class PageScript
             json.Append(",\"optionsPreview\":").Append(List(pictured.Options, option => setting.ChoicePreview.TryGetValue(option, out var html) ? Str(html) : "null"));
         }
 
-        if (setting.Kind is SettingKind.ItemList or SettingKind.ItemCounts) AppendItemField(json, setting);
+        if (setting.Kind is SettingKind.ItemList or SettingKind.ItemCounts or SettingKind.EntryList) AppendItemField(json, setting);
+
+        // The entries come in their own call (Entries), only when they change, so a redraw does not resend them.
+        if (setting.Kind is SettingKind.EntryList { Choices: { } entryChoices })
+        {
+            json.Append(",\"choicesZh\":").Append(List(entryChoices, option => setting.ChoiceZh.TryGetValue(option, out var name) ? Str(name) : "null"));
+        }
+
+        if (setting.Kind is SettingKind.EntryList) json.Append(",\"catalog\":").Append(Str(EntriesId(setting.Id)));
 
         return json.Append('}').ToString();
     }
@@ -200,6 +220,13 @@ public static class PageScript
                 break;
             case SettingKind.Category:
                 json.Append(",\"kind\":\"category\"");
+                break;
+            case SettingKind.EntryList entries:
+                json.Append(",\"kind\":\"entryList\",\"maxKinds\":").Append(entries.MaxKinds is { } count ? Int(count) : "null");
+                json.Append(",\"auto\":").Append(Bool(entries.AutoWhenBlank));
+                json.Append(",\"choices\":").Append(entries.Choices is { } choices ? List(choices, Str) : "null");
+                json.Append(",\"min\":").Append(entries.HasNumber && entries.Min is { } low ? Num(low) : "null");
+                json.Append(",\"max\":").Append(entries.HasNumber && entries.Max is { } high ? Num(high) : "null");
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, null);

@@ -104,6 +104,9 @@
       atBench: 'AT THE WORKBENCH', noMaterials: 'No materials yet', pieces: 'pieces', kgCarry: 'kg to carry', tradeValue: 'trade value',
       givesBack: 'Taking it down gives back', autoMark: 'auto', byHandMark: 'by hand',
       usedInRecipes: 'Used in recipes', everyItem: 'Every item', searchItems: n => 'Search ' + n + ' items by name, 中文 or id', used: 'used',
+      addEntry: 'ADD', titleAddEntry: 'ADD TO THE LIST', swapEntry: 'Pick another', everything: 'Everything', searchEntries: n => 'Search ' + n + ' by name or 中文',
+      noEntryMatch: q => 'Nothing matches "' + q + '".', entriesFull: n => 'The list holds ' + n + ' already. Remove one first.', changeChoice: 'Click to change',
+      entriesWaiting: 'The mod has not listed what this can hold yet. Once a save is loaded it will.',
       pickAdd: 'ADD', pickSet: 'SET COUNT', pickSwap: 'SWAP IN', pickOne: 'PICK', pickIn: 'IN THE LIST',
       titleAdd: 'ADD AN ITEM', titleSwap: name => 'SWAP ' + name, titleOne: 'PICK AN ITEM',
       clickToSee: 'Click an item to see it here.', dblClickAdds: 'Double-click adds it at once',
@@ -206,6 +209,9 @@
       atBench: '工作台', noMaterials: '还没有材料', pieces: '件数', kgCarry: '公斤', tradeValue: '交易价值',
       givesBack: '拆除后返还', autoMark: '自动', byHandMark: '手动',
       usedInRecipes: '常用材料', everyItem: '全部物品', searchItems: n => '按名称、英文或 id 搜索 ' + n + ' 种物品', used: '已用',
+      addEntry: '添加', titleAddEntry: '加入清单', swapEntry: '换一个', everything: '全部', searchEntries: n => '按名称或英文搜索 ' + n + ' 项',
+      noEntryMatch: q => '没有与「' + q + '」匹配的项。', entriesFull: n => '清单里已有 ' + n + ' 项。请先移除一项。', changeChoice: '点击更改',
+      entriesWaiting: '模组还没有列出可选的内容。载入存档后就会列出。',
       pickAdd: '添加', pickSet: '设置数量', pickSwap: '替换', pickOne: '选择', pickIn: '已在清单中',
       titleAdd: '添加物品', titleSwap: name => '替换 ' + name, titleOne: '选择物品',
       clickToSee: '点击物品可在这里查看。', dblClickAdds: '双击直接添加',
@@ -236,6 +242,8 @@
     icons: {},
     banners: {},
     items: null,
+    // The entries of each List setting, by the setting's catalog name.
+    entries: {},
     picker: null,
     drafts: {},
     editing: null,
@@ -778,6 +786,18 @@
 #slmm .pk-info .go:hover { background: rgba(235,163,8,0.35); color: #fff; }
 #slmm .pk-info .go.off { opacity: .35; pointer-events: none; }
 #slmm .pk-info .empty-info { margin: auto; color: #666; text-align: center; font-size: .9rem; line-height: 1.6; }
+#slmm .mf .ech { margin-top: auto; width: 100%; padding: 5px 0; text-align: center; border: 1px solid rgba(143,199,191,0.45); border-radius: 2px; color: var(--teal); font: 700 .8rem var(--mono); letter-spacing: 1px; cursor: pointer; background: rgba(143,199,191,0.06); }
+#slmm .mf .ech:hover { background: rgba(143,199,191,0.2); color: #fff; }
+#slmm .mf .ech.off { cursor: default; opacity: .8; }
+#slmm .mf .ech.off:hover { background: rgba(143,199,191,0.06); color: var(--teal); }
+#slmm .mf .tile .noimg, #slmm .pk .it .noimg, #slmm .pk-info .big .noimg { font-size: 1.6rem; color: #8a7a5c; }
+#slmm .pk-info .big .noimg { font: 700 3.5rem var(--mono); }
+#slmm .pk-info .pk-note { color: #cfc6b2; font-size: .9rem; line-height: 1.45; }
+#slmm .pk-info .act.wrap { flex-wrap: wrap; }
+#slmm .pk-info .pk-ch { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+#slmm .pk-info .pk-ch span { flex: 1; text-align: center; padding: 7px 8px; border: 1px solid rgba(143,199,191,0.35); border-radius: 2px; color: #9fb8b4; font: 700 .8rem var(--mono); letter-spacing: 1px; cursor: pointer; }
+#slmm .pk-info .pk-ch span:hover { background: rgba(143,199,191,0.15); }
+#slmm .pk-info .pk-ch span.on { background: rgba(143,199,191,0.25); border-color: var(--teal); color: #fff; }
 #slmm .pk-keys { font: .72rem var(--mono); color: #666; letter-spacing: 1px; }
 @keyframes mf-pop { 0% { transform: scale(1); } 50% { transform: scale(1.25); } 100% { transform: scale(1); } }
 `;
@@ -1639,6 +1659,14 @@
 
     if (s.kind === 'choice') return choiceLabel(s, value);
 
+    if (isEntries(s)) {
+      if (!catalogOf(s)) return value;
+
+      if (s.auto && value === '') return word('blankChooses');
+
+      return entriesOf(s, value).map(e => entryName(s, e.id) + (hasValue(s) ? ' ' + valueLabel(s, e.count) : '')).join(', ') || word('none');
+    }
+
     if (!state.items) return value;
 
     if (s.kind === 'item') return itemName(value);
@@ -1684,12 +1712,49 @@
 
   // ===== Item and category controls =====
 
-  const isList = s => s.kind === 'itemList' || s.kind === 'itemCounts';
-  const isListField = s => isList(s) && !!state.items;
+  // A List setting picks from the entries its mod gives (state.entries); every other list picks from the game's items.
+  const isEntries = s => s.kind === 'entryList';
+  const isList = s => s.kind === 'itemList' || s.kind === 'itemCounts' || isEntries(s);
+  const catalogOf = s => (isEntries(s) ? state.entries[s.catalog] || null : state.items);
+  const isListField = s => isList(s) && !!catalogOf(s);
   const itemOf = id => state.items.byId[String(id)];
+  const entryOf = (s, id) => (catalogOf(s) ? catalogOf(s).byId[String(id)] : null);
+  // Each entry of the list carries a value: an amount, a mod's number, or one of the mod's choices.
+  const hasValue = s => s.kind === 'itemCounts' || (isEntries(s) && (!!s.choices || s.min !== null));
+  const hasChoice = s => isEntries(s) && !!s.choices;
+  const hasStepper = s => hasValue(s) && !hasChoice(s);
+  const isDecimal = s => isEntries(s) && s.min !== null;
+  const forList = (s, itemWord, entryWord) => word(isEntries(s) ? entryWord : itemWord);
   const itemText = item => (state.lang === 'zh' ? item.zh : item.en);
   const textOf = text => (state.lang === 'zh' ? text.zh : text.en);
-  const icon = (item, cls) => (item && item.icon ? '<img src="' + esc(item.icon) + '" alt=""' + (cls ? ' class="' + cls + '"' : '') + '>' : '<span class="noimg">?</span>');
+  const icon = (item, cls) => (item && item.icon ? '<img src="' + esc(item.icon) + '" alt=""' + (cls ? ' class="' + cls + '"' : '') + '>' : '<span class="noimg">' + esc(initial(item)) + '</span>');
+
+  // An entry of the mod's with no picture shows the first letter of its name; an item without one, a question mark.
+  function initial(item) {
+    if (!item || !item.entry) return '?';
+
+    return Array.from(itemText(item))[0] || '?';
+  }
+
+  function entryName(s, id) {
+    if (!isEntries(s)) return itemName(id);
+
+    const entry = entryOf(s, id);
+
+    return entry ? itemText(entry) : String(id);
+  }
+
+  // How an entry's value reads: the mod's name for a choice, a multiplier for a number, an amount for an item.
+  function valueLabel(s, value) {
+    if (!hasChoice(s)) return '\u00d7' + value;
+
+    const at = s.choices.findIndex(c => c.toLowerCase() === String(value).toLowerCase());
+
+    return at >= 0 && state.lang === 'zh' && s.choicesZh && s.choicesZh[at] ? s.choicesZh[at] : String(value);
+  }
+
+  // The value a new entry starts with: one, brought into the mod's range, or the mod's first choice.
+  const firstValue = s => (hasChoice(s) ? s.choices[0] : clampValue(s, 1));
 
   function itemName(id) {
     if (String(id) === '0') return word('none');
@@ -1722,7 +1787,7 @@
     return text.split(',').map(part => part.trim()).filter(Boolean).map(part => {
       const pair = part.split(':');
 
-      return { id: pair[0].trim(), count: s.kind === 'itemCounts' ? (pair[1] || '1').trim() : '1' };
+      return { id: pair[0].trim(), count: hasValue(s) ? (pair[1] || String(firstValue(s))).trim() : '1' };
     });
   }
 
@@ -1730,10 +1795,10 @@
   function valueText(s, entries) {
     if (!entries.length) return s.auto ? NO_ITEMS : '';
 
-    return entries.map(e => (s.kind === 'itemCounts' ? e.id + ':' + e.count : e.id)).join(',');
+    return entries.map(e => (hasValue(s) ? e.id + ':' + e.count : e.id)).join(',');
   }
 
-  const lineText = (s, entries) => entries.map(e => (s.kind === 'itemCounts' ? e.id + ':' + e.count : e.id)).join(', ');
+  const lineText = (s, entries) => entries.map(e => (hasValue(s) ? e.id + ':' + e.count : e.id)).join(', ');
   const isAuto = (m, s) => s.auto && valueNow(m, s) === '';
   const valueNow = (m, s) => (state.drafts[settingId(m, s)] !== undefined ? state.drafts[settingId(m, s)] : s.current);
 
@@ -1745,6 +1810,9 @@
   }
 
   const clampCount = (s, n) => Math.max(1, Math.min(s.maxCount || 9999, Math.round(n) || 1));
+  // A mod's number keeps two decimals inside its range; an amount is a whole number from 1.
+  const clampValue = (s, n) => (isDecimal(s) ? Math.max(s.min, Math.min(s.max, Math.round((isNaN(n) ? 1 : n) * 100) / 100)) : clampCount(s, n));
+  const stepOf = s => (isDecimal(s) ? 0.1 : 1);
   const worth = entries => entries.reduce((sum, e) => sum + (itemOf(e.id) ? itemOf(e.id).v : 0) * Number(e.count), 0);
   const settingOf = (m, ref) => (ref ? m.settings.find(o => o.section === ref.section && o.key === ref.key) : null);
   const givesBackFor = (m, s) => m.settings.find(o => o.returnsOf && o.returnsOf.section === s.section && o.returnsOf.key === s.key);
@@ -1770,10 +1838,10 @@
     if (auto && !list.length) slots += '<div class="slot auto none"><div class="nm">' + esc(word('nothing')) + '</div></div>';
 
     if (auto) slots += '<div class="slot add hand" data-act="byHand"><div class="plus">&#x270E;</div><div class="al">' + esc(word('setByHand')) + '</div></div>';
-    else if (!max || list.length < max) slots += '<div class="slot add' + (s.kind === 'itemList' ? ' plain' : '') + '" data-act="pick"><div class="plus">+</div><div class="al">' + esc(word('addItem')) + '</div></div>';
+    else if (!max || list.length < max) slots += '<div class="slot add' + (hasValue(s) ? '' : ' plain') + '" data-act="pick"><div class="plus">+</div><div class="al">' + esc(forList(s, 'addItem', 'addEntry')) + '</div></div>';
 
     const pips = max && max <= 12 ? '<span class="mf-pips">' + '<i class="on"></i>'.repeat(Math.min(list.length, max)) + '<i></i>'.repeat(Math.max(0, max - list.length)) + '</span>' : '';
-    const cap = max && !auto ? '<span class="mf-cap">' + pips + '<b>' + list.length + '</b> / ' + max + ' ' + esc(word('kinds')) + '</span>' : '';
+    const cap = max && !auto ? '<span class="mf-cap">' + pips + '<b>' + list.length + '</b> / ' + max + (isEntries(s) ? '' : ' ' + esc(word('kinds'))) + '</span>' : '';
     const text = state.editing === id
       ? '<input class="mf-in" data-input="text" value="' + esc(auto ? '' : lineText(s, list) || (s.auto ? NO_ITEMS : '')) + '" spellcheck="false" autocomplete="off">'
       : '<code data-act="editText" title="' + esc(word('editText')) + '">' + esc(auto ? word('blankText') : lineText(s, list) || word('noneText')) + '</code>';
@@ -1785,29 +1853,30 @@
   }
 
   function slot(m, s, e, i) {
-    const item = itemOf(e.id);
-    const counts = s.kind === 'itemCounts';
-    const title = (item ? item.en + ' / ' + item.zh + '  ' : '') + '#' + e.id;
+    const item = entryOf(s, e.id);
+    const counts = hasStepper(s);
+    const title = (item ? item.en + ' / ' + item.zh + '  ' : '') + '#' + e.id + (item && item.note ? '\n' + textOf(item.note) : '');
+    const choice = hasChoice(s) ? '<div class="ech" data-act="cycle" data-index="' + i + '" title="' + esc(word('changeChoice')) + '">' + esc(valueLabel(s, e.count)) + '</div>' : '';
     const pop = state.flash === settingId(m, s) + '\n' + e.id ? ' pop' : '';
     const dragged = state.drag && state.drag.id === settingId(m, s) && state.drag.from === i ? ' drag' : '';
 
-    return '<div class="slot' + (counts ? '' : ' plain') + dragged + '" data-slot="' + i + '" title="' + esc(title) + '">' +
-      '<span class="sw" data-act="swap" data-index="' + i + '" title="' + esc(word('swapItem')) + '">&#x21C4;</span>' +
+    return '<div class="slot' + (hasValue(s) ? '' : ' plain') + dragged + '" data-slot="' + i + '" title="' + esc(title) + '">' +
+      '<span class="sw" data-act="swap" data-index="' + i + '" title="' + esc(forList(s, 'swapItem', 'swapEntry')) + '">&#x21C4;</span>' +
       '<span class="sx" data-act="dropItem" data-index="' + i + '" title="' + esc(word('remove')) + '">&#x2715;</span>' +
       '<div class="tile" data-act="swap" data-index="' + i + '">' + icon(item) + (counts ? '<span class="qty' + pop + '">&times;' + esc(e.count) + '</span>' : '') + '</div>' +
-      '<div class="nm">' + esc(item ? itemText(item) : '#' + e.id) + '</div>' +
-      (counts ? '<div class="stp"><span data-act="dec" data-index="' + i + '">&minus;</span><input data-input="count" data-index="' + i + '" value="' + esc(e.count) + '" inputmode="numeric"><span data-act="inc" data-index="' + i + '">+</span></div>' : '') +
+      '<div class="nm">' + esc(item ? itemText(item) : '#' + e.id) + '</div>' + choice +
+      (counts ? '<div class="stp"><span data-act="dec" data-index="' + i + '">&minus;</span><input data-input="count" data-index="' + i + '" value="' + esc(e.count) + '" inputmode="' + (isDecimal(s) ? 'decimal' : 'numeric') + '"><span data-act="inc" data-index="' + i + '">+</span></div>' : '') +
       '</div>';
   }
 
   // One item of the list the mod chose for a blank value, with how many the recipe it belongs to takes.
   function autoSlot(s, e, recipe) {
-    const item = itemOf(e.id);
+    const item = entryOf(s, e.id);
     const from = recipe ? recipe.find(r => r.id === e.id) : null;
 
     return '<div class="slot auto" title="' + esc((item ? item.en + ' / ' + item.zh + '  ' : '') + '#' + e.id) + '"><div class="tile">' + icon(item) +
-      (s.kind === 'itemCounts' ? '<span class="qty">&times;' + esc(e.count) + '</span>' : '') + '</div>' +
-      '<div class="nm">' + esc(item ? itemText(item) : '#' + e.id) + '</div>' + (from ? '<div class="from">' + esc(word('ofCount')(from.count)) + '</div>' : '') + '</div>';
+      (hasStepper(s) ? '<span class="qty">&times;' + esc(e.count) + '</span>' : '') + '</div>' +
+      '<div class="nm">' + esc(item ? itemText(item) : '#' + e.id) + '</div>' + (hasChoice(s) ? '<div class="ech off">' + esc(valueLabel(s, e.count)) + '</div>' : '') + (from ? '<div class="from">' + esc(word('ofCount')(from.count)) + '</div>' : '') + '</div>';
   }
 
   // The mod's verdict first; then whether a give-back list is worth more than its recipe; then how the list was set.
@@ -1815,6 +1884,8 @@
     const line = (cls, mark, text) => '<div class="mf-status' + cls + '"><i>' + mark + '</i>' + esc(text) + '</div>';
 
     if (s.problem) return line(' bad', '!', word('modCannotUse'));
+
+    if (isEntries(s) && !catalogOf(s).list.length) return line(' note', 'i', word('entriesWaiting'));
 
     if (isAuto(m, s)) return line(' note', 'i', s.blankNote ? textOf(s.blankNote) : word('autoNote'));
 
@@ -1871,7 +1942,7 @@
 
     if (!list[index]) return;
 
-    list[index].count = String(clampCount(row.setting, parseInt(count, 10)));
+    list[index].count = String(clampValue(row.setting, parseFloat(count)));
     writeList(row, list, list[index].id);
   }
 
@@ -1885,11 +1956,11 @@
     const id = settingId(row.mod, s);
     const list = listOf(row.mod, s);
 
-    if (!list[index]) return;
+    if (!list[index] || !hasStepper(s)) return;
 
     if (draftId !== id) flushDraft();
 
-    list[index].count = String(clampCount(s, Number(list[index].count) + delta));
+    list[index].count = String(clampValue(s, Number(list[index].count) + delta * stepOf(s)));
     state.drafts[id] = valueText(s, list);
     state.flash = id + '\n' + list[index].id;
     draftId = id;
@@ -1911,6 +1982,19 @@
     draftRow = null;
 
     if (state.drafts[id] !== undefined) write(row, state.drafts[id]);
+  }
+
+  // A choice moves on to the mod's next one, and from the last back to the first.
+  function cycleChoice(row, index) {
+    const s = row.setting;
+    const list = listOf(row.mod, s);
+
+    if (!list[index]) return;
+
+    const at = s.choices.findIndex(c => c.toLowerCase() === list[index].count.toLowerCase());
+
+    list[index].count = s.choices[(at + 1) % s.choices.length];
+    writeList(row, list, list[index].id);
   }
 
   function moveItem(row, from, to) {
@@ -1945,7 +2029,7 @@
     const pick = swapping ? swapping.id : s.kind === 'item' && s.current !== '0' ? s.current : null;
 
     state.editing = null;
-    state.picker = { id: settingId(row.mod, s), slot: swapping ? slotIndex : null, q: '', cat: 'common', pick: pick, count: swapping ? Number(swapping.count) || 1 : 1, shown: PICKER_PAGE, top: true };
+    state.picker = { id: settingId(row.mod, s), slot: swapping ? slotIndex : null, q: '', cat: isEntries(s) ? 'all' : 'common', pick: pick, count: swapping ? pickedValue(s, swapping.count) : firstValue(s), shown: PICKER_PAGE, top: true };
     drawPicker(true);
   }
 
@@ -1957,21 +2041,26 @@
     syncTyping();
   }
 
+  // A choice is kept as the mod spells it; a number or an amount as a number.
+  const pickedValue = (s, value) => (hasChoice(s) ? String(value) : clampValue(s, Number(value)));
+
   function matches(item, q) {
     const low = q.toLowerCase();
 
-    return item.en.toLowerCase().indexOf(low) >= 0 || item.zh.indexOf(q) >= 0 || String(item.id).indexOf(low) === 0;
+    return item.en.toLowerCase().indexOf(low) >= 0 || item.zh.indexOf(q) >= 0 || String(item.id).toLowerCase().indexOf(low) === 0;
   }
 
   // The items on show: the search over every item, most used by recipes first, else the chosen shelf.
-  function shelf() {
+  function shelf(s) {
     const p = state.picker;
-    const all = state.items.list;
+    const catalog = catalogOf(s);
+    const all = catalog.list;
     const q = p.q.trim();
 
-    if (q) return all.filter(item => matches(item, q)).sort((a, b) => b.uses - a.uses || a.id - b.id);
+    // The mod's entries keep the mod's order; items put the ones most recipes take first.
+    if (q) return isEntries(s) ? all.filter(item => matches(item, q)) : all.filter(item => matches(item, q)).sort((a, b) => b.uses - a.uses || a.id - b.id);
 
-    if (p.cat === 'common') return state.items.common;
+    if (p.cat === 'common' && !isEntries(s)) return catalog.common;
 
     if (p.cat === 'all') return all;
 
@@ -1984,7 +2073,7 @@
     const p = state.picker;
     const row = pickerRow();
 
-    if (!p || !row || !state.items) {
+    if (!p || !row || !catalogOf(row.setting)) {
       // A picker whose setting is no longer on the page is closed, or the next click would only close it.
       if (p && !row) state.picker = null;
 
@@ -2005,10 +2094,12 @@
     const find = host.querySelector('.pk-find');
 
     if (isNew && find) {
-      find.placeholder = word('searchItems')(state.items.list.length.toLocaleString('en'));
+      find.placeholder = searchText(row.setting);
       find.focus();
     }
   }
+
+  const searchText = s => word(isEntries(s) ? 'searchEntries' : 'searchItems')(catalogOf(s).list.length.toLocaleString('en'));
 
   function fillPicker(row) {
     const host = $('.pk-host');
@@ -2018,38 +2109,40 @@
     const grid = host.querySelector('.pk-grid');
     const top = p.top ? 0 : grid.scrollTop;
     const swapping = p.slot !== null ? list[p.slot] : null;
-    const title = s.kind === 'item' ? word('titleOne') : swapping ? word('titleSwap')(itemName(swapping.id)) : word('titleAdd');
+    const title = s.kind === 'item' ? word('titleOne') : swapping ? word('titleSwap')(entryName(s, swapping.id)) : forList(s, 'titleAdd', 'titleAddEntry');
 
     host.querySelector('.ti').innerHTML = esc(title) + ' &middot; <em>' + (s.section ? esc(s.section) + ' &middot; ' : '') + esc(s.label) + '</em>';
     host.querySelector('.used').innerHTML = isList(s) && s.maxKinds ? '<b>' + list.length + '</b> / ' + s.maxKinds + ' ' + esc(word('used')) : '';
-    host.querySelector('.pk-find').placeholder = word('searchItems')(state.items.list.length.toLocaleString('en'));
-    host.querySelector('.pk-cats').innerHTML = pickerShelves();
+    host.querySelector('.pk-find').placeholder = searchText(s);
+    host.querySelector('.pk-cats').innerHTML = pickerShelves(s);
     grid.innerHTML = pickerGrid(s, list);
     grid.scrollTop = top;
     host.querySelector('.pk-info').innerHTML = pickerInfo(s, list);
     p.top = false;
   }
 
-  function pickerShelves() {
+  function pickerShelves(s) {
     const p = state.picker;
+    const catalog = catalogOf(s);
     const on = cat => (!p.q.trim() && String(p.cat) === String(cat) ? ' on' : '');
-    let out = '<div class="pk-cat star' + on('common') + '" data-cat="common"><span>&#x2605; ' + esc(word('usedInRecipes')) + '</span><i>' + state.items.common.length + '</i></div>' +
-      '<div class="pk-cat' + on('all') + '" data-cat="all"><span>' + esc(word('everyItem')) + '</span><i>' + state.items.list.length + '</i></div><div class="pk-sep"></div>';
+    const star = isEntries(s) ? '' : '<div class="pk-cat star' + on('common') + '" data-cat="common"><span>&#x2605; ' + esc(word('usedInRecipes')) + '</span><i>' + catalog.common.length + '</i></div>';
+    let out = star + '<div class="pk-cat' + on('all') + '" data-cat="all"><span>' + esc(forList(s, 'everyItem', 'everything')) + '</span><i>' + catalog.list.length + '</i></div><div class="pk-sep"></div>';
 
-    for (const c of state.items.shelves) out += '<div class="pk-cat' + on(c.id) + '" data-cat="' + c.id + '"><span>' + esc(textOf(c)) + '</span><i>' + state.items.perCat[c.id] + '</i></div>';
+    for (const c of catalog.shelves) out += '<div class="pk-cat' + on(c.id) + '" data-cat="' + esc(c.id) + '"><span>' + esc(textOf(c)) + '</span><i>' + catalog.perCat[c.id] + '</i></div>';
 
     return out;
   }
 
   function pickerGrid(s, list) {
     const p = state.picker;
-    const found = shelf();
+    const found = shelf(s);
     const inList = {};
+    const under = item => (isEntries(s) ? (item.note ? textOf(item.note) : '') : '#' + item.id);
     const tile = item => {
       const got = inList[String(item.id)];
 
-      return '<div class="it' + (String(item.id) === String(p.pick) ? ' hi' : '') + (got ? ' taken' : '') + '" data-id="' + item.id + '">' + (got && s.kind === 'itemCounts' ? '<span class="got">&times;' + esc(got) + '</span>' : '') +
-        (item.icon ? '<img loading="lazy" src="' + esc(item.icon) + '" alt="">' : '<span class="noimg">?</span>') + '<div class="in">' + esc(itemText(item)) + '</div><div class="id">#' + item.id + '</div></div>';
+      return '<div class="it' + (String(item.id) === String(p.pick) ? ' hi' : '') + (got ? ' taken' : '') + '" data-id="' + esc(item.id) + '">' + (got && hasValue(s) ? '<span class="got">' + esc(hasChoice(s) ? valueLabel(s, got) : '\u00d7' + got) + '</span>' : '') +
+        (item.icon ? '<img loading="lazy" src="' + esc(item.icon) + '" alt="">' : '<span class="noimg">' + esc(initial(item)) + '</span>') + '<div class="in">' + esc(itemText(item)) + '</div><div class="id">' + esc(under(item)) + '</div></div>';
     };
 
     for (const e of list) inList[e.id] = e.count;
@@ -2058,7 +2151,7 @@
 
     out += found.slice(0, p.shown).map(tile).join('');
 
-    if (!found.length) return '<div class="pk-none">' + esc(word('noMatch')(p.q.trim())) + '</div>';
+    if (!found.length) return '<div class="pk-none">' + esc(word(isEntries(s) ? 'noEntryMatch' : 'noMatch')(p.q.trim())) + '</div>';
 
     if (found.length > p.shown) out += '<div class="pk-more" data-act="pkMore">' + esc(word('showing')(p.shown, found.length)) + '</div>';
 
@@ -2067,27 +2160,34 @@
 
   function pickerInfo(s, list) {
     const p = state.picker;
-    const item = p.pick !== null && String(p.pick) !== '0' ? itemOf(p.pick) : null;
+    const item = p.pick !== null && (isEntries(s) || String(p.pick) !== '0') ? entryOf(s, p.pick) : null;
 
-    if (p.pick === null || (String(p.pick) !== '0' && !item)) {
+    if (p.pick === null || ((isEntries(s) || String(p.pick) !== '0') && !item)) {
       return '<div class="empty-info">' + esc(word('clickToSee')) + '<br><span class="pk-keys">' + esc(word('dblClickAdds')) + '</span></div>';
     }
 
     const at = list.findIndex(e => e.id === String(p.pick));
     const isFull = isList(s) && p.slot === null && at < 0 && !!s.maxKinds && list.length >= s.maxKinds;
-    const isIn = s.kind === 'itemList' && p.slot === null && at >= 0;
+    const isIn = isList(s) && !hasValue(s) && p.slot === null && at >= 0;
     const verb = s.kind === 'item' ? 'pickOne' : p.slot !== null ? 'pickSwap' : isIn ? 'pickIn' : at >= 0 ? 'pickSet' : 'pickAdd';
-    const stepper = s.kind === 'itemCounts' ? '<div class="stp"><span data-act="pkDec">&minus;</span><input data-input="pkCount" value="' + p.count + '" inputmode="numeric"><span data-act="pkInc">+</span></div>' : '';
+    const stepper = hasStepper(s) ? '<div class="stp"><span data-act="pkDec">&minus;</span><input data-input="pkCount" value="' + esc(p.count) + '" inputmode="' + (isDecimal(s) ? 'decimal' : 'numeric') + '"><span data-act="pkInc">+</span></div>' :
+      hasChoice(s) ? '<div class="pk-ch">' + s.choices.map(c => '<span data-act="pkChoice" data-value="' + esc(c) + '"' + (c.toLowerCase() === String(p.count).toLowerCase() ? ' class="on"' : '') + '>' + esc(valueLabel(s, c)) + '</span>').join('') + '</div>' : '';
+    const full = isFull ? '<div class="mf-status bad"><i>!</i>' + esc(word(isEntries(s) ? 'entriesFull' : 'listFull')(s.maxKinds)) + '</div>' : '';
     const go = '<div class="go' + (isFull || isIn ? ' off' : '') + '" data-act="pkGo">' + esc(word(verb)) + '</div>';
 
     if (!item) return '<div class="t">' + esc(word('none')) + '</div><div class="act">' + go + '</div>';
+
+    if (isEntries(s)) {
+      return '<div class="big">' + icon(item) + '</div><div class="t">' + esc(itemText(item)) + '</div><div class="t2">' + esc(state.lang === 'zh' ? item.en : item.zh) + '</div>' +
+        (item.group ? '<dl><dt>' + esc(word('category')) + '</dt><dd>' + esc(textOf(item.group)) + '</dd></dl>' : '') +
+        (item.note ? '<div class="pk-note">' + esc(textOf(item.note)) + '</div>' : '') + full + '<div class="act' + (hasChoice(s) ? ' wrap' : '') + '">' + stepper + go + '</div>';
+    }
 
     return '<div class="big">' + icon(item) + '</div><div class="t">' + esc(itemText(item)) + '</div><div class="t2">' + esc(state.lang === 'zh' ? item.en : item.zh) + '</div>' +
       '<dl><dt>id</dt><dd>' + item.id + '</dd><dt>' + esc(word('category')) + '</dt><dd>' + esc(categoryName(item.cat)) + '</dd>' +
       '<dt>' + esc(word('weight')) + '</dt><dd>' + (item.g / 1000).toLocaleString('en', { maximumFractionDigits: 2 }) + ' kg</dd><dt>' + esc(word('value')) + '</dt><dd>' + item.v + '</dd>' +
       '<dt>' + esc(word('recipes')) + '</dt><dd>' + esc(word('usesIn')(item.uses)) + '</dd></dl>' +
-      (isFull ? '<div class="mf-status bad"><i>!</i>' + esc(word('listFull')(s.maxKinds)) + '</div>' : '') +
-      '<div class="act">' + stepper + go + '</div>';
+      full + '<div class="act">' + stepper + go + '</div>';
   }
 
   // Clicking an item shows it, with the amount it already has; double-clicking puts it in.
@@ -2101,7 +2201,7 @@
     const got = list.find(e => e.id === String(id));
 
     p.pick = String(id);
-    p.count = got ? Number(got.count) : p.slot !== null && list[p.slot] ? Number(list[p.slot].count) : 1;
+    p.count = got ? pickedValue(row.setting, got.count) : p.slot !== null && list[p.slot] ? pickedValue(row.setting, list[p.slot].count) : firstValue(row.setting);
 
     if (andCommit) commit();
     else fillPicker(row);
@@ -2125,7 +2225,7 @@
 
     const list = listOf(row.mod, s);
     const id = String(p.pick);
-    const count = String(s.kind === 'itemCounts' ? clampCount(s, p.count) : 1);
+    const count = String(hasValue(s) ? pickedValue(s, p.count) : 1);
     const at = list.findIndex(e => e.id === id);
 
     // Swapping in an item the list already has elsewhere merges the two into that one.
@@ -2135,7 +2235,7 @@
     } else if (p.slot !== null) {
       list[p.slot] = { id: id, count: count };
     } else if (at >= 0) {
-      if (s.kind === 'itemList') return;
+      if (!hasValue(s)) return;
 
       list[at].count = count;
     } else if (!s.maxKinds || list.length < s.maxKinds) {
@@ -2175,7 +2275,10 @@
     } else if (tile) {
       pickTile(tile.dataset.id, second);
     } else if (actName === 'pkDec' || actName === 'pkInc') {
-      p.count = clampCount(row.setting, p.count + (actName === 'pkInc' ? 1 : -1) * (shift ? 10 : 1));
+      p.count = clampValue(row.setting, Number(p.count) + (actName === 'pkInc' ? 1 : -1) * (shift ? 10 : 1) * stepOf(row.setting));
+      fillPicker(row);
+    } else if (actName === 'pkChoice') {
+      p.count = act.dataset.value;
       fillPicker(row);
     } else if (actName === 'pkGo') {
       commit();
@@ -2447,6 +2550,7 @@
     else if (actName === 'dropItem' && row) dropItem(row, Number(act.dataset.index));
     else if ((actName === 'dec' || actName === 'inc') && row) bump(row, Number(act.dataset.index), (actName === 'inc' ? 1 : -1) * (e.shiftKey ? 10 : 1));
     else if (actName === 'byHand' && row) writeList(row, listOf(row.mod, row.setting));
+    else if (actName === 'cycle' && row) cycleChoice(row, Number(act.dataset.index));
     else if (actName === 'editText' && row) editText(row);
     else pickOption(target, row);
   }
@@ -2569,7 +2673,7 @@
 
       // Only the box changes: redrawing the panel here would swap out the button a click on it is landing on.
       if (picking) {
-        state.picker.count = clampCount(picking.setting, parseInt(target.value, 10));
+        state.picker.count = clampValue(picking.setting, parseFloat(target.value));
         target.value = String(state.picker.count);
       }
 
@@ -2928,6 +3032,32 @@
     if (root.classList.contains('on')) render();
   }
 
+  // The entries one List setting picks from, as its mod gave them. Each one's group is its shelf in the picker.
+  function entries(id, list) {
+    const byId = {};
+    const perCat = {};
+    const shelves = [];
+
+    for (const entry of list) {
+      entry.entry = true;
+      byId[entry.id] = entry;
+
+      if (!entry.group) continue;
+
+      entry.cat = entry.group.en;
+
+      if (!perCat[entry.cat]) shelves.push({ id: entry.cat, en: entry.group.en, zh: entry.group.zh });
+
+      perCat[entry.cat] = (perCat[entry.cat] || 0) + 1;
+    }
+
+    state.entries[id] = { list: list, byId: byId, perCat: perCat, shelves: shelves.length > 1 ? shelves : [] };
+
+    if (root.classList.contains('on')) render();
+
+    if (state.picker) drawPicker(false);
+  }
+
   let copiedTimer = 0;
 
   function copied(isCopied) {
@@ -2963,6 +3093,6 @@
   });
   window.addEventListener('resize', fit);
 
-  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, escape: escape, tabsChanged: tabsChanged, icons: icons, banners: banners, items: items, copied: copied };
+  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, escape: escape, tabsChanged: tabsChanged, icons: icons, banners: banners, items: items, entries: entries, copied: copied };
   sendReady();
 })();

@@ -174,6 +174,123 @@ public class ItemFieldPageTests
         Assert.Contains("The mod can use this list.", Field(Draw(fine), "Materials"));
     }
 
+    // ===== A List setting: entries the mod lists itself =====
+
+    private static readonly SettingKind.EntryList BedKind = new(Choices: new[] { "Auto", "Sleep", "Nap", "Skip" });
+
+    private static Setting Beds(string current) =>
+        List("BedModes", BedKind, "", current) with { ChoiceZh = new Dictionary<string, string> { ["Sleep"] = "睡觉" } };
+
+    private static Setting Buffs(string current) => List("Buffs", new SettingKind.EntryList(Min: 0.1, Max: 100), "", current);
+
+    private static string BedEntries(Setting beds) =>
+        PageScript.Entries(PageScript.EntriesId(beds.Id), ListEntries.Parse("9076|Wooden Bed|木床|Res/bed.png|Beds|床|Sleeps 8 hours|睡 8 小时\n9080|Sleeping Bag|睡袋||Beds|床\n9100|Sofa|沙发||Seats|座椅"));
+
+    private static string BuffEntries(Setting buffs) =>
+        PageScript.Entries(PageScript.EntriesId(buffs.Id), ListEntries.Parse("12|Well Fed|饱食||Good|增益\n40|Hungry|饥饿||Bad|负面"));
+
+    [Fact]
+    public void A_List_setting_shows_the_mods_entries_as_cards_with_their_choice()
+    {
+        var beds = Beds("9076:Sleep,9100:Skip");
+        var field = Field(DrawWith(new[] { BedEntries(beds) }, beds), "BedModes");
+
+        Assert.Contains("<img src=\"Res/bed.png\" alt=\"\">", field);
+        Assert.Contains("<div class=\"nm\">Wooden Bed</div><div class=\"ech\" data-act=\"cycle\" data-index=\"0\"", field);
+        Assert.Contains(">Sleep</div>", field);
+        Assert.Contains(">Skip</div>", field);
+
+        // An entry with no picture shows the first letter of its name, and an entry the mod no longer lists its id.
+        Assert.Contains("<span class=\"noimg\">S</span>", field);
+        Assert.Contains("ADD</div>", field);
+        Assert.DoesNotContain("ADD ITEM", field);
+        Assert.Contains(">9076:Sleep, 9100:Skip</code>", field);
+    }
+
+    [Fact]
+    public void Clicking_a_choice_moves_it_on_to_the_mods_next_one()
+    {
+        var beds = Beds("9076:Sleep,9100:Skip");
+        var engine = OpenWith(new[] { BedEntries(beds) }, beds);
+
+        engine.Execute("fire('click', { target: el('DIV', ['ech'], { act: 'cycle', index: '1' }, { '[data-act]': { dataset: { act: 'cycle', index: '1' } }, '[data-row]': firstRow }) })");
+
+        Assert.EndsWith("|SmallTurbine|BedModes|9076:Sleep,9100:Auto", engine.Evaluate("sets().join('\\n')").AsString());
+    }
+
+    [Fact]
+    public void An_entry_picked_in_the_picker_goes_in_with_the_choice_picked_there()
+    {
+        var beds = Beds("9076:Sleep");
+        var engine = OpenWith(new[] { BedEntries(beds) }, beds);
+        const string bag = "el('DIV', ['it'], { id: '9080' }, { '.pk-host': {}, '.it': { dataset: { id: '9080' } } })";
+
+        engine.Execute("fire('click', { target: act('pick') })");
+
+        // The mod's groups are the shelves, and the note is what the picker shows under each entry.
+        var picker = engine.Evaluate("drawn.join('\\n')").AsString();
+
+        Assert.Contains("data-cat=\"Beds\"><span>Beds</span><i>2</i>", picker);
+        Assert.Contains("<div class=\"id\">Sleeps 8 hours</div>", picker);
+        Assert.DoesNotContain("Used in recipes", picker);
+
+        engine.Execute("fire('click', { target: " + bag + ", detail: 1 })");
+        engine.Execute("fire('click', { target: el('SPAN', [], { act: 'pkChoice', value: 'Nap' }, { '.pk-host': {}, '[data-act]': { dataset: { act: 'pkChoice', value: 'Nap' } } }) })");
+        engine.Execute("fire('click', { target: el('DIV', ['go'], { act: 'pkGo' }, { '.pk-host': {}, '[data-act]': { dataset: { act: 'pkGo' } } }) })");
+
+        Assert.EndsWith("|SmallTurbine|BedModes|9076:Sleep,9080:Nap", engine.Evaluate("sets().join('\\n')").AsString());
+    }
+
+    [Fact]
+    public void A_double_clicked_entry_goes_in_with_the_mods_first_choice()
+    {
+        var beds = Beds("9076:Sleep");
+        var engine = OpenWith(new[] { BedEntries(beds) }, beds);
+        const string sofa = "el('DIV', ['it'], { id: '9100' }, { '.pk-host': {}, '.it': { dataset: { id: '9100' } } })";
+
+        engine.Execute("fire('click', { target: act('pick') })");
+        engine.Execute("fire('click', { target: " + sofa + ", detail: 1 })");
+        engine.Execute("fire('click', { target: " + sofa + ", detail: 2 })");
+
+        Assert.EndsWith("|SmallTurbine|BedModes|9076:Sleep,9100:Auto", engine.Evaluate("sets().join('\\n')").AsString());
+    }
+
+    [Fact]
+    public void A_number_each_entry_carries_steps_by_a_tenth_and_stays_in_its_range()
+    {
+        var buffs = Buffs("12:1.5,40:0.1");
+        var engine = OpenWithEntries(new[] { BuffEntries(buffs) }, buffs);
+
+        engine.Execute("fire('click', { target: onRow('inc', 0, 0) })");
+        engine.Execute("fire('click', { target: onRow('dec', 0, 1) })");
+        engine.Execute("runTimers()");
+
+        Assert.EndsWith("|SmallTurbine|Buffs|12:1.6,40:0.1", engine.Evaluate("sets().join('\\n')").AsString());
+    }
+
+    [Fact]
+    public void A_List_setting_waits_as_text_until_its_entries_arrive_and_says_so_when_the_mod_lists_none()
+    {
+        var beds = Beds("9076:Sleep");
+        var before = Pane(OpenWith(System.Array.Empty<string>(), beds));
+
+        Assert.DoesNotContain("row wide", before);
+        Assert.Contains("value=\"9076:Sleep\"", before);
+
+        var empty = Field(DrawWith(new[] { PageScript.Entries(PageScript.EntriesId(beds.Id), ListEntries.Parse("")) }, beds), "BedModes");
+
+        Assert.Contains("The mod has not listed what this can hold yet.", empty);
+    }
+
+    private static Engine OpenWithEntries(string[] before, params Setting[] settings)
+    {
+        var engine = OpenWith(before, settings);
+
+        engine.Execute(HandTimers);
+
+        return engine;
+    }
+
     private static Setting List(string key, SettingKind kind, string defaultValue, string current) =>
         new(new SettingId("g", "SmallTurbine", key), key, new Description("en", "zh"), kind, defaultValue, current, current, false);
 
@@ -309,9 +426,12 @@ public class ItemFieldPageTests
     }
 
     /// <summary>Opens the screen on one mod with these settings, the item table sent first; returns the drawn settings.</summary>
-    private static string Draw(params Setting[] settings)
+    private static string Draw(params Setting[] settings) => DrawWith(System.Array.Empty<string>(), settings);
+
+    private static string DrawWith(string[] before, params Setting[] settings) => Pane(OpenWith(before, settings));
+
+    private static string Pane(Engine engine)
     {
-        var engine = Open(settings);
         var pane = engine.Evaluate("drawn.filter(function (html) { return html.indexOf('data-row=\"') >= 0; }).pop() || ''").AsString();
 
         Assert.NotEqual("", pane);
@@ -319,7 +439,10 @@ public class ItemFieldPageTests
         return pane;
     }
 
-    private static Engine Open(params Setting[] settings)
+    private static Engine Open(params Setting[] settings) => OpenWith(System.Array.Empty<string>(), settings);
+
+    /// <summary>Opens the screen with these scripts run first, such as the entries of a List setting.</summary>
+    private static Engine OpenWith(string[] before, params Setting[] settings)
     {
         var mod = new ModEntry("g", "Mod", "1.0", "Mod.dll", new ModState.Loaded(settings), ModInfo.None, new ModSwitch.Allowed(true, System.Array.Empty<string>()), new UpdateState.NotChecked());
         var engine = new Engine();
@@ -328,6 +451,9 @@ public class ItemFieldPageTests
         engine.Execute(StandIns);
         engine.Execute(Resource("ModManager.page.js"));
         engine.Execute(PageScript.Items(Items, new[] { new CategoryName(9, new Description("Materials", "材料")) }));
+
+        foreach (var script in before) engine.Execute(script);
+
         engine.Execute(PageScript.Open(new ModsView(new[] { mod }, System.Array.Empty<string>(), false, "F10")));
 
         return engine;

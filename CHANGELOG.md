@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.0
+
+- A new kind of list for mods: one that picks from entries the mod lists itself, such as buffs, beds or furniture actions. It shows as cards with each entry's picture and name, and the same picker as items, with the mod's own groups and a line about each entry. Vital Signs is the first to use it.
+- An entry in such a list can also carry a choice, shown on its card and changed with a click, or a number, stepped on its card like an amount.
+- Made for Survival Log 1.1.20719.
+
 ## 0.14.2
 
 - A crafting recipe list now warns you, under the list, when another recipe in the game already uses exactly those materials. Two recipes can't share the same materials, so the mod can't use that list.

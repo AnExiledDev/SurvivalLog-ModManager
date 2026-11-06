@@ -30,6 +30,9 @@ public sealed record SettingTagsRead(SettingControl? Control, IReadOnlyList<Show
 
     /// <summary>The recipe setting a give-back list belongs to: a key, or "Section.Key".</summary>
     public string? ReturnsOf { get; init; }
+
+    /// <summary>The value each entry of a List control carries.</summary>
+    public EntryRules Entry { get; init; } = EntryRules.None;
 }
 
 /// <summary>
@@ -48,6 +51,8 @@ public static class SettingTags
     public const string AutoWhenBlankTag = ModInfoReader.Prefix + "AutoWhenBlank";
     public const string MakesPrefix = ModInfoReader.Prefix + "Makes=";
     public const string ReturnsOfPrefix = ModInfoReader.Prefix + "ReturnsOf=";
+    public const string EntryChoicesPrefix = ModInfoReader.Prefix + "EntryChoices=";
+    public const string EntryRangePrefix = ModInfoReader.Prefix + "EntryRange=";
 
     /// <summary>Read by Exiled's Toolkit, which plays each world's own value; the Mods screen shows which one is in play.</summary>
     public const string WorldRuleTag = ModInfoReader.Prefix + "WorldRule";
@@ -64,6 +69,8 @@ public static class SettingTags
         int? maxKinds = null, maxCount = null, makes = null;
         var autoWhenBlank = false;
         string? returnsOf = null;
+        IReadOnlyList<string>? entryChoices = null;
+        (double Min, double Max)? entryRange = null;
 
         foreach (var tag in (tags ?? Array.Empty<object?>()).OfType<string>().Select(tag => tag.Trim()))
         {
@@ -117,6 +124,17 @@ public static class SettingTags
                 if (target.Length > 0) returnsOf ??= target;
                 else ignored.Add(tag + " names no setting");
             }
+            else if (tag.StartsWith(EntryChoicesPrefix, StringComparison.Ordinal))
+            {
+                var choices = tag.Substring(EntryChoicesPrefix.Length).Split('|').Select(choice => choice.Trim()).Where(choice => choice.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+                if (choices.Count >= 2 && choices.All(choice => choice.IndexOfAny(Separators) < 0)) entryChoices ??= choices;
+                else ignored.Add(tag + " must name two or more choices split by |, with no commas or colons in them");
+            }
+            else if (tag.StartsWith(EntryRangePrefix, StringComparison.Ordinal))
+            {
+                entryRange ??= Range(tag, ignored);
+            }
             else if (tag.StartsWith(ModInfoReader.Prefix, StringComparison.Ordinal) && tag != ApplyModes.LiveTag && tag != ApplyModes.RestartTag)
             {
                 ignored.Add(tag + " is not a tag the Mod Manager knows");
@@ -124,20 +142,54 @@ public static class SettingTags
         }
 
         var itemRules = new ItemRules(maxKinds, maxCount, autoWhenBlank);
+        var entryRules = new EntryRules(entryChoices, entryRange?.Min, entryRange?.Max);
 
-        // These only mean something on an item list, so without one they are named rather than kept.
-        if (control is not (SettingControl.ItemList or SettingControl.ItemCounts) && (itemRules != ItemRules.None || makes != null || returnsOf != null))
+        // These only mean something on a list, so without one they are named rather than kept.
+        if (control is not (SettingControl.ItemList or SettingControl.ItemCounts or SettingControl.List) && (itemRules != ItemRules.None || makes != null || returnsOf != null))
         {
             ignored.Add("MaxKinds, MaxCount, AutoWhenBlank, Makes and ReturnsOf need ModManager.Control=ItemList or ItemCounts, so they are not used");
             itemRules = ItemRules.None;
             makes = null;
             returnsOf = null;
         }
+        else if (control == SettingControl.List && (makes != null || returnsOf != null))
+        {
+            ignored.Add("Makes and ReturnsOf need ModManager.Control=ItemList or ItemCounts, so they are not used on List");
+            makes = null;
+            returnsOf = null;
+        }
+
+        if (control != SettingControl.List && entryRules != EntryRules.None)
+        {
+            ignored.Add("EntryChoices and EntryRange need ModManager.Control=List, so they are not used");
+            entryRules = EntryRules.None;
+        }
+        else if (entryRules.Choices != null && entryRules.Min != null)
+        {
+            ignored.Add("EntryChoices and EntryRange cannot both be used, so EntryRange is not");
+            entryRules = entryRules with { Min = null, Max = null };
+        }
 
         return new SettingTagsRead(control, rules, isAdvanced, ignored)
         {
-            ChoiceZh = choiceZh, ChoicePreview = choicePreview, IsWorldRule = isWorldRule, Rules = itemRules, Makes = makes, ReturnsOf = returnsOf,
+            ChoiceZh = choiceZh, ChoicePreview = choicePreview, IsWorldRule = isWorldRule, Rules = itemRules, Makes = makes, ReturnsOf = returnsOf, Entry = entryRules,
         };
+    }
+
+    private static readonly char[] Separators = { ',', ':' };
+
+    /// <summary>"0.1|100": the lowest and highest number an entry may carry, the lowest first.</summary>
+    private static (double Min, double Max)? Range(string tag, List<string> ignored)
+    {
+        var ends = tag.Substring(EntryRangePrefix.Length).Split('|');
+        var style = System.Globalization.NumberStyles.Float;
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+
+        if (ends.Length == 2 && double.TryParse(ends[0].Trim(), style, culture, out var min) && double.TryParse(ends[1].Trim(), style, culture, out var max) && double.IsFinite(min) && double.IsFinite(max) && max > min) return (min, max);
+
+        ignored.Add(tag + " must be EntryRange=lowest|highest, the lowest first");
+
+        return null;
     }
 
     /// <summary>A whole number of 1 or more after the prefix, else null with the reason.</summary>
