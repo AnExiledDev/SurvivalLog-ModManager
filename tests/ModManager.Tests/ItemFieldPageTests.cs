@@ -214,6 +214,100 @@ public class ItemFieldPageTests
         Assert.EndsWith("|SmallTurbine|Materials|junk", engine.Evaluate("sets().join('\\n')").AsString());
     }
 
+    // Timers the test runs by hand, so a count that waits to be written can be written on cue.
+    private const string HandTimers = """
+        var timers = [];
+        setTimeout = function (fn) { timers.push(fn); return timers.length; };
+        clearTimeout = function (id) { if (id > 0) timers[id - 1] = null; };
+        function runTimers() { var due = timers; timers = []; due.forEach(function (fn) { if (fn) fn(); }); }
+        function onRow(name, row, index) {
+          return el('SPAN', [], { act: name, index: String(index) }, { '[data-act]': { dataset: { act: name, index: String(index) } }, '[data-row]': { dataset: { row: String(row) } } });
+        }
+        function stepper(row, slot) {
+          var card = { dataset: { slot: String(slot) }, closest: function (s) { return s === '[data-row]' ? { dataset: { row: String(row) } } : null; } };
+          var box = { closest: function (s) { return s === '.slot[data-slot]' ? card : null; } };
+          return el('SPAN', [], {}, { '.mf .slot[data-slot] .stp': box, '.mf .slot[data-slot]': card });
+        }
+        """;
+
+    private static Engine OpenWithTimers(params Setting[] settings)
+    {
+        var engine = Open(settings);
+
+        engine.Execute(HandTimers);
+
+        return engine;
+    }
+
+    [Fact]
+    public void A_count_stepped_in_one_list_is_written_when_another_list_is_stepped_straight_after()
+    {
+        var engine = OpenWithTimers(Materials("20004:5,20104:3"), List("Kit", new SettingKind.ItemCounts(7, 99), "", "20004:1"));
+
+        engine.Execute("fire('click', { target: onRow('inc', 0, 0) })");
+        engine.Execute("fire('click', { target: onRow('inc', 1, 0) })");
+        engine.Execute("runTimers()");
+
+        var written = engine.Evaluate("sets().join('\\n')").AsString();
+
+        Assert.Contains("|SmallTurbine|Materials|20004:6,20104:3", written);
+        Assert.Contains("|SmallTurbine|Kit|20004:2", written);
+    }
+
+    [Fact]
+    public void Removing_a_card_right_after_a_step_is_not_undone_by_the_waiting_count()
+    {
+        var engine = OpenWithTimers(Materials("20004:5,20104:3"));
+
+        engine.Execute("fire('click', { target: onRow('inc', 0, 0) })");
+        engine.Execute("fire('click', { target: onRow('dropItem', 0, 1) })");
+        engine.Execute("runTimers()");
+
+        Assert.EndsWith("|SmallTurbine|Materials|20004:6", engine.Evaluate("sets().join('\\n')").AsString());
+    }
+
+    [Fact]
+    public void The_wheel_steps_an_amount_only_over_its_buttons_and_Shift_steps_ten()
+    {
+        var engine = OpenWithTimers(Materials("20004:5,20104:3"));
+        const string card = "el('IMG', [], {}, { '.mf .slot[data-slot]': { dataset: { slot: '0' }, closest: function () { return firstRow; } } })";
+
+        // Scrolling the page past a card leaves its amount alone, and a wheel event that turns nothing does nothing.
+        engine.Execute("fire('wheel', { target: " + card + ", deltaY: 100 })");
+        engine.Execute("fire('wheel', { target: stepper(0, 0), deltaY: 0, deltaX: 0 })");
+        engine.Execute("runTimers()");
+
+        Assert.Equal(0, engine.Evaluate("sets().length").AsNumber());
+
+        // Shift turns the wheel sideways in Chromium; it still steps, by ten.
+        engine.Execute("fire('wheel', { target: stepper(0, 0), deltaY: 0, deltaX: -100, shiftKey: true })");
+        engine.Execute("runTimers()");
+
+        Assert.EndsWith("|SmallTurbine|Materials|20004:15,20104:3", engine.Evaluate("sets().join('\\n')").AsString());
+    }
+
+    [Fact]
+    public void Typing_an_amount_in_the_picker_leaves_its_button_in_place_for_the_click_that_follows()
+    {
+        // The box's change fires on the mousedown of the button click; redrawing the panel then would swap the button out.
+        var engine = Open(Materials("20004:5,20104:3"));
+        const string package = "el('DIV', ['it'], { id: '64001' }, { '.pk-host': {}, '.it': { dataset: { id: '64001' } } })";
+        const string box = "el('INPUT', [], { input: 'pkCount' }, {}, '5')";
+
+        engine.Execute("fire('click', { target: act('pick') })");
+        engine.Execute("fire('click', { target: " + package + ", detail: 1 })");
+
+        var drawnBefore = engine.Evaluate("drawn.length").AsNumber();
+
+        engine.Execute("fire('change', { target: " + box + " })");
+
+        Assert.Equal(drawnBefore, engine.Evaluate("drawn.length").AsNumber());
+
+        engine.Execute("fire('click', { target: el('DIV', ['go'], { act: 'pkGo' }, { '.pk-host': {}, '[data-act]': { dataset: { act: 'pkGo' } } }) })");
+
+        Assert.EndsWith("|SmallTurbine|Materials|20004:5,20104:3,64001:5", engine.Evaluate("sets().join('\\n')").AsString());
+    }
+
     /// <summary>Opens the screen on one mod with these settings, the item table sent first; returns the drawn settings.</summary>
     private static string Draw(params Setting[] settings)
     {

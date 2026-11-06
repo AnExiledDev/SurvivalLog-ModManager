@@ -1877,6 +1877,7 @@
 
   let draftTimer = 0;
   let draftId = null;
+  let draftRow = null;
 
   // Steps and wheel turns show at once and are written once they stop, so a run of clicks is one write, not twenty.
   function bump(row, index, delta) {
@@ -1886,17 +1887,30 @@
 
     if (!list[index]) return;
 
+    if (draftId !== id) flushDraft();
+
     list[index].count = String(clampCount(s, Number(list[index].count) + delta));
     state.drafts[id] = valueText(s, list);
     state.flash = id + '\n' + list[index].id;
     draftId = id;
+    draftRow = row;
     render();
     clearTimeout(draftTimer);
-    draftTimer = setTimeout(() => {
-      draftId = null;
+    draftTimer = setTimeout(flushDraft, DRAFT_MS);
+  }
 
-      if (state.drafts[id] !== undefined) write(row, state.drafts[id]);
-    }, DRAFT_MS);
+  // A count still waiting to be written goes out now, before anything else is written or the page starts over.
+  function flushDraft() {
+    if (draftId === null) return;
+
+    const id = draftId;
+    const row = draftRow;
+
+    clearTimeout(draftTimer);
+    draftId = null;
+    draftRow = null;
+
+    if (state.drafts[id] !== undefined) write(row, state.drafts[id]);
   }
 
   function moveItem(row, from, to) {
@@ -1971,6 +1985,9 @@
     const row = pickerRow();
 
     if (!p || !row || !state.items) {
+      // A picker whose setting is no longer on the page is closed, or the next click would only close it.
+      if (p && !row) state.picker = null;
+
       host.innerHTML = '';
 
       return;
@@ -2291,7 +2308,17 @@
   }
 
   function write(row, value) {
-    state.pending = settingId(row.mod, row.setting);
+    const id = settingId(row.mod, row.setting);
+
+    // Another setting's waiting count goes first; this setting's own is already in the value, which replaces it.
+    if (draftId !== null && draftId !== id) flushDraft();
+    else if (draftId === id) {
+      clearTimeout(draftTimer);
+      draftId = null;
+      draftRow = null;
+    }
+
+    state.pending = id;
     send('set', settingParts(row).concat([value]));
   }
 
@@ -2424,15 +2451,17 @@
     else pickOption(target, row);
   }
 
-  // The wheel over an item's card steps its amount, one a notch.
+  // The wheel over a card's amount steps it, one a notch or ten with Shift; anywhere else on the card it scrolls the page.
   function onWheel(e) {
-    const card = e.target.closest('.mf .slot[data-slot]');
+    const stepper = e.target.closest('.mf .slot[data-slot] .stp');
+    const card = stepper ? stepper.closest('.slot[data-slot]') : null;
     const row = card ? rowOf(card) : null;
+    const turn = e.deltaY || e.deltaX;
 
-    if (!row || row.setting.kind !== 'itemCounts' || row.setting.readOnly) return;
+    if (!row || row.setting.kind !== 'itemCounts' || row.setting.readOnly || !turn) return;
 
     e.preventDefault();
-    bump(row, Number(card.dataset.slot), e.deltaY < 0 ? 1 : -1);
+    bump(row, Number(card.dataset.slot), (turn < 0 ? 1 : -1) * (e.shiftKey ? 10 : 1));
   }
 
   // Cards are reordered by holding one and letting go over another; a press and release on the same card is a click.
@@ -2538,9 +2567,10 @@
     if (target.dataset.input === 'pkCount') {
       const picking = pickerRow();
 
+      // Only the box changes: redrawing the panel here would swap out the button a click on it is landing on.
       if (picking) {
         state.picker.count = clampCount(picking.setting, parseInt(target.value, 10));
-        fillPicker(picking);
+        target.value = String(state.picker.count);
       }
 
       return;
@@ -2770,6 +2800,7 @@
     state.modNote = null;
     state.notesAsked = {};
     state.picker = null;
+    flushDraft();
     state.drafts = {};
     state.editing = null;
     state.copied = null;
