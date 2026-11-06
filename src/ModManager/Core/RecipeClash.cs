@@ -80,8 +80,8 @@ public static class RecipeClash
     }
 
     public static Description Problem(Description other) => new(
-        "Same materials as the " + other.English + " recipe. The game cannot have two recipes with the same materials, so this list is not used.",
-        "和「" + other.Chinese + "」的配方材料相同。游戏里两个配方不能用相同的材料，所以这个清单不会被使用。");
+        "The " + other.English + " recipe already uses exactly these materials. Two recipes can't share the same materials, so this list isn't used.",
+        "「" + other.Chinese + "」的配方已经用了完全相同的材料。两个配方不能用一样的材料，所以这个清单不会被使用。");
 
     /// <summary>A recipe list its mod does not check itself. A blank list the mod fills in is the mod's own choice, so it is left out.</summary>
     private static bool NeedsCheck(FoundSetting setting) =>

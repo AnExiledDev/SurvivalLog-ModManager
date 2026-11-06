@@ -79,7 +79,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.20719 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.14.1 started`. If it is missing, check that Exiled's Toolkit 0.19.0 or newer is installed: BepInEx does not load Mod Manager without it.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.14.2 started`. If it is missing, check that Exiled's Toolkit 0.19.0 or newer is installed: BepInEx does not load Mod Manager without it.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
@@ -207,7 +207,7 @@ Config.Bind("Loot", "LogRolls", false, new ConfigDescription("...", null, "ModMa
 | `ModManager.MaxKinds=N` | An item list holds at most N different items. The ADD ITEM card goes away at N, and a longer list is refused. |
 | `ModManager.MaxCount=N` | No amount in an `ItemCounts` list goes over N; a bigger one is brought down to N, like a number past the end of its range. |
 | `ModManager.AutoWhenBlank` | A blank list means your mod picks the items. The screen shows the list your `ModManagerAnswers.Blank` gives (see below) in teal with a SET BY HAND button, and a list set to hold nothing is saved as `none`, so it stays apart from blank. |
-| `ModManager.Makes=<item id>` | The list is a crafting recipe for that item. A workbench card beside the list shows the item, and the recipe's total pieces, weight and value. |
+| `ModManager.Makes=<item id>` | The list is a crafting recipe for that item. A workbench card beside the list shows the item, and the recipe's total pieces, weight and value. Unless your `ModManagerAnswers.Problem` answers for the list, the screen warns when another recipe in the game, or another of your recipe lists, already uses exactly those materials. |
 | `ModManager.ReturnsOf=<Key>` | The list is what taking down the thing made by that recipe setting gives back. Name a setting in another section as `Section.Key`. The screen warns when it gives back more value than the recipe takes. |
 | `ModManager.Control=Category` | An `int` setting holding a game item category id. Shown as a drop-down of the game's categories. |
 | `ModManager.ShowWhen=...` | Show the setting only while another setting of your mod has a value. `ShowWhen=Enabled` means that on/off setting is on; `ShowWhen=Mode=Custom\|Expert` means it holds either value (any case). Name a setting in another section as `Section.Key`. Several conditions joined by `;` must all hold. When the setting it depends on is hidden, this one is too. |

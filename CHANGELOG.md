@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.2
+
+- A crafting recipe list now warns you, under the list, when another recipe in the game already uses exactly those materials. Two recipes can't share the same materials, so the mod can't use that list.
+- The mouse wheel changes an amount only while it is over the - and + buttons, so scrolling down the page past an item card no longer changes it.
+- Typing an amount in the item window and then clicking ADD now adds the item.
+- Changing an amount and then quickly changing another list keeps both changes.
+- Made for Survival Log 1.1.20719.
+
 ## 0.14.1
 
 - **Warning:** needs Exiled's Toolkit 0.19.0 or newer. Update the Toolkit first.
