@@ -190,70 +190,127 @@ public class ItemFieldPageTests
         PageScript.Entries(PageScript.EntriesId(buffs.Id), ListEntries.Parse("12|Well Fed|饱食||Good|增益\n40|Hungry|饥饿||Bad|负面"));
 
     [Fact]
-    public void A_List_setting_shows_the_mods_entries_as_cards_with_their_choice()
+    public void A_List_setting_shows_each_entry_as_a_row_with_its_picture_name_description_and_choice()
     {
         var beds = Beds("9076:Sleep,9100:Skip");
         var field = Field(DrawWith(new[] { BedEntries(beds) }, beds), "BedModes");
 
-        Assert.Contains("<img src=\"Res/bed.png\" alt=\"\">", field);
-        Assert.Contains("<div class=\"nm\">Wooden Bed</div><div class=\"ech\" data-act=\"cycle\" data-index=\"0\"", field);
-        Assert.Contains(">Sleep</div>", field);
-        Assert.Contains(">Skip</div>", field);
+        Assert.Contains("<div class=\"el-row\" data-slot=\"0\">", field);
+        Assert.Contains("<div class=\"el-ic\"><img src=\"Res/bed.png\" alt=\"\"></div>", field);
+        Assert.Contains("<div class=\"el-nm\">Wooden Bed<span>木床</span></div><div class=\"el-ds\">Sleeps 8 hours</div>", field);
 
-        // An entry with no picture shows the first letter of its name, and an entry the mod no longer lists its id.
+        // Every choice is a button on the row, the one it has lit; the Chinese name the mod gave shows only in Chinese.
+        Assert.Contains("data-act=\"setChoice\" data-index=\"0\" data-value=\"Sleep\" class=\"on\">Sleep</span>", field);
+        Assert.Contains("data-act=\"setChoice\" data-index=\"1\" data-value=\"Skip\" class=\"on\">Skip</span>", field);
+
+        // An entry with no picture shows the first letter of its name; no cards are drawn.
         Assert.Contains("<span class=\"noimg\">S</span>", field);
-        Assert.Contains("ADD</div>", field);
-        Assert.DoesNotContain("ADD ITEM", field);
+        Assert.DoesNotContain("class=\"slot", field);
+        Assert.Contains("data-act=\"pick\">+ ADD</div>", field);
         Assert.Contains(">9076:Sleep, 9100:Skip</code>", field);
     }
 
     [Fact]
-    public void Clicking_a_choice_moves_it_on_to_the_mods_next_one()
+    public void Clicking_a_choice_on_a_row_sets_that_choice()
     {
         var beds = Beds("9076:Sleep,9100:Skip");
         var engine = OpenWith(new[] { BedEntries(beds) }, beds);
 
-        engine.Execute("fire('click', { target: el('DIV', ['ech'], { act: 'cycle', index: '1' }, { '[data-act]': { dataset: { act: 'cycle', index: '1' } }, '[data-row]': firstRow }) })");
+        engine.Execute("fire('click', { target: el('SPAN', [], { act: 'setChoice', index: '1', value: 'Nap' }, { '[data-act]': { dataset: { act: 'setChoice', index: '1', value: 'Nap' } }, '[data-row]': firstRow }) })");
 
-        Assert.EndsWith("|SmallTurbine|BedModes|9076:Sleep,9100:Auto", engine.Evaluate("sets().join('\\n')").AsString());
+        Assert.EndsWith("|SmallTurbine|BedModes|9076:Sleep,9100:Nap", engine.Evaluate("sets().join('\\n')").AsString());
     }
 
     [Fact]
-    public void An_entry_picked_in_the_picker_goes_in_with_the_choice_picked_there()
+    public void A_row_moves_up_and_down_in_the_list_order()
+    {
+        var beds = Beds("9076:Sleep,9100:Skip,9080:Nap");
+        var engine = OpenWith(new[] { BedEntries(beds) }, beds);
+
+        // The first row cannot move up and the last cannot move down.
+        var field = Field(Pane(engine), "BedModes");
+
+        Assert.Contains("data-act=\"moveUp\" data-index=\"0\" class=\"off\"", field);
+        Assert.Contains("data-act=\"moveDown\" data-index=\"2\" class=\"off\"", field);
+
+        engine.Execute("fire('click', { target: el('SPAN', [], { act: 'moveUp', index: '2' }, { '[data-act]': { dataset: { act: 'moveUp', index: '2' } }, '[data-row]': firstRow }) })");
+
+        Assert.EndsWith("|SmallTurbine|BedModes|9076:Sleep,9080:Nap,9100:Skip", engine.Evaluate("sets().join('\\n')").AsString());
+    }
+
+    [Fact]
+    public void The_picker_lists_each_entry_as_a_row_with_an_Add_button_and_stays_open_after_adding()
     {
         var beds = Beds("9076:Sleep");
         var engine = OpenWith(new[] { BedEntries(beds) }, beds);
-        const string bag = "el('DIV', ['it'], { id: '9080' }, { '.pk-host': {}, '.it': { dataset: { id: '9080' } } })";
 
         engine.Execute("fire('click', { target: act('pick') })");
 
-        // The mod's groups are the shelves, and the note is what the picker shows under each entry.
         var picker = engine.Evaluate("drawn.join('\\n')").AsString();
 
+        // The mod's groups are the shelves; each row has its picture, name and description, and its button.
         Assert.Contains("data-cat=\"Beds\"><span>Beds</span><i>2</i>", picker);
-        Assert.Contains("<div class=\"id\">Sleeps 8 hours</div>", picker);
         Assert.DoesNotContain("Used in recipes", picker);
+        Assert.Contains("<div class=\"pk rows\">", picker);
+        Assert.Contains("<div class=\"el-nm\">Sleeping Bag<span>睡袋</span></div></div><span class=\"pr-grp\">Beds</span><span class=\"pr-btn\" data-act=\"pkAdd\" data-id=\"9080\">+ ADD</span>", picker);
+        Assert.Contains("<span class=\"pr-btn in\" data-act=\"pkDrop\" data-id=\"9076\"><b>&#x2713; ADDED</b>", picker);
 
-        engine.Execute("fire('click', { target: " + bag + ", detail: 1 })");
-        engine.Execute("fire('click', { target: el('SPAN', [], { act: 'pkChoice', value: 'Nap' }, { '.pk-host': {}, '[data-act]': { dataset: { act: 'pkChoice', value: 'Nap' } } }) })");
-        engine.Execute("fire('click', { target: el('DIV', ['go'], { act: 'pkGo' }, { '.pk-host': {}, '[data-act]': { dataset: { act: 'pkGo' } } }) })");
+        var drawnBefore = engine.Evaluate("drawn.length").AsNumber();
 
-        Assert.EndsWith("|SmallTurbine|BedModes|9076:Sleep,9080:Nap", engine.Evaluate("sets().join('\\n')").AsString());
+        engine.Execute("fire('click', { target: " + PickerButton("pkAdd", "9080") + " })");
+
+        Assert.EndsWith("|SmallTurbine|BedModes|9076:Sleep,9080:Auto", engine.Evaluate("sets().join('\\n')").AsString());
+
+        // The picker is drawn again, not closed, and shows the new entry as added before the mod answers.
+        var after = engine.Evaluate("drawn.slice(" + drawnBefore + ").filter(function (h) { return h.indexOf('pr-btn') >= 0; }).pop() || ''").AsString();
+
+        Assert.Contains("data-act=\"pkDrop\" data-id=\"9080\"", after);
     }
 
     [Fact]
-    public void A_double_clicked_entry_goes_in_with_the_mods_first_choice()
+    public void A_click_on_Added_in_the_picker_takes_the_entry_out()
     {
-        var beds = Beds("9076:Sleep");
+        var beds = Beds("9076:Sleep,9100:Skip");
         var engine = OpenWith(new[] { BedEntries(beds) }, beds);
-        const string sofa = "el('DIV', ['it'], { id: '9100' }, { '.pk-host': {}, '.it': { dataset: { id: '9100' } } })";
 
         engine.Execute("fire('click', { target: act('pick') })");
-        engine.Execute("fire('click', { target: " + sofa + ", detail: 1 })");
-        engine.Execute("fire('click', { target: " + sofa + ", detail: 2 })");
+        engine.Execute("fire('click', { target: " + PickerButton("pkDrop", "9076") + " })");
 
-        Assert.EndsWith("|SmallTurbine|BedModes|9076:Sleep,9100:Auto", engine.Evaluate("sets().join('\\n')").AsString());
+        Assert.EndsWith("|SmallTurbine|BedModes|9100:Skip", engine.Evaluate("sets().join('\\n')").AsString());
     }
+
+    [Fact]
+    public void A_full_list_offers_no_Add_in_the_field_or_the_picker()
+    {
+        var beds = List("BedModes", BedKind with { MaxKinds = 1 }, "", "9076:Sleep");
+        var engine = OpenWith(new[] { BedEntries(beds) }, beds);
+
+        Assert.Contains("<div class=\"el-add off\" data-act=\"pick\">", Field(Pane(engine), "BedModes"));
+
+        engine.Execute("fire('click', { target: act('pick') })");
+        engine.Execute("fire('click', { target: " + PickerButton("pkAdd", "9080") + " })");
+
+        Assert.Equal(0, engine.Evaluate("sets().length").AsNumber());
+        Assert.Contains("The list holds 1 already.", engine.Evaluate("drawn.join('\\n')").AsString());
+    }
+
+    [Fact]
+    public void A_blank_list_the_mod_fills_in_shows_the_mods_line_and_never_the_whole_list()
+    {
+        var life = List("LifeItems", new SettingKind.EntryList(AutoWhenBlank: true), "", "") with
+        {
+            Answer = new ModAnswer(false, null, "9076,9080,9100", new Description("Left blank: every bed.", "留空：所有的床。")),
+        };
+        var field = Field(DrawWith(new[] { BedEntries(life) }, life), "LifeItems");
+
+        Assert.Contains("<div class=\"el-empty\">Left blank: every bed.</div>", field);
+        Assert.DoesNotContain("Wooden Bed", field);
+        Assert.DoesNotContain("data-slot=", field);
+        Assert.Contains("(blank)</code>", field);
+    }
+
+    private static string PickerButton(string name, string id) =>
+        "el('SPAN', ['pr-btn'], { act: '" + name + "', id: '" + id + "' }, { '.pk-host': {}, '[data-act]': { dataset: { act: '" + name + "', id: '" + id + "' } } })";
 
     [Fact]
     public void A_number_each_entry_carries_steps_by_a_tenth_and_stays_in_its_range()

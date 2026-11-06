@@ -105,7 +105,9 @@
       givesBack: 'Taking it down gives back', autoMark: 'auto', byHandMark: 'by hand',
       usedInRecipes: 'Used in recipes', everyItem: 'Every item', searchItems: n => 'Search ' + n + ' items by name, 中文 or id', used: 'used',
       addEntry: 'ADD', titleAddEntry: 'ADD TO THE LIST', swapEntry: 'Pick another', everything: 'Everything', searchEntries: n => 'Search ' + n + ' by name or 中文',
-      noEntryMatch: q => 'Nothing matches "' + q + '".', entriesFull: n => 'The list holds ' + n + ' already. Remove one first.', changeChoice: 'Click to change',
+      noEntryMatch: q => 'Nothing matches "' + q + '".', entriesFull: n => 'The list holds ' + n + ' already. Remove one first.',
+      nothingChosen: 'Nothing in the list yet.', chosen: n => n + ' in the list', added: 'ADDED', notListed: 'Not one the mod lists now.',
+      moveUp: 'Move up', moveDown: 'Move down',
       entriesWaiting: 'The mod has not listed what this can hold yet. Once a save is loaded it will.',
       pickAdd: 'ADD', pickSet: 'SET COUNT', pickSwap: 'SWAP IN', pickOne: 'PICK', pickIn: 'IN THE LIST',
       titleAdd: 'ADD AN ITEM', titleSwap: name => 'SWAP ' + name, titleOne: 'PICK AN ITEM',
@@ -210,7 +212,9 @@
       givesBack: '拆除后返还', autoMark: '自动', byHandMark: '手动',
       usedInRecipes: '常用材料', everyItem: '全部物品', searchItems: n => '按名称、英文或 id 搜索 ' + n + ' 种物品', used: '已用',
       addEntry: '添加', titleAddEntry: '加入清单', swapEntry: '换一个', everything: '全部', searchEntries: n => '按名称或英文搜索 ' + n + ' 项',
-      noEntryMatch: q => '没有与「' + q + '」匹配的项。', entriesFull: n => '清单里已有 ' + n + ' 项。请先移除一项。', changeChoice: '点击更改',
+      noEntryMatch: q => '没有与「' + q + '」匹配的项。', entriesFull: n => '清单里已有 ' + n + ' 项。请先移除一项。',
+      nothingChosen: '清单里还没有内容。', chosen: n => '清单里有 ' + n + ' 项', added: '已添加', notListed: '模组现在没有列出这一项。',
+      moveUp: '上移', moveDown: '下移',
       entriesWaiting: '模组还没有列出可选的内容。载入存档后就会列出。',
       pickAdd: '添加', pickSet: '设置数量', pickSwap: '替换', pickOne: '选择', pickIn: '已在清单中',
       titleAdd: '添加物品', titleSwap: name => '替换 ' + name, titleOne: '选择物品',
@@ -786,20 +790,63 @@
 #slmm .pk-info .go:hover { background: rgba(235,163,8,0.35); color: #fff; }
 #slmm .pk-info .go.off { opacity: .35; pointer-events: none; }
 #slmm .pk-info .empty-info { margin: auto; color: #666; text-align: center; font-size: .9rem; line-height: 1.6; }
-#slmm .mf .ech { margin-top: auto; width: 100%; padding: 5px 0; text-align: center; border: 1px solid rgba(143,199,191,0.45); border-radius: 2px; color: var(--teal); font: 700 .8rem var(--mono); letter-spacing: 1px; cursor: pointer; background: rgba(143,199,191,0.06); }
-#slmm .mf .ech:hover { background: rgba(143,199,191,0.2); color: #fff; }
-#slmm .mf .ech.off { cursor: default; opacity: .8; }
-#slmm .mf .ech.off:hover { background: rgba(143,199,191,0.06); color: var(--teal); }
 #slmm .mf .tile .noimg, #slmm .pk .it .noimg, #slmm .pk-info .big .noimg { font-size: 1.6rem; color: #8a7a5c; }
 #slmm .pk-info .big .noimg { font: 700 3.5rem var(--mono); }
-#slmm .pk-info .pk-note { color: #cfc6b2; font-size: .9rem; line-height: 1.45; }
-#slmm .pk-info .act.wrap { flex-wrap: wrap; }
-#slmm .pk-info .pk-ch { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
-#slmm .pk-info .pk-ch span { flex: 1; text-align: center; padding: 7px 8px; border: 1px solid rgba(143,199,191,0.35); border-radius: 2px; color: #9fb8b4; font: 700 .8rem var(--mono); letter-spacing: 1px; cursor: pointer; }
-#slmm .pk-info .pk-ch span:hover { background: rgba(143,199,191,0.15); }
-#slmm .pk-info .pk-ch span.on { background: rgba(143,199,191,0.25); border-color: var(--teal); color: #fff; }
 #slmm .pk-keys { font: .72rem var(--mono); color: #666; letter-spacing: 1px; }
 @keyframes mf-pop { 0% { transform: scale(1); } 50% { transform: scale(1.25); } 100% { transform: scale(1); } }
+/* A mod's own list (List) as rows: picture, name, what it does, its choice or number. The picker shows the same rows with an Add button. */
+#slmm .el { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+#slmm .el-rows { border: 1px solid rgba(220,188,120,0.16); border-radius: 3px; background: rgba(0,0,0,0.22); max-height: 460px; overflow: auto; }
+#slmm .el-rows::-webkit-scrollbar { width: 6px; }
+#slmm .el-rows::-webkit-scrollbar-thumb { background: rgba(235,163,8,0.35); border-radius: 3px; }
+#slmm .el-row, #slmm .pr { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+#slmm .el-row:last-child, #slmm .pr:last-child { border-bottom: 0; }
+#slmm .el-row:hover, #slmm .pr:hover { background: rgba(235,163,8,0.05); }
+#slmm .el-row.pop { animation: el-flash .5s; }
+#slmm .el-ic { width: 46px; height: 46px; flex-shrink: 0; display: grid; place-items: center; border-radius: 3px; border: 1px solid rgba(255,255,255,0.07); background: radial-gradient(circle at 50% 40%, rgba(255,214,140,0.14), rgba(0,0,0,0) 70%), #0e0c0a; }
+#slmm .el-ic img { width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.7)); }
+#slmm .el-ic .noimg { font: 700 1.15rem var(--mono); color: #8a7a5c; }
+#slmm .el-tx { flex: 1; min-width: 0; }
+#slmm .el-nm { color: #eee; font-size: .95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#slmm .el-nm span { margin-left: 8px; color: #8a7f6c; font-weight: 400; font-size: .82rem; }
+#slmm .el-ds { margin-top: 2px; color: #a9a08c; font-size: .84rem; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#slmm .el-row.lost .el-nm { color: #888; }
+#slmm .el-seg { display: flex; flex-shrink: 0; border: 1px solid rgba(143,199,191,0.35); border-radius: 2px; overflow: hidden; }
+#slmm .el-seg span { padding: 6px 12px; border-right: 1px solid rgba(143,199,191,0.2); color: #9fb8b4; font: 700 .78rem var(--mono); letter-spacing: 1px; cursor: pointer; }
+#slmm .el-seg span:last-child { border-right: 0; }
+#slmm .el-seg span:hover { background: rgba(143,199,191,0.15); color: #fff; }
+#slmm .el-seg span.on { background: rgba(143,199,191,0.3); color: #fff; }
+#slmm .el-row .stp { flex-shrink: 0; display: flex; align-items: stretch; border: 1px solid rgba(255,255,255,0.14); border-radius: 2px; overflow: hidden; }
+#slmm .el-row .stp span { width: 30px; display: grid; place-items: center; cursor: pointer; color: #aaa; font: 700 1.05rem var(--mono); background: rgba(255,255,255,0.04); }
+#slmm .el-row .stp span:hover { background: rgba(235,163,8,0.2); color: var(--amber); }
+#slmm .el-row .stp input { width: 54px; background: #000; border: 0; color: #fff; text-align: center; font: 700 .95rem var(--mono); outline: none; padding: 5px 0; user-select: text; }
+#slmm .el-mv { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+#slmm .el-mv span { width: 22px; height: 18px; display: grid; place-items: center; font-size: .62rem; color: #777; cursor: pointer; border-radius: 2px; }
+#slmm .el-mv span:hover { color: var(--amber); background: rgba(235,163,8,0.12); }
+#slmm .el-mv span.off { visibility: hidden; }
+#slmm .el-x { width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center; color: #777; cursor: pointer; border-radius: 2px; }
+#slmm .el-x:hover { background: rgba(200,50,50,0.25); color: #ff8080; }
+#slmm .el-empty { padding: 16px; color: #9a927e; font-size: .9rem; }
+#slmm .el-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+#slmm .el-add { padding: 8px 18px; border: 1px solid var(--amber); border-radius: 2px; background: rgba(235,163,8,0.12); color: var(--amber); font: 700 .82rem var(--mono); letter-spacing: 2px; cursor: pointer; }
+#slmm .el-add:hover { background: rgba(235,163,8,0.3); color: #fff; }
+#slmm .el-add.off { opacity: .35; pointer-events: none; }
+#slmm .el-count { font: .8rem var(--mono); color: #888; }
+#slmm .pk.rows .pk-bd { grid-template-columns: 250px minmax(0, 1fr); }
+#slmm .pk.rows .pk-info { display: none; }
+#slmm .pk.rows .pk-grid { display: block; padding: 0; }
+#slmm .pr.in { background: rgba(143,199,191,0.04); }
+#slmm .pr-grp { flex-shrink: 0; font: .72rem var(--mono); letter-spacing: 1px; color: #7a6e5a; white-space: nowrap; }
+#slmm .pr-val { flex-shrink: 0; font: 700 .8rem var(--mono); color: var(--teal); }
+#slmm .pr-btn { flex-shrink: 0; min-width: 116px; padding: 7px 12px; text-align: center; border: 1px solid var(--amber); border-radius: 2px; background: rgba(235,163,8,0.1); color: var(--amber); font: 700 .8rem var(--mono); letter-spacing: 1.5px; cursor: pointer; }
+#slmm .pr-btn:hover { background: rgba(235,163,8,0.3); color: #fff; }
+#slmm .pr-btn.off { opacity: .35; pointer-events: none; }
+#slmm .pr-btn.in { border-color: rgba(143,199,191,0.5); background: rgba(143,199,191,0.08); color: var(--teal); }
+#slmm .pr-btn i { display: none; font-style: normal; }
+#slmm .pr-btn.in:hover { border-color: rgba(255,90,90,0.6); background: rgba(255,90,90,0.08); color: #ff8a7a; }
+#slmm .pr-btn.in:hover b { display: none; }
+#slmm .pr-btn.in:hover i { display: inline; }
+@keyframes el-flash { 0% { background: rgba(235,163,8,0.25); } 100% { background: transparent; } }
 `;
 
   // ===== The window =====
@@ -1629,7 +1676,7 @@
       return '<div class="row wide' + (isChanged(s) ? ' chg' : '') + (id === state.pending ? ' flash' : '') + '" data-row="' + index + '">' +
         '<div><div class="lab">' + show(s.label) + readOnly + restartMark + '</div>' + lines.join('') + '</div>' +
         '<div class="reset' + (canReset ? ' can' : '') + '" data-act="reset" title="' + esc(word('resetTo')(shown(s, s.default))) + '">&#x21BA;</div>' +
-        '<div class="mf-host' + (s.readOnly ? ' locked' : '') + '">' + itemField(m, s) + '</div></div>';
+        '<div class="mf-host' + (s.readOnly ? ' locked' : '') + '">' + (isEntries(s) ? entryField(m, s) : itemField(m, s)) + '</div></div>';
     }
 
     return '<div class="row' + (isChanged(s) ? ' chg' : '') + (id === state.pending ? ' flash' : '') + '" data-row="' + index + '">' +
@@ -1841,7 +1888,7 @@
     else if (!max || list.length < max) slots += '<div class="slot add' + (hasValue(s) ? '' : ' plain') + '" data-act="pick"><div class="plus">+</div><div class="al">' + esc(forList(s, 'addItem', 'addEntry')) + '</div></div>';
 
     const pips = max && max <= 12 ? '<span class="mf-pips">' + '<i class="on"></i>'.repeat(Math.min(list.length, max)) + '<i></i>'.repeat(Math.max(0, max - list.length)) + '</span>' : '';
-    const cap = max && !auto ? '<span class="mf-cap">' + pips + '<b>' + list.length + '</b> / ' + max + (isEntries(s) ? '' : ' ' + esc(word('kinds'))) + '</span>' : '';
+    const cap = max && !auto ? '<span class="mf-cap">' + pips + '<b>' + list.length + '</b> / ' + max + ' ' + esc(word('kinds')) + '</span>' : '';
     const text = state.editing === id
       ? '<input class="mf-in" data-input="text" value="' + esc(auto ? '' : lineText(s, list) || (s.auto ? NO_ITEMS : '')) + '" spellcheck="false" autocomplete="off">'
       : '<code data-act="editText" title="' + esc(word('editText')) + '">' + esc(auto ? word('blankText') : lineText(s, list) || word('noneText')) + '</code>';
@@ -1856,7 +1903,6 @@
     const item = entryOf(s, e.id);
     const counts = hasStepper(s);
     const title = (item ? item.en + ' / ' + item.zh + '  ' : '') + '#' + e.id + (item && item.note ? '\n' + textOf(item.note) : '');
-    const choice = hasChoice(s) ? '<div class="ech" data-act="cycle" data-index="' + i + '" title="' + esc(word('changeChoice')) + '">' + esc(valueLabel(s, e.count)) + '</div>' : '';
     const pop = state.flash === settingId(m, s) + '\n' + e.id ? ' pop' : '';
     const dragged = state.drag && state.drag.id === settingId(m, s) && state.drag.from === i ? ' drag' : '';
 
@@ -1864,7 +1910,7 @@
       '<span class="sw" data-act="swap" data-index="' + i + '" title="' + esc(forList(s, 'swapItem', 'swapEntry')) + '">&#x21C4;</span>' +
       '<span class="sx" data-act="dropItem" data-index="' + i + '" title="' + esc(word('remove')) + '">&#x2715;</span>' +
       '<div class="tile" data-act="swap" data-index="' + i + '">' + icon(item) + (counts ? '<span class="qty' + pop + '">&times;' + esc(e.count) + '</span>' : '') + '</div>' +
-      '<div class="nm">' + esc(item ? itemText(item) : '#' + e.id) + '</div>' + choice +
+      '<div class="nm">' + esc(item ? itemText(item) : '#' + e.id) + '</div>' +
       (counts ? '<div class="stp"><span data-act="dec" data-index="' + i + '">&minus;</span><input data-input="count" data-index="' + i + '" value="' + esc(e.count) + '" inputmode="' + (isDecimal(s) ? 'decimal' : 'numeric') + '"><span data-act="inc" data-index="' + i + '">+</span></div>' : '') +
       '</div>';
   }
@@ -1876,7 +1922,55 @@
 
     return '<div class="slot auto" title="' + esc((item ? item.en + ' / ' + item.zh + '  ' : '') + '#' + e.id) + '"><div class="tile">' + icon(item) +
       (hasStepper(s) ? '<span class="qty">&times;' + esc(e.count) + '</span>' : '') + '</div>' +
-      '<div class="nm">' + esc(item ? itemText(item) : '#' + e.id) + '</div>' + (hasChoice(s) ? '<div class="ech off">' + esc(valueLabel(s, e.count)) + '</div>' : '') + (from ? '<div class="from">' + esc(word('ofCount')(from.count)) + '</div>' : '') + '</div>';
+      '<div class="nm">' + esc(item ? itemText(item) : '#' + e.id) + '</div>' + (from ? '<div class="from">' + esc(word('ofCount')(from.count)) + '</div>' : '') + '</div>';
+  }
+
+  // A mod's own list as rows, one per entry: its picture, name and what it does, its choice or number, and buttons to
+  // move it or take it out. A blank the mod fills in shows only the mod's line about it, never the whole list it stands for.
+  function entryField(m, s) {
+    const id = settingId(m, s);
+    const auto = isAuto(m, s);
+    const list = auto ? [] : entriesOf(s, valueNow(m, s));
+    const full = !!s.maxKinds && list.length >= s.maxKinds;
+    const rows = list.map((e, i) => entryRow(m, s, e, i, list.length)).join('');
+    const empty = '<div class="el-empty">' + esc(s.blankNote ? textOf(s.blankNote) : word('nothingChosen')) + '</div>';
+    const waiting = !catalogOf(s).list.length ? '<div class="mf-status note"><i>i</i>' + esc(word('entriesWaiting')) + '</div>' : '';
+    const problem = s.problem ? '<div class="mf-status bad"><i>!</i>' + esc(word('modCannotUse')) + '</div>' : '';
+    const warn = s.problem ? '<div class="mf-warn"><span>&#x26A0;</span><div>' + esc(textOf(s.problem)) + '</div></div>' : '';
+    const count = list.length ? '<span class="el-count">' + esc(word('chosen')(list.length)) + (s.maxKinds ? ' / ' + s.maxKinds : '') + '</span>' : '';
+    const text = state.editing === id
+      ? '<input class="mf-in" data-input="text" value="' + esc(auto ? '' : lineText(s, list) || (s.auto ? NO_ITEMS : '')) + '" spellcheck="false" autocomplete="off">'
+      : '<code data-act="editText" title="' + esc(word('editText')) + '">' + esc(auto ? word('blankText') : lineText(s, list) || word('noneText')) + '</code>';
+
+    return '<div class="el">' + warn + '<div class="el-rows">' + (rows || empty) + '</div>' +
+      '<div class="el-bar"><div class="el-add' + (full ? ' off' : '') + '" data-act="pick">+ ' + esc(word('addEntry')) + '</div>' + count + problem + waiting + '<div class="mf-text">' + text + '</div></div></div>';
+  }
+
+  function entryRow(m, s, e, i, total) {
+    const entry = entryOf(s, e.id);
+    const name = entry ? itemText(entry) : '#' + e.id;
+    const pop = state.flash === settingId(m, s) + '\n' + e.id ? ' pop' : '';
+    const move = total > 1
+      ? '<div class="el-mv"><span data-act="moveUp" data-index="' + i + '"' + (i === 0 ? ' class="off"' : '') + ' title="' + esc(word('moveUp')) + '">&#x25B2;</span>' +
+        '<span data-act="moveDown" data-index="' + i + '"' + (i === total - 1 ? ' class="off"' : '') + ' title="' + esc(word('moveDown')) + '">&#x25BC;</span></div>'
+      : '';
+    const value = hasChoice(s)
+      ? '<div class="el-seg">' + s.choices.map(c => '<span data-act="setChoice" data-index="' + i + '" data-value="' + esc(c) + '"' + (c.toLowerCase() === String(e.count).toLowerCase() ? ' class="on"' : '') + '>' + esc(valueLabel(s, c)) + '</span>').join('') + '</div>'
+      : hasStepper(s)
+        ? '<div class="stp"><span data-act="dec" data-index="' + i + '">&minus;</span><input data-input="count" data-index="' + i + '" value="' + esc(e.count) + '" inputmode="decimal"><span data-act="inc" data-index="' + i + '">+</span></div>'
+        : '';
+
+    return '<div class="el-row' + pop + (entry ? '' : ' lost') + '" data-slot="' + i + '">' + move + entryText(entry, name, entry ? '' : word('notListed')) + value +
+      '<span class="el-x" data-act="dropItem" data-index="' + i + '" title="' + esc(word('remove')) + '">&#x2715;</span></div>';
+  }
+
+  // An entry's picture, its name with the other language's beside it, and what it does under them.
+  function entryText(entry, name, fallback) {
+    const alt = entry ? (state.lang === 'zh' ? entry.en : entry.zh) : '';
+    const note = entry && entry.note ? textOf(entry.note) : fallback;
+
+    return '<div class="el-ic">' + icon(entry) + '</div><div class="el-tx"><div class="el-nm">' + esc(name) + (alt && alt !== name ? '<span>' + esc(alt) + '</span>' : '') + '</div>' +
+      (note ? '<div class="el-ds">' + esc(note) + '</div>' : '') + '</div>';
   }
 
   // The mod's verdict first; then whether a give-back list is worth more than its recipe; then how the list was set.
@@ -1884,8 +1978,6 @@
     const line = (cls, mark, text) => '<div class="mf-status' + cls + '"><i>' + mark + '</i>' + esc(text) + '</div>';
 
     if (s.problem) return line(' bad', '!', word('modCannotUse'));
-
-    if (isEntries(s) && !catalogOf(s).list.length) return line(' note', 'i', word('entriesWaiting'));
 
     if (isAuto(m, s)) return line(' note', 'i', s.blankNote ? textOf(s.blankNote) : word('autoNote'));
 
@@ -1984,21 +2076,19 @@
     if (state.drafts[id] !== undefined) write(row, state.drafts[id]);
   }
 
-  // A choice moves on to the mod's next one, and from the last back to the first.
-  function cycleChoice(row, index) {
-    const s = row.setting;
-    const list = listOf(row.mod, s);
+  function setChoice(row, index, value) {
+    const list = listOf(row.mod, row.setting);
 
-    if (!list[index]) return;
+    if (!list[index] || list[index].count === value) return;
 
-    const at = s.choices.findIndex(c => c.toLowerCase() === list[index].count.toLowerCase());
-
-    list[index].count = s.choices[(at + 1) % s.choices.length];
+    list[index].count = value;
     writeList(row, list, list[index].id);
   }
 
   function moveItem(row, from, to) {
     const list = listOf(row.mod, row.setting);
+
+    if (!list[from] || to < 0 || to >= list.length) return;
     const moved = list.splice(from, 1)[0];
 
     list.splice(to, 0, moved);
@@ -2083,7 +2173,7 @@
     }
 
     if (isNew || !host.firstChild) {
-      host.innerHTML = '<div class="pk-veil"><div class="pk"><div class="pk-hd"><div class="ti"></div>' +
+      host.innerHTML = '<div class="pk-veil"><div class="pk' + (isEntries(row.setting) ? ' rows' : '') + '"><div class="pk-hd"><div class="ti"></div>' +
         '<div class="pk-q"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input class="pk-find" spellcheck="false" autocomplete="off"></div>' +
         '<div class="used"></div><div class="close-btn" data-act="pkClose">&#x2715;</div></div>' +
         '<div class="pk-bd"><div class="pk-cats"></div><div class="pk-grid"></div><div class="pk-info"></div></div></div></div>';
@@ -2115,9 +2205,9 @@
     host.querySelector('.used').innerHTML = isList(s) && s.maxKinds ? '<b>' + list.length + '</b> / ' + s.maxKinds + ' ' + esc(word('used')) : '';
     host.querySelector('.pk-find').placeholder = searchText(s);
     host.querySelector('.pk-cats').innerHTML = pickerShelves(s);
-    grid.innerHTML = pickerGrid(s, list);
+    grid.innerHTML = isEntries(s) ? pickerRows(s, list) : pickerGrid(s, list);
     grid.scrollTop = top;
-    host.querySelector('.pk-info').innerHTML = pickerInfo(s, list);
+    host.querySelector('.pk-info').innerHTML = isEntries(s) ? '' : pickerInfo(s, list);
     p.top = false;
   }
 
@@ -2137,12 +2227,11 @@
     const p = state.picker;
     const found = shelf(s);
     const inList = {};
-    const under = item => (isEntries(s) ? (item.note ? textOf(item.note) : '') : '#' + item.id);
     const tile = item => {
       const got = inList[String(item.id)];
 
       return '<div class="it' + (String(item.id) === String(p.pick) ? ' hi' : '') + (got ? ' taken' : '') + '" data-id="' + esc(item.id) + '">' + (got && hasValue(s) ? '<span class="got">' + esc(hasChoice(s) ? valueLabel(s, got) : '\u00d7' + got) + '</span>' : '') +
-        (item.icon ? '<img loading="lazy" src="' + esc(item.icon) + '" alt="">' : '<span class="noimg">' + esc(initial(item)) + '</span>') + '<div class="in">' + esc(itemText(item)) + '</div><div class="id">' + esc(under(item)) + '</div></div>';
+        (item.icon ? '<img loading="lazy" src="' + esc(item.icon) + '" alt="">' : '<span class="noimg">' + esc(initial(item)) + '</span>') + '<div class="in">' + esc(itemText(item)) + '</div><div class="id">#' + esc(item.id) + '</div></div>';
     };
 
     for (const e of list) inList[e.id] = e.count;
@@ -2151,18 +2240,74 @@
 
     out += found.slice(0, p.shown).map(tile).join('');
 
-    if (!found.length) return '<div class="pk-none">' + esc(word(isEntries(s) ? 'noEntryMatch' : 'noMatch')(p.q.trim())) + '</div>';
+    if (!found.length) return '<div class="pk-none">' + esc(word('noMatch')(p.q.trim())) + '</div>';
 
     if (found.length > p.shown) out += '<div class="pk-more" data-act="pkMore">' + esc(word('showing')(p.shown, found.length)) + '</div>';
 
     return out;
   }
 
+  // A mod's entries as rows, each with an Add button; one already in the list says so, and a click takes it out again.
+  function pickerRows(s, list) {
+    const p = state.picker;
+    const found = shelf(s);
+    const inList = {};
+    const full = !!s.maxKinds && list.length >= s.maxKinds;
+    const showGroup = !!p.q.trim() || p.cat === 'all';
+
+    for (const e of list) inList[e.id] = e;
+
+    if (!found.length) return '<div class="pk-none">' + esc(word('noEntryMatch')(p.q.trim())) + '</div>';
+
+    const line = item => {
+      const got = inList[String(item.id)];
+      const group = showGroup && item.group && catalogOf(s).shelves.length ? '<span class="pr-grp">' + esc(textOf(item.group)) + '</span>' : '';
+      const value = got && hasValue(s) ? '<span class="pr-val">' + esc(hasChoice(s) ? valueLabel(s, got.count) : '\u00d7' + got.count) + '</span>' : '';
+      const button = got
+        ? '<span class="pr-btn in" data-act="pkDrop" data-id="' + esc(item.id) + '"><b>&#x2713; ' + esc(word('added')) + '</b><i>' + esc(word('remove')) + '</i></span>'
+        : '<span class="pr-btn' + (full ? ' off' : '') + '" data-act="pkAdd" data-id="' + esc(item.id) + '">+ ' + esc(word('addEntry')) + '</span>';
+
+      return '<div class="pr' + (got ? ' in' : '') + '">' + entryText(item, itemText(item), '') + group + value + button + '</div>';
+    };
+
+    let out = found.slice(0, p.shown).map(line).join('');
+
+    if (found.length > p.shown) out += '<div class="pk-more" data-act="pkMore">' + esc(word('showing')(p.shown, found.length)) + '</div>';
+
+    if (full) out = '<div class="mf-status bad" style="padding:10px 14px"><i>!</i>' + esc(word('entriesFull')(s.maxKinds)) + '</div>' + out;
+
+    return out;
+  }
+
+  // Adds an entry, or takes it out, and keeps the picker open. The list shows the change at once; the mod's answer replaces it.
+  function toggleEntry(row, id, isAdd) {
+    const s = row.setting;
+    const list = listOf(row.mod, s);
+    const at = list.findIndex(e => e.id === String(id));
+
+    if (isAdd) {
+      if (at >= 0 || (s.maxKinds && list.length >= s.maxKinds)) return;
+
+      list.push({ id: String(id), count: String(firstValue(s)) });
+    } else {
+      if (at < 0) return;
+
+      list.splice(at, 1);
+    }
+
+    const value = valueText(s, list);
+
+    state.drafts[settingId(row.mod, s)] = value;
+    state.flash = isAdd ? settingId(row.mod, s) + '\n' + id : null;
+    write(row, value);
+    render();
+  }
+
   function pickerInfo(s, list) {
     const p = state.picker;
-    const item = p.pick !== null && (isEntries(s) || String(p.pick) !== '0') ? entryOf(s, p.pick) : null;
+    const item = p.pick !== null && String(p.pick) !== '0' ? entryOf(s, p.pick) : null;
 
-    if (p.pick === null || ((isEntries(s) || String(p.pick) !== '0') && !item)) {
+    if (p.pick === null || (String(p.pick) !== '0' && !item)) {
       return '<div class="empty-info">' + esc(word('clickToSee')) + '<br><span class="pk-keys">' + esc(word('dblClickAdds')) + '</span></div>';
     }
 
@@ -2170,18 +2315,11 @@
     const isFull = isList(s) && p.slot === null && at < 0 && !!s.maxKinds && list.length >= s.maxKinds;
     const isIn = isList(s) && !hasValue(s) && p.slot === null && at >= 0;
     const verb = s.kind === 'item' ? 'pickOne' : p.slot !== null ? 'pickSwap' : isIn ? 'pickIn' : at >= 0 ? 'pickSet' : 'pickAdd';
-    const stepper = hasStepper(s) ? '<div class="stp"><span data-act="pkDec">&minus;</span><input data-input="pkCount" value="' + esc(p.count) + '" inputmode="' + (isDecimal(s) ? 'decimal' : 'numeric') + '"><span data-act="pkInc">+</span></div>' :
-      hasChoice(s) ? '<div class="pk-ch">' + s.choices.map(c => '<span data-act="pkChoice" data-value="' + esc(c) + '"' + (c.toLowerCase() === String(p.count).toLowerCase() ? ' class="on"' : '') + '>' + esc(valueLabel(s, c)) + '</span>').join('') + '</div>' : '';
-    const full = isFull ? '<div class="mf-status bad"><i>!</i>' + esc(word(isEntries(s) ? 'entriesFull' : 'listFull')(s.maxKinds)) + '</div>' : '';
+    const stepper = hasStepper(s) ? '<div class="stp"><span data-act="pkDec">&minus;</span><input data-input="pkCount" value="' + esc(p.count) + '" inputmode="numeric"><span data-act="pkInc">+</span></div>' : '';
+    const full = isFull ? '<div class="mf-status bad"><i>!</i>' + esc(word('listFull')(s.maxKinds)) + '</div>' : '';
     const go = '<div class="go' + (isFull || isIn ? ' off' : '') + '" data-act="pkGo">' + esc(word(verb)) + '</div>';
 
     if (!item) return '<div class="t">' + esc(word('none')) + '</div><div class="act">' + go + '</div>';
-
-    if (isEntries(s)) {
-      return '<div class="big">' + icon(item) + '</div><div class="t">' + esc(itemText(item)) + '</div><div class="t2">' + esc(state.lang === 'zh' ? item.en : item.zh) + '</div>' +
-        (item.group ? '<dl><dt>' + esc(word('category')) + '</dt><dd>' + esc(textOf(item.group)) + '</dd></dl>' : '') +
-        (item.note ? '<div class="pk-note">' + esc(textOf(item.note)) + '</div>' : '') + full + '<div class="act' + (hasChoice(s) ? ' wrap' : '') + '">' + stepper + go + '</div>';
-    }
 
     return '<div class="big">' + icon(item) + '</div><div class="t">' + esc(itemText(item)) + '</div><div class="t2">' + esc(state.lang === 'zh' ? item.en : item.zh) + '</div>' +
       '<dl><dt>id</dt><dd>' + item.id + '</dd><dt>' + esc(word('category')) + '</dt><dd>' + esc(categoryName(item.cat)) + '</dd>' +
@@ -2277,9 +2415,8 @@
     } else if (actName === 'pkDec' || actName === 'pkInc') {
       p.count = clampValue(row.setting, Number(p.count) + (actName === 'pkInc' ? 1 : -1) * (shift ? 10 : 1) * stepOf(row.setting));
       fillPicker(row);
-    } else if (actName === 'pkChoice') {
-      p.count = act.dataset.value;
-      fillPicker(row);
+    } else if (actName === 'pkAdd' || actName === 'pkDrop') {
+      toggleEntry(row, act.dataset.id, actName === 'pkAdd');
     } else if (actName === 'pkGo') {
       commit();
     } else if (actName === 'pkMore') {
@@ -2550,19 +2687,20 @@
     else if (actName === 'dropItem' && row) dropItem(row, Number(act.dataset.index));
     else if ((actName === 'dec' || actName === 'inc') && row) bump(row, Number(act.dataset.index), (actName === 'inc' ? 1 : -1) * (e.shiftKey ? 10 : 1));
     else if (actName === 'byHand' && row) writeList(row, listOf(row.mod, row.setting));
-    else if (actName === 'cycle' && row) cycleChoice(row, Number(act.dataset.index));
+    else if (actName === 'setChoice' && row) setChoice(row, Number(act.dataset.index), act.dataset.value);
+    else if ((actName === 'moveUp' || actName === 'moveDown') && row) moveItem(row, Number(act.dataset.index), Number(act.dataset.index) + (actName === 'moveUp' ? -1 : 1));
     else if (actName === 'editText' && row) editText(row);
     else pickOption(target, row);
   }
 
   // The wheel over a card's amount steps it, one a notch or ten with Shift; anywhere else on the card it scrolls the page.
   function onWheel(e) {
-    const stepper = e.target.closest('.mf .slot[data-slot] .stp');
-    const card = stepper ? stepper.closest('.slot[data-slot]') : null;
+    const stepper = e.target.closest('.mf .slot[data-slot] .stp') || e.target.closest('.el-row[data-slot] .stp');
+    const card = stepper ? stepper.closest('.slot[data-slot]') || stepper.closest('.el-row[data-slot]') : null;
     const row = card ? rowOf(card) : null;
     const turn = e.deltaY || e.deltaX;
 
-    if (!row || row.setting.kind !== 'itemCounts' || row.setting.readOnly || !turn) return;
+    if (!row || !hasStepper(row.setting) || row.setting.readOnly || !turn) return;
 
     e.preventDefault();
     bump(row, Number(card.dataset.slot), (turn < 0 ? 1 : -1) * (e.shiftKey ? 10 : 1));
@@ -2737,7 +2875,14 @@
     if (e.key === 'Enter' && e.target.classList.contains('pk-find') && state.picker) {
       e.preventDefault();
 
-      const first = shelf()[0];
+      const picking = pickerRow();
+      const first = picking ? shelf(picking.setting)[0] : null;
+
+      if (picking && isEntries(picking.setting)) {
+        if (first) toggleEntry(picking, first.id, true);
+
+        return;
+      }
 
       if (state.picker.pick === null && first) state.picker.pick = String(first.id);
 

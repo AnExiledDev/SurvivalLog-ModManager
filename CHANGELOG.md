@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.0
+
+- A mod's own list (such as Vital Signs' food, beds and buffs) now shows as a list instead of cards: one row per entry with its picture, its name and what it does. Each row has buttons to move it up or down and to take it out.
+- A choice, such as a bed's Sleep or Nap, is a row of buttons on the entry, so you pick it in one click.
+- ADD opens a window that lists everything the mod offers as rows, filed under the mod's groups, with an Add button on each row. The window stays open, so you can add several in a row, and a click on ADDED takes one out again.
+- A list the mod fills in when it is left blank no longer shows everything it stands for, only the mod's line about it.
+- Enter in the search box of the item window now adds the item shown, instead of doing nothing.
+- Made for Survival Log 1.1.20719.
+
 ## 0.15.0
 
 - A new kind of list for mods: one that picks from entries the mod lists itself, such as buffs, beds or furniture actions. It shows as cards with each entry's picture and name, and the same picker as items, with the mod's own groups and a line about each entry. Vital Signs is the first to use it.
