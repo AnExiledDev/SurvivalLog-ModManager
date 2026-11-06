@@ -13,7 +13,7 @@ Open it with the Mods button in the Esc menu or on the title screen, or set a ke
 - **Search every setting**: type in the search box to find a setting across all mods by its name, section or description, or a mod by its name in either language.
 - **Shows what you changed**: settings that differ from the mod's default are marked, with a button to put each one back, or all of a mod's settings at once.
 - **Item pickers**: settings that hold game items or item categories show the items themselves, with their pictures and names in the game's language, instead of id numbers. A list of items shows as a row of item cards: click a card to swap its item, drag cards to reorder them, and use the - and + buttons, or the mouse wheel over them, to change an amount (hold Shift for 10 at a time). ADD ITEM opens a window of every item in the game, sorted into the game's categories with the items recipes use first, searchable by name in either language or by id, with each item's weight, value and how many recipes use it. A crafting recipe also shows what it makes and its total pieces, weight and value. A list of what taking something down gives back shows the items you get when it is left blank, warns when it would give back more than the recipe is worth, and SET BY HAND turns that into a list you edit. A mod can say why it cannot use a list (for example, when the game already has a recipe with exactly those materials), and the screen shows that reason under the list. The plain text of the list sits below the cards; click it to type or paste a list.
-- **Mod lists**: a mod can give a list of its own to pick from, such as buffs, beds or furniture actions, and it shows as a list: one row per entry with its picture, name and what it does, with buttons to move it up or down or take it out. ADD opens a searchable window of everything the mod lists, filed under the mod's groups, with an Add button on each row. An entry can also carry a choice you pick on its row, or a number you step up or down. Vital Signs uses these for its food, routine, Life item, bed, pinned buff and buff timer settings.
+- **Mod lists**: a mod can give a list of its own to pick from, such as buffs, beds or furniture actions, and it shows as a list: one row per entry with its picture, name and what it does, with buttons to move it up or down or take it out. ADD opens a searchable window of everything the mod lists, filed under the mod's groups, with an Add button on each row. The mod can say what you have of each entry; those rows are marked, and the window gets a "You have" group of them at the top. An entry can also carry a choice you pick on its row, or a number you step up or down. Vital Signs uses these for its food, routine, Life item, bed, pinned buff and buff timer settings.
 - **Settings for one world**: a mod can let each world keep its own value of a setting. While you play, such a setting says whether this world keeps its own value, and the value every other world uses. A change to a value this world keeps goes to this world alone; USE GLOBAL sends it back to the shared value, and THIS WORLD ONLY makes the value this world's own.
 - **Tidy pages**: settings a mod marks as advanced sit in a folded "Advanced" group at the end of their section, and settings that only matter when another setting is on stay hidden until it is.
 - **Hotkey clashes**: a hotkey that another mod also uses is shown in red, with the name of the other mod. Mods can also list fixed hotkeys they use, which show on their page and count in the clash check.
@@ -80,7 +80,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.20719 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.16.0 started`. If it is missing, check that Exiled's Toolkit 0.19.0 or newer is installed: BepInEx does not load Mod Manager without it.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.17.0 started`. If it is missing, check that Exiled's Toolkit 0.19.0 or newer is installed: BepInEx does not load Mod Manager without it.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
@@ -240,9 +240,12 @@ public static class ModManagerAnswers
     // A line under that list saying where it comes from, "English\nChinese".
     public static string BlankNote(string section, string key) => "";
 
-    // For a List: what it picks from, one entry per line, "id|English|Chinese|icon|group|group in Chinese|note|note in Chinese".
+    // For a List: what it picks from, one entry per line,
+    // "id|English|Chinese|icon|group|group in Chinese|note|note in Chinese|have|have in Chinese".
     // Only the id is needed. The icon is a picture the game's web page can load, and entries with no picture show their
-    // name's first letter. An id with a comma, colon or space is skipped. Sent to the page again only when it changes.
+    // name's first letter. "have" is what the player has of it now ("You have 3"): such rows are marked, and the picker
+    // gets a "You have" group of them. An id with a comma, colon or space is skipped. Asked each time the screen reads
+    // the settings; sent to the page again only when it changes.
     public static string Entries(string section, string key) => "";
 }
 ```

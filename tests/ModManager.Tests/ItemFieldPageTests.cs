@@ -267,6 +267,52 @@ public class ItemFieldPageTests
         Assert.Contains("data-act=\"pkDrop\" data-id=\"9080\"", after);
     }
 
+    private static string HeldEntries(Setting life) =>
+        PageScript.Entries(PageScript.EntriesId(life.Id), ListEntries.Parse("i12|Bandage|绷带||Meds|药品|Life +10|生命 +10|You have 3|有 3 件\ni13|Pill|药片||Meds|药品|Life +5|生命 +5\ni14|Soup|汤||Food|食物|Life +2|生命 +2|You have 1|有 1 件"));
+
+    [Fact]
+    public void Entries_the_player_has_are_marked_and_get_a_shelf_of_their_own()
+    {
+        var life = List("LifeItems", new SettingKind.EntryList(), "", "i12,i13");
+        var engine = OpenWith(new[] { HeldEntries(life) }, life);
+        var field = Field(Pane(engine), "LifeItems");
+
+        // In the list, a row the player has says how many; one they do not have is drawn plain.
+        Assert.Contains("<div class=\"el-row has\" data-slot=\"0\">", field);
+        Assert.Contains("<span class=\"el-have\">You have 3</span>", field);
+        Assert.Contains("<div class=\"el-row\" data-slot=\"1\">", field);
+
+        engine.Execute("fire('click', { target: act('pick') })");
+
+        var picker = engine.Evaluate("drawn.join('\\n')").AsString();
+
+        Assert.Contains("data-cat=\"~have\"><span>&#x2605; You have</span><i>2</i>", picker);
+        Assert.Contains("<div class=\"pr has\">", picker);
+
+        // The shelf lists only what the player has, each with its group.
+        var before = engine.Evaluate("drawn.length").AsNumber();
+
+        engine.Execute("fire('click', { target: el('DIV', ['pk-cat'], { cat: '~have' }, { '.pk-host': {}, '.pk-cat': { dataset: { cat: '~have' } } }) })");
+
+        var shelf = engine.Evaluate("drawn.slice(" + before + ").filter(function (h) { return h.indexOf('pr-btn') >= 0; }).pop() || ''").AsString();
+
+        Assert.Contains("data-id=\"i12\"", shelf);
+        Assert.Contains("data-id=\"i14\"", shelf);
+        Assert.DoesNotContain("data-id=\"i13\"", shelf);
+        Assert.Contains("<span class=\"el-have\">You have 1</span><span class=\"pr-grp\">Food</span>", shelf);
+    }
+
+    [Fact]
+    public void A_list_whose_mod_says_nothing_of_what_the_player_has_gets_no_such_shelf()
+    {
+        var beds = Beds("9076:Sleep");
+        var engine = OpenWith(new[] { BedEntries(beds) }, beds);
+
+        engine.Execute("fire('click', { target: act('pick') })");
+
+        Assert.DoesNotContain("~have", engine.Evaluate("drawn.join('\\n')").AsString());
+    }
+
     [Fact]
     public void A_click_on_Added_in_the_picker_takes_the_entry_out()
     {

@@ -8,11 +8,12 @@ namespace ModManager.Core;
 /// <param name="Icon">A picture the game's web page can load, or null.</param>
 /// <param name="Group">The shelf the picker files it under, or null.</param>
 /// <param name="Note">A line about it for the picker, such as what it does, or null.</param>
-public sealed record ListEntry(string Id, Description Name, string? Icon, Description? Group, Description? Note);
+/// <param name="Have">What the player has of it now ("You have 3"), which the picker marks and can list on its own, or null.</param>
+public sealed record ListEntry(string Id, Description Name, string? Icon, Description? Group, Description? Note, Description? Have = null);
 
 /// <summary>
 /// Reads the entries a mod's ModManagerAnswers.Entries gives: one per line, as
-/// "id|English|Chinese|icon|group|group in Chinese|note|note in Chinese". Only the id is needed; a missing Chinese part
+/// "id|English|Chinese|icon|group|group in Chinese|note|note in Chinese|have|have in Chinese". Only the id is needed; a missing Chinese part
 /// takes the English one. An id the setting could not write (empty, or with a comma, colon or space) is skipped, and
 /// so is an id seen before.
 /// </summary>
@@ -33,7 +34,8 @@ public static class ListEntries
             var name = Words(Part(parts, 1), Part(parts, 2)) ?? new Description(id, id);
             var icon = Part(parts, 3);
 
-            entries.Add(new ListEntry(id, name, icon.Length > 0 ? icon : null, Words(Part(parts, 4), Part(parts, 5)), Words(Part(parts, 6), Part(parts, 7))));
+            entries.Add(new ListEntry(id, name, icon.Length > 0 ? icon : null, Words(Part(parts, 4), Part(parts, 5)), Words(Part(parts, 6), Part(parts, 7)),
+                Words(Part(parts, 8), Part(parts, 9))));
         }
 
         return entries;

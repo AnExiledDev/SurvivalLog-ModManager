@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.17.0
+
+- A mod's own list can now say what you have of each entry, such as how many of an item you carry or keep at home. Those rows are marked in the list and in the ADD window, and the window gets a "You have" group at the top that shows only them. Vital Signs is the first to use it.
+- Made for Survival Log 1.1.20719.
+
 ## 0.16.0
 
 - A mod's own list (such as Vital Signs' food, beds and buffs) now shows as a list instead of cards: one row per entry with its picture, its name and what it does. Each row has buttons to move it up or down and to take it out.

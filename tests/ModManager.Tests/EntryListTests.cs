@@ -124,6 +124,17 @@ public class EntryListTests
         Assert.Null(entries[1].Icon);
         Assert.Null(entries[1].Group);
         Assert.Equal(new Description("7", "7"), entries[2].Name);
+        Assert.Null(entries[0].Have);
+    }
+
+    [Fact]
+    public void What_the_player_has_of_an_entry_comes_after_its_note_and_reaches_the_page()
+    {
+        var entries = ListEntries.Parse("i12|Canned Beans|罐头豆||Food|食物|Satiety +20|饱腹 +20|You have 3|有 3 件\ni13|Rice|米饭||Food|食物|||You have 1");
+
+        Assert.Equal(new Description("You have 3", "有 3 件"), entries[0].Have);
+        Assert.Equal(new Description("You have 1", "You have 1"), entries[1].Have);
+        Assert.Contains("\"note\":{\"en\":\"Satiety +20\",\"zh\":\"饱腹 +20\"},\"have\":{\"en\":\"You have 3\",\"zh\":\"有 3 件\"}", PageScript.Entries("x", entries));
     }
 
     [Fact]

@@ -50,7 +50,7 @@ public static class PageScript
     public static string Entries(string id, IReadOnlyList<ListEntry> entries)
     {
         var json = List(entries, entry => "{\"id\":" + Str(entry.Id) + ",\"en\":" + Str(entry.Name.English) + ",\"zh\":" + Str(entry.Name.Chinese) +
-            ",\"icon\":" + (entry.Icon == null ? "null" : Str(entry.Icon)) + ",\"group\":" + Text(entry.Group) + ",\"note\":" + Text(entry.Note) + "}");
+            ",\"icon\":" + (entry.Icon == null ? "null" : Str(entry.Icon)) + ",\"group\":" + Text(entry.Group) + ",\"note\":" + Text(entry.Note) + ",\"have\":" + Text(entry.Have) + "}");
 
         return Call("entries", Str(id) + "," + json);
     }

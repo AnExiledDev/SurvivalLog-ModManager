@@ -104,7 +104,7 @@
       atBench: 'AT THE WORKBENCH', noMaterials: 'No materials yet', pieces: 'pieces', kgCarry: 'kg to carry', tradeValue: 'trade value',
       givesBack: 'Taking it down gives back', autoMark: 'auto', byHandMark: 'by hand',
       usedInRecipes: 'Used in recipes', everyItem: 'Every item', searchItems: n => 'Search ' + n + ' items by name, 中文 or id', used: 'used',
-      addEntry: 'ADD', titleAddEntry: 'ADD TO THE LIST', swapEntry: 'Pick another', everything: 'Everything', searchEntries: n => 'Search ' + n + ' by name or 中文',
+      addEntry: 'ADD', titleAddEntry: 'ADD TO THE LIST', swapEntry: 'Pick another', everything: 'Everything', haveShelf: 'You have', searchEntries: n => 'Search ' + n + ' by name or 中文',
       noEntryMatch: q => 'Nothing matches "' + q + '".', entriesFull: n => 'The list holds ' + n + ' already. Remove one first.',
       nothingChosen: 'Nothing in the list yet.', chosen: n => n + ' in the list', added: 'ADDED', notListed: 'Not one the mod lists now.',
       moveUp: 'Move up', moveDown: 'Move down',
@@ -211,7 +211,7 @@
       atBench: '工作台', noMaterials: '还没有材料', pieces: '件数', kgCarry: '公斤', tradeValue: '交易价值',
       givesBack: '拆除后返还', autoMark: '自动', byHandMark: '手动',
       usedInRecipes: '常用材料', everyItem: '全部物品', searchItems: n => '按名称、英文或 id 搜索 ' + n + ' 种物品', used: '已用',
-      addEntry: '添加', titleAddEntry: '加入清单', swapEntry: '换一个', everything: '全部', searchEntries: n => '按名称或英文搜索 ' + n + ' 项',
+      addEntry: '添加', titleAddEntry: '加入清单', swapEntry: '换一个', everything: '全部', haveShelf: '你有的', searchEntries: n => '按名称或英文搜索 ' + n + ' 项',
       noEntryMatch: q => '没有与「' + q + '」匹配的项。', entriesFull: n => '清单里已有 ' + n + ' 项。请先移除一项。',
       nothingChosen: '清单里还没有内容。', chosen: n => '清单里有 ' + n + ' 项', added: '已添加', notListed: '模组现在没有列出这一项。',
       moveUp: '上移', moveDown: '下移',
@@ -264,6 +264,8 @@
 
   const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite', issues: 'linkIssues', changelog: 'linkChangelog' };
   const PICKER_PAGE = 300;
+  // The picker shelf of the entries the mod says the player has. Other shelf ids are the mod's group names.
+  const HAVE = '~have';
   const DRAFT_MS = 300;
   const NO_ITEMS = 'none';
   const COPIED_MS = 2500;
@@ -836,6 +838,8 @@
 #slmm .pk.rows .pk-info { display: none; }
 #slmm .pk.rows .pk-grid { display: block; padding: 0; }
 #slmm .pr.in { background: rgba(143,199,191,0.04); }
+#slmm .pr.has, #slmm .el-row.has { box-shadow: inset 3px 0 0 var(--amber); }
+#slmm .el-have { flex-shrink: 0; padding: 3px 8px; border: 1px solid rgba(235,163,8,0.45); border-radius: 2px; background: rgba(235,163,8,0.1); color: var(--amber); font: 700 .74rem var(--mono); letter-spacing: 1px; white-space: nowrap; }
 #slmm .pr-grp { flex-shrink: 0; font: .72rem var(--mono); letter-spacing: 1px; color: #7a6e5a; white-space: nowrap; }
 #slmm .pr-val { flex-shrink: 0; font: 700 .8rem var(--mono); color: var(--teal); }
 #slmm .pr-btn { flex-shrink: 0; min-width: 116px; padding: 7px 12px; text-align: center; border: 1px solid var(--amber); border-radius: 2px; background: rgba(235,163,8,0.1); color: var(--amber); font: 700 .8rem var(--mono); letter-spacing: 1.5px; cursor: pointer; }
@@ -1960,9 +1964,12 @@
         ? '<div class="stp"><span data-act="dec" data-index="' + i + '">&minus;</span><input data-input="count" data-index="' + i + '" value="' + esc(e.count) + '" inputmode="decimal"><span data-act="inc" data-index="' + i + '">+</span></div>'
         : '';
 
-    return '<div class="el-row' + pop + (entry ? '' : ' lost') + '" data-slot="' + i + '">' + move + entryText(entry, name, entry ? '' : word('notListed')) + value +
+    return '<div class="el-row' + pop + (entry ? '' : ' lost') + (entry && entry.have ? ' has' : '') + '" data-slot="' + i + '">' + move + entryText(entry, name, entry ? '' : word('notListed')) + haveTag(entry) + value +
       '<span class="el-x" data-act="dropItem" data-index="' + i + '" title="' + esc(word('remove')) + '">&#x2715;</span></div>';
   }
+
+  // What the player has of an entry, as the mod words it ("You have 3"); nothing when the mod says nothing.
+  const haveTag = entry => (entry && entry.have ? '<span class="el-have">' + esc(textOf(entry.have)) + '</span>' : '');
 
   // An entry's picture, its name with the other language's beside it, and what it does under them.
   function entryText(entry, name, fallback) {
@@ -2152,6 +2159,8 @@
 
     if (p.cat === 'common' && !isEntries(s)) return catalog.common;
 
+    if (p.cat === HAVE) return catalog.haveCount ? all.filter(item => item.have) : all;
+
     if (p.cat === 'all') return all;
 
     return all.filter(item => String(item.cat) === String(p.cat));
@@ -2216,7 +2225,8 @@
     const catalog = catalogOf(s);
     const on = cat => (!p.q.trim() && String(p.cat) === String(cat) ? ' on' : '');
     const star = isEntries(s) ? '' : '<div class="pk-cat star' + on('common') + '" data-cat="common"><span>&#x2605; ' + esc(word('usedInRecipes')) + '</span><i>' + catalog.common.length + '</i></div>';
-    let out = star + '<div class="pk-cat' + on('all') + '" data-cat="all"><span>' + esc(forList(s, 'everyItem', 'everything')) + '</span><i>' + catalog.list.length + '</i></div><div class="pk-sep"></div>';
+    const have = isEntries(s) && catalog.haveCount ? '<div class="pk-cat star' + on(HAVE) + '" data-cat="' + HAVE + '"><span>&#x2605; ' + esc(word('haveShelf')) + '</span><i>' + catalog.haveCount + '</i></div>' : '';
+    let out = star + have + '<div class="pk-cat' + on('all') + '" data-cat="all"><span>' + esc(forList(s, 'everyItem', 'everything')) + '</span><i>' + catalog.list.length + '</i></div><div class="pk-sep"></div>';
 
     for (const c of catalog.shelves) out += '<div class="pk-cat' + on(c.id) + '" data-cat="' + esc(c.id) + '"><span>' + esc(textOf(c)) + '</span><i>' + catalog.perCat[c.id] + '</i></div>';
 
@@ -2253,7 +2263,7 @@
     const found = shelf(s);
     const inList = {};
     const full = !!s.maxKinds && list.length >= s.maxKinds;
-    const showGroup = !!p.q.trim() || p.cat === 'all';
+    const showGroup = !!p.q.trim() || p.cat === 'all' || p.cat === HAVE;
 
     for (const e of list) inList[e.id] = e;
 
@@ -2267,7 +2277,7 @@
         ? '<span class="pr-btn in" data-act="pkDrop" data-id="' + esc(item.id) + '"><b>&#x2713; ' + esc(word('added')) + '</b><i>' + esc(word('remove')) + '</i></span>'
         : '<span class="pr-btn' + (full ? ' off' : '') + '" data-act="pkAdd" data-id="' + esc(item.id) + '">+ ' + esc(word('addEntry')) + '</span>';
 
-      return '<div class="pr' + (got ? ' in' : '') + '">' + entryText(item, itemText(item), '') + group + value + button + '</div>';
+      return '<div class="pr' + (got ? ' in' : '') + (item.have ? ' has' : '') + '">' + entryText(item, itemText(item), '') + haveTag(item) + group + value + button + '</div>';
     };
 
     let out = found.slice(0, p.shown).map(line).join('');
@@ -3182,10 +3192,13 @@
     const byId = {};
     const perCat = {};
     const shelves = [];
+    let haveCount = 0;
 
     for (const entry of list) {
       entry.entry = true;
       byId[entry.id] = entry;
+
+      if (entry.have) haveCount++;
 
       if (!entry.group) continue;
 
@@ -3196,7 +3209,7 @@
       perCat[entry.cat] = (perCat[entry.cat] || 0) + 1;
     }
 
-    state.entries[id] = { list: list, byId: byId, perCat: perCat, shelves: shelves.length > 1 ? shelves : [] };
+    state.entries[id] = { list: list, byId: byId, perCat: perCat, shelves: shelves.length > 1 ? shelves : [], haveCount: haveCount };
 
     if (root.classList.contains('on')) render();
 
