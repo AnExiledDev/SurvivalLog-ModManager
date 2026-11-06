@@ -62,7 +62,7 @@ internal sealed class ModsSession
     /// <summary>The language the item table was sent in to the page that is there now; null when it has not been sent.</summary>
     private bool _itemsSent;
 
-    public ModsSession(WebPage page, PluginCatalog catalog, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
+    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
@@ -76,7 +76,7 @@ internal sealed class ModsSession
         _isCheckingForUpdates = isCheckingForUpdates;
         _isShowingUpdateToast = isShowingUpdateToast;
         _log = log;
-        _items = new GameItemTable(log);
+        _items = items;
     }
 
     public void Update(float now, int frame)

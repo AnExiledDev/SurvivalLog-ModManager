@@ -18,6 +18,8 @@ internal sealed class GameItemTable
     private readonly Action<string> _log;
     private (IReadOnlyList<CatalogItem> Items, IReadOnlyList<CategoryName> Categories)? _read;
     private IconIndex? _icons;
+    private Dictionary<int, Description>? _names;
+    private bool _hasReportedRecipes;
 
     public GameItemTable(Action<string> log)
     {
@@ -65,6 +67,60 @@ internal sealed class GameItemTable
         _log(items.Count + " items read for the item pickers");
 
         return read;
+    }
+
+    /// <summary>An item's name in both languages for a message, its id when the table has no name for it.</summary>
+    public Description NameOf(int id)
+    {
+        var (items, _) = Read();
+
+        _names ??= items.Count > 0 ? items.ToDictionary(item => item.Id, item => item.Name) : null;
+
+        return _names != null && _names.TryGetValue(id, out var name) ? name : new Description("#" + id, "#" + id);
+    }
+
+    /// <summary>
+    /// Every recipe the game has now, mods' own included, read afresh each time: a mod rewrites its recipe rows when one
+    /// of its settings changes. Empty while the game has not loaded its tables.
+    /// </summary>
+    public IReadOnlyList<GameRecipe> Recipes()
+    {
+        var recipes = GameSingleton.Existing<ConfigManager>()?._Config_ProductionList_Dict;
+
+        if (recipes == null) return Array.Empty<GameRecipe>();
+
+        try
+        {
+            var read = new List<GameRecipe>();
+
+            foreach (var recipe in recipes.Values)
+            {
+                if (recipe?.MaterialList == null) continue;
+
+                read.Add(new GameRecipe(Ids(recipe.ProductID), Ids(recipe.MaterialList)));
+            }
+
+            return read;
+        }
+        catch (Exception ex)
+        {
+            if (!_hasReportedRecipes) _log("the recipes could not be read, so recipe lists are not checked against them: " + ex.Message);
+
+            _hasReportedRecipes = true;
+
+            return Array.Empty<GameRecipe>();
+        }
+    }
+
+    private static int[] Ids(Il2CppSystem.Collections.Generic.List<int>? list)
+    {
+        if (list == null) return Array.Empty<int>();
+
+        var ids = new int[list.Count];
+
+        for (var i = 0; i < ids.Length; i++) ids[i] = list[i];
+
+        return ids;
     }
 
     /// <summary>The materials of every recipe the game has now, mods' own recipes included.</summary>

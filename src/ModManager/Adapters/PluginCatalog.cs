@@ -31,6 +31,7 @@ internal sealed class PluginCatalog
     private readonly Action<string> _log;
     private readonly HashSet<string> _reportedFailures = new();
     private readonly ModAnswers _answers;
+    private readonly GameItemTable _items;
     private readonly Dictionary<string, IReadOnlyList<PluginFile>> _files = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Where each DLL moved this session, by where it was when the game started.</summary>
@@ -41,8 +42,10 @@ internal sealed class PluginCatalog
     private IReadOnlyDictionary<string, string>? _banners;
 
     /// <param name="backupVersions">The names of a mod's backup folders, by GUID.</param>
-    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, ProblemBook errors, string selfGuid, string? gameVersion, Action<string> log)
+    /// <param name="items">The game's items and recipes, which recipe lists are checked against.</param>
+    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, ProblemBook errors, string selfGuid, string? gameVersion, GameItemTable items, Action<string> log)
     {
+        _items = items;
         _folders = folders;
         _updates = updates;
         _backupVersions = backupVersions;
@@ -368,7 +371,7 @@ internal sealed class PluginCatalog
 
         foreach (var problem in ShowRules.Problems(found).Concat(ModList.LinkProblems(found))) ReportOnce(guid + "/show/" + problem, "in " + guid + ", " + problem);
 
-        return found;
+        return RecipeClash.IsNeeded(found) ? RecipeClash.Check(found, _items.Recipes(), _items.NameOf) : found;
     }
 
     private static (FoundSetting Setting, IReadOnlyList<string> Ignored) Read(ConfigEntryBase entry)
