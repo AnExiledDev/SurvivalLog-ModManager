@@ -214,6 +214,43 @@ public class NexusTests
     }
 
     [Fact]
+    public void The_days_reads_go_first_to_the_mods_named_like_an_installed_mod_not_matched_yet()
+    {
+        // With one read left, the reads must not go to an unrelated mod that happens to have the newest upload.
+        var mods = new[] { new NexusMod(40, "Fast Travel", "1", "", "Ann"), new NexusMod(41, "Better Radar", "1", "", "Bob"), new NexusMod(42, "Quick Stack", "1", "", "Cy") };
+        var files = new Dictionary<int, NexusFiles>
+        {
+            [40] = new("", new[] { File(10, "1", "MAIN") }),
+            [41] = new("", new[] { File(1, "1", "MAIN"), File(2, "0.9", "OLD_VERSION") }),
+            [42] = new("", new[] { File(11, "1", "MAIN") }),
+        };
+        var read = new Dictionary<string, IReadOnlyList<string>>();
+        var wanted = new[] { "BetterRadar", "BetterRadar", "com.bob.betterradar" };
+
+        Assert.Equal(new[] { Uri(1) }, NexusPlan.NeedManifests(new[] { 40, 41, 42 }, files, read, 1, mods, wanted));
+        // A likely mod's old upload still waits for every current one, since a player most often has a current file.
+        Assert.Equal(new[] { Uri(1), Uri(11), Uri(10), Uri(2) }, NexusPlan.NeedManifests(new[] { 40, 41, 42 }, files, read, 10, mods, wanted));
+        // With nothing wanted, as when every installed mod is matched, the order is newest first again.
+        Assert.Equal(new[] { Uri(11) }, NexusPlan.NeedManifests(new[] { 40, 41, 42 }, files, read, 1, mods, Array.Empty<string>()));
+    }
+
+    [Theory]
+    [InlineData("BetterRadarMod", "better radar")]
+    [InlineData("com.bob.better-radar", "bob better radar")]
+    [InlineData("SL_HTTPServer2", "http server 2")]
+    [InlineData("The Survival Log Mod", "")]
+    public void A_name_is_known_by_its_words_without_the_filler_every_mod_name_has(string name, string words) =>
+        Assert.Equal(words, string.Join(" ", NameWords.Of(name)));
+
+    [Theory]
+    [InlineData("Auto Loot Plus", "AutoLootPlus", 3)]
+    [InlineData("Autoloot", "Auto Loot", 1)]
+    [InlineData("Smooth Maps", "Map", 0)]
+    [InlineData("Fast Travel", "Better Radar", 0)]
+    public void Names_are_alike_by_the_words_they_share_or_one_held_in_the_other(string nexusName, string installed, int likeness) =>
+        Assert.Equal(likeness, NameWords.Likeness(NameWords.Of(nexusName), new[] { NameWords.Of(installed) }));
+
+    [Fact]
     public void A_mod_no_longer_on_Nexus_loses_its_files_and_their_manifests()
     {
         var saved = Cache(

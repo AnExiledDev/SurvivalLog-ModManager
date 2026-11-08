@@ -58,7 +58,8 @@ internal sealed class NexusLookups
     /// <summary>Main thread, once the wiki's index has settled, so it is known which mods are the wiki's.</summary>
     /// <param name="ours">The Nexus pages of the wiki's own mods.</param>
     /// <param name="foreign">For each installed mod that is not on the wiki, the Nexus page the wiki lists for it, or null.</param>
-    public void Start(IReadOnlySet<int> ours, IReadOnlyList<int?> foreign)
+    /// <param name="wanted">The names of the installed mods that no saved manifest matches yet, whose likely pages are read first.</param>
+    public void Start(IReadOnlySet<int> ours, IReadOnlyList<int?> foreign, IReadOnlyList<string> wanted)
     {
         var saved = _book.Nexus;
 
@@ -78,7 +79,7 @@ internal sealed class NexusLookups
         }
 
         _stop = new CancellationTokenSource();
-        _ = Check(_stop.Token, saved, ours, foreign);
+        _ = Check(_stop.Token, saved, ours, foreign, wanted);
     }
 
     /// <summary>Main thread: update checks were turned off, so nothing more is asked; turning them on again starts over.</summary>
@@ -102,7 +103,7 @@ internal sealed class NexusLookups
         return isChanged;
     }
 
-    private async Task Check(CancellationToken stop, NexusCache saved, IReadOnlySet<int> ours, IReadOnlyList<int?> foreign)
+    private async Task Check(CancellationToken stop, NexusCache saved, IReadOnlySet<int> ours, IReadOnlyList<int?> foreign, IReadOnlyList<string> wanted)
     {
         try
         {
@@ -138,7 +139,7 @@ internal sealed class NexusLookups
             var manifests = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
             string? manifestProblem = null;
 
-            foreach (var uri in NexusPlan.NeedManifests(candidates, NexusPlan.MergeFiles(mods, saved, fresh), saved.Manifests, NexusApi.ManifestsPerDay))
+            foreach (var uri in NexusPlan.NeedManifests(candidates, NexusPlan.MergeFiles(mods, saved, fresh), saved.Manifests, NexusApi.ManifestsPerDay, mods, wanted))
             {
                 var (hashes, readProblem) = ManifestOf(await Send(new HttpRequestMessage(HttpMethod.Get, NexusApi.ManifestUri(uri)), stop).ConfigureAwait(false));
 

@@ -55,7 +55,7 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 - The Mod Manager and Exiled's Toolkit cannot be turned off here, since the screen needs them. Delete their DLLs to remove them.
 - A mod whose DLL is outside `BepInEx\plugins` cannot be turned on, off or updated here.
 - Update checks only cover mods that name a GitHub repository. INSTALL UPDATE needs the release to carry a .zip that holds the mod's DLL; otherwise use GET UPDATE and install it yourself.
-- Nexus Mods versions are only shown for mods whose DLL is the one uploaded to Nexus, in a file Nexus lists the contents of. Nexus is asked at most once a day and up to 60 file lists are read a day, so with many mods from Nexus some show their version a day or two later.
+- Nexus Mods versions are only shown for mods whose DLL is the one uploaded to Nexus, in a file Nexus lists the contents of. Nexus is asked at most once a day and up to 60 file lists are read a day, those of the Nexus mods named most like yours first, so with many mods from Nexus some show their version a day or two later.
 - The game code check only sees what a mod names in its DLL. A mod that looks up game code by its name while it runs is not checked for it.
 - The HEALTH page cannot say that Exiled's Toolkit is missing, since the Mods screen does not open without it. It does say when a mod needs a newer Toolkit than the one installed.
 - An uninstalled mod keeps running until you quit the game, and EMPTY TRASH leaves it in the trash until the next session.
@@ -90,7 +90,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.20719 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.18.0 started`. If it is missing, check that Exiled's Toolkit 0.19.0 or newer is installed: BepInEx does not load Mod Manager without it.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.18.1 started`. If it is missing, check that Exiled's Toolkit 0.19.0 or newer is installed: BepInEx does not load Mod Manager without it.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.

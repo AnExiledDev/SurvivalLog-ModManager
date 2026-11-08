@@ -257,10 +257,15 @@ internal sealed class ModsSession
     private void AskNexus()
     {
         var index = _updates.Index;
-        var foreign = _catalog.Mods().Where(mod => index.ModOf(mod.Guid) == null && mod.Guid != Plugin.Guid).Select(mod => index.NexusIdOf(mod.Guid)).ToList();
+        var foreignMods = _catalog.Mods().Where(mod => index.ModOf(mod.Guid) == null && mod.Guid != Plugin.Guid).ToList();
+        var foreign = foreignMods.Select(mod => index.NexusIdOf(mod.Guid)).ToList();
         var ours = index.Mods.Select(mod => mod.NexusId).OfType<int>().ToHashSet();
+        var wanted = foreignMods
+            .Where(mod => _catalog.HashOf(mod.Guid) is not { } sha || _updates.Nexus.FilesWithDll(sha).Count == 0)
+            .SelectMany(mod => new[] { mod.Name, System.IO.Path.GetFileNameWithoutExtension(mod.FileName), mod.Guid })
+            .ToList();
 
-        _nexus.Start(ours, foreign);
+        _nexus.Start(ours, foreign, wanted);
     }
 
     private IEnumerable<string> UpdateRepositories() => _catalog.Mods().Select(mod => mod.Info.UpdateRepository).OfType<string>();

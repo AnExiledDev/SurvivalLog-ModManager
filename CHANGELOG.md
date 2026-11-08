@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.1
+
+- With mods from Nexus Mods installed, the few Nexus file lists read each day now go first to the Nexus mods named most like yours, so most of them show their Nexus version from the first day.
+- Made for Survival Log 1.1.20719.
+
 ## 0.18.0
 
 - Updates of the mods listed on the Survival Log Wiki now download from the wiki first, so they install even where GitHub is slow or blocked. A copy that is not exactly the released file is never used, and the update comes from GitHub instead.

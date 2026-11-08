@@ -404,6 +404,9 @@ public static class NexusPlan
 {
     private static readonly string[] CategoryOrder = { "MAIN", "OPTIONAL", "OLD_VERSION", "ARCHIVED" };
 
+    /// <summary>MAIN and OPTIONAL: the files a player installs today.</summary>
+    private const int CurrentCategories = 2;
+
     /// <summary>
     /// The mods whose files may name an installed DLL: none when every installed mod is on the wiki; only the pages the
     /// wiki lists when it lists one for every other installed mod; else every mod that is not the wiki's.
@@ -431,17 +434,31 @@ public static class NexusPlan
         return candidates.Where(id => !saved.Files.TryGetValue(id, out var files) || !updated.TryGetValue(id, out var at) || files.UpdatedAt != at).ToList();
     }
 
-    /// <summary>The candidates' manifests not read yet, current files first and newest first, at most this many.</summary>
-    public static IReadOnlyList<string> NeedManifests(IReadOnlyList<int> candidates, IReadOnlyDictionary<int, NexusFiles> files, IReadOnlyDictionary<string, IReadOnlyList<string>> read, int max) =>
-        candidates
-            .SelectMany(id => files.TryGetValue(id, out var list) ? list.Files : Array.Empty<NexusFile>())
-            .Where(file => !read.ContainsKey(file.Uri))
-            .OrderBy(file => Rank(file.Category))
-            .ThenByDescending(file => file.FileId)
-            .Select(file => file.Uri)
+    /// <summary>
+    /// The candidates' manifests not read yet, at most this many: current files first, those of the mods named most like
+    /// an installed mod not matched yet first among them, then newest first. The day's few reads so go to the likely
+    /// mods before the rest of the game's.
+    /// </summary>
+    /// <param name="mods">The game's mods on Nexus, for their names.</param>
+    /// <param name="wanted">The names of the installed mods no read manifest matches yet: plugin name, DLL name, GUID.</param>
+    public static IReadOnlyList<string> NeedManifests(IReadOnlyList<int> candidates, IReadOnlyDictionary<int, NexusFiles> files, IReadOnlyDictionary<string, IReadOnlyList<string>> read, int max, IReadOnlyList<NexusMod>? mods = null, IReadOnlyList<string>? wanted = null)
+    {
+        var names = (mods ?? Array.Empty<NexusMod>()).GroupBy(mod => mod.ModId).ToDictionary(group => group.Key, group => group.First().Name);
+        var wantedWords = (wanted ?? Array.Empty<string>()).Select(NameWords.Of).Where(words => words.Count > 0).ToList();
+        var likeness = candidates.Distinct().ToDictionary(id => id, id => names.TryGetValue(id, out var name) ? NameWords.Likeness(NameWords.Of(name), wantedWords) : 0);
+
+        return candidates
+            .SelectMany(id => (files.TryGetValue(id, out var list) ? list.Files : Array.Empty<NexusFile>()).Select(file => (Id: id, File: file)))
+            .Where(pair => !read.ContainsKey(pair.File.Uri))
+            .OrderBy(pair => Rank(pair.File.Category) < CurrentCategories ? 0 : 1)
+            .ThenByDescending(pair => likeness[pair.Id])
+            .ThenBy(pair => Rank(pair.File.Category))
+            .ThenByDescending(pair => pair.File.FileId)
+            .Select(pair => pair.File.Uri)
             .Distinct(StringComparer.Ordinal)
             .Take(max)
             .ToList();
+    }
 
     /// <summary>
     /// The new list of mods with the files and manifests read now laid over the saved ones. A mod no longer listed loses
@@ -473,6 +490,42 @@ public static class NexusPlan
         var index = Array.IndexOf(CategoryOrder, category);
 
         return index < 0 ? CategoryOrder.Length : index;
+    }
+}
+
+/// <summary>How alike a Nexus mod's name is to an installed mod's names, by the words they share.</summary>
+public static class NameWords
+{
+    /// <summary>Words every Survival Log mod name may carry, which say nothing about which mod it is.</summary>
+    private static readonly HashSet<string> Filler = new(StringComparer.Ordinal) { "mod", "mods", "survival", "log", "sl", "the", "a", "an", "and", "of", "for", "plugin", "com", "dll" };
+
+    private static readonly Regex Word = new("[A-Z]+(?![a-z])|[A-Z]?[a-z]+|[0-9]+", RegexOptions.CultureInvariant);
+
+    /// <summary>The lowercase words of a name, split at spaces, dots, dashes and CamelCase, filler left out.</summary>
+    public static IReadOnlyList<string> Of(string name) =>
+        Word.Matches(name).Select(match => match.Value.ToLowerInvariant()).Where(word => !Filler.Contains(word)).Distinct().ToList();
+
+    /// <summary>
+    /// The most words the name shares with any wanted name, or 1 when one name run together holds the other (Autoloot and
+    /// Auto Loot); 0 when nothing is alike.
+    /// </summary>
+    public static int Likeness(IReadOnlyList<string> name, IReadOnlyList<IReadOnlyList<string>> wanted)
+    {
+        if (name.Count == 0) return 0;
+
+        var joined = string.Concat(name);
+        var best = 0;
+
+        foreach (var words in wanted)
+        {
+            var shared = name.Intersect(words).Count();
+            var other = string.Concat(words);
+
+            if (shared == 0 && Math.Min(joined.Length, other.Length) >= 4 && (joined.Contains(other) || other.Contains(joined))) shared = 1;
+            best = Math.Max(best, shared);
+        }
+
+        return best;
     }
 }
 
