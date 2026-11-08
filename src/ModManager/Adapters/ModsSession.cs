@@ -36,6 +36,7 @@ internal sealed class ModsSession
     private readonly UpdateBook _updates;
     private readonly UpdateChecks _checks;
     private readonly NexusLookups _nexus;
+    private readonly GameFitChecks _fits;
     private readonly UpdateInstaller _installer;
     private readonly LogWatch _watch;
     private readonly PageMailbox _mailbox;
@@ -66,13 +67,14 @@ internal sealed class ModsSession
     /// <summary>The Entries call last sent for each List setting to the page that is there now.</summary>
     private readonly Dictionary<string, string> _entriesSent = new();
 
-    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
+    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, GameFitChecks fits, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
         _updates = updates;
         _checks = checks;
         _nexus = nexus;
+        _fits = fits;
         _installer = installer;
         _watch = watch;
         _mailbox = PageInbox.Listen(PageCommand.Prefix);
@@ -92,6 +94,7 @@ internal sealed class ModsSession
             _hasStarted = true;
             _checks.LoadSaved(UpdateRepositories());
             _nexus.LoadSaved();
+            _fits.Start(_catalog.Dlls());
 
             if (_isCheckingForUpdates()) CheckForUpdates(true);
         }
@@ -103,12 +106,13 @@ internal sealed class ModsSession
         var hasChecked = _checks.TakeFinished();
         var hasInstalled = _installer.TakeFinished();
         var hasAskedNexus = _nexus.TakeFinished();
+        var hasCheckedCode = _fits.TakeFinished();
 
         if (hasChecked) TellUpdatesOnce();
 
         if (_nexus.IsWaiting && _checks.IsIndexSettled && _isCheckingForUpdates()) AskNexus();
 
-        if ((hasChecked || hasInstalled || hasAskedNexus) && _isOpen) _page.Run(PageScript.Refresh(Shown()));
+        if ((hasChecked || hasInstalled || hasAskedNexus || hasCheckedCode) && _isOpen) _page.Run(PageScript.Refresh(Shown()));
         else RedrawForNewErrors(now);
 
         if (_capture.Target != null)

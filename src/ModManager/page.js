@@ -92,6 +92,9 @@
       nexusTitle: version => 'Version ' + version + ' is on Nexus Mods.',
       nexusBody: version => 'You have ' + version + '. The Mod Manager cannot install mods from Nexus Mods, so download it from its page there.',
       nexusCurrent: 'up to date on Nexus',
+      pipOutdated: 'OUTDATED',
+      fitTitle: 'May not work with this game version.',
+      fitBody: (n, total) => n + ' of the ' + total + ' parts of the game code it uses ' + (n === 1 ? 'is' : 'are') + ' not in this game version, so what the mod does with ' + (n === 1 ? 'it' : 'them') + ' will fail until the mod is updated:',
       knownConflicts: 'Known not to work together',
       knownConflictsWhy: 'These mods are known to break each other. Keep only one of them on.',
       heldAsking: n => (n === 1 ? '1 update waits for you' : n + ' updates wait for you') + ' (marked ASK): it can do things the installed version cannot. Open it to see what, and click INSTALL ANYWAY if you trust where it comes from.',
@@ -207,6 +210,9 @@
       nexusTitle: version => 'Nexus Mods 上已有版本 ' + version + '。',
       nexusBody: version => '你的版本是 ' + version + '。模组管理器无法从 Nexus Mods 安装模组，请到它在那里的页面下载。',
       nexusCurrent: 'Nexus 上已是最新',
+      pipOutdated: '可能过时',
+      fitTitle: '可能不适用于此游戏版本。',
+      fitBody: (n, total) => '它用到的 ' + total + ' 处游戏代码中，有 ' + n + ' 处在此游戏版本中已不存在。在模组更新之前，用到它们的功能会失败：',
       knownConflicts: '已知不能一起使用',
       knownConflictsWhy: '这些模组已知会互相破坏。只保留其中一个开启。',
       heldAsking: n => n + ' 个更新等你确认（标为「待确认」）：它能做到当前版本做不到的事。打开查看详情，信任它的来源时点「仍然安装」。',
@@ -643,6 +649,7 @@
 #slmm .cf-name { font-family: var(--mono); font-size: .78rem; color: #ccc; }
 #slmm .cf-eff { font-size: .82rem; color: #888; }
 #slmm .cf-eff b { font-weight: 600; color: #aaa; }
+#slmm .fit-names { margin-top: 6px; font-family: var(--mono); font-size: .78rem; color: #ccc; line-height: 1.6; word-break: break-all; }
 #slmm .cf-more { font-family: var(--mono); font-size: .72rem; color: #666; padding: 3px 0 0 20px; }
 #slmm .er { border-left: 2px solid #e8813a; padding: 8px 0 8px 14px; margin: 12px 0; max-width: 900px; }
 #slmm .er.error { border-left-color: var(--red); }
@@ -1182,6 +1189,7 @@
       (m.untested ? '<span class="pip ' + (hasLoggedErrors(m) ? 'warnp' : 'untp') + '">' + esc(word('pipUntested')) + '</span>' : '') +
       (hasLoggedErrors(m) ? '<span class="pip errp">' + esc(word('pipError')) + '</span>' : hasErrors(m) ? '<span class="pip wrnp">' + esc(word('pipWarning')) + '</span>' : '') +
       (m.known.broken ? '<span class="pip errp">' + esc(word('pipBroken')) + '</span>' : '') +
+      (isMissingGameCode(m) ? '<span class="pip wrnp">' + esc(word('pipOutdated')) + '</span>' : '') +
       updatePip(m);
 
     return '<div class="mod' + (isSelected ? ' sel' : '') + (m.loaded ? '' : ' off') + '" data-mod="' + esc(m.guid) + '" style="animation-delay:' + delay + 'ms">' +
@@ -1224,7 +1232,7 @@
 
     const ownTab = ownTabOf(m, state.side);
     const railKey = m.guid + '\n' + state.lang;
-    const top = ownTab ? hero(m, true) : hero(m, false) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + untestedNotice(m) + brokenNotice(m) + relationNotice(m) + updateNotice(m) + nexusNotice(m) + rollbackNotice(m);
+    const top = ownTab ? hero(m, true) : hero(m, false) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + untestedNotice(m) + fitNotice(m) + brokenNotice(m) + relationNotice(m) + updateNotice(m) + nexusNotice(m) + rollbackNotice(m);
     const body = modNotices(m) + paneBody(m, names);
 
     morph(pane, top + (state.rail[railKey] ? '<div class="railed">' + tabs(m, names) + '<div>' + body + '</div></div>' : tabs(m, names) + body));
@@ -1341,6 +1349,21 @@
 
     return '<div class="notice upd"><span class="ico">&#x2191;</span><div class="upd-main"><b>' + esc(word('updateTitle')(tagText(m.update.tag))) + '</b> ' + esc(word('updateBody')(m.version)) +
       releaseNotes(m.update.notes) + line + '<div class="upd-act">' + button + '<div class="key-btn" data-act="update">' + esc(word('getUpdate')) + ' &#x2197;</div></div></div></div>';
+  }
+
+  function isMissingGameCode(m) {
+    return !!m.fit && m.fit.missingCount > 0;
+  }
+
+  // What the mod's DLL uses from the game's code that this game version no longer has, read at the start.
+  function fitNotice(m) {
+    if (!isMissingGameCode(m)) return '';
+
+    const shown = 8;
+    const names = m.fit.missing.slice(0, shown).map(esc).join('<br>') +
+      (m.fit.missingCount > shown ? '<br>' + esc(word('moreMethods')(m.fit.missingCount - shown)) : '');
+
+    return '<div class="notice warn"><span class="ico">!</span><div><b>' + esc(word('fitTitle')) + '</b> ' + esc(word('fitBody')(m.fit.missingCount, m.fit.checked)) + '<div class="fit-names">' + names + '</div></div></div>';
   }
 
   // The installed version is on the wiki's list of broken builds.

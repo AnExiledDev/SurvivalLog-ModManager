@@ -121,6 +121,7 @@ public static class PageScript
         json.Append(",\"switch\":").Append(SwitchJson(mod.Switch));
         json.Append(",\"update\":").Append(UpdateJson(mod.Update));
         json.Append(",\"known\":").Append(KnownJson(mod.Known));
+        json.Append(",\"fit\":").Append(mod.Fit is { } fit ? "{\"checked\":" + Int(fit.Checked) + ",\"missingCount\":" + Int(fit.MissingCount) + ",\"missing\":" + List(fit.Missing, Str) + "}" : "null");
         json.Append(",\"hotkeys\":").Append(List(mod.Info.Hotkeys, hotkey => "{\"keys\":" + Str(hotkey.Keys) + ",\"en\":" + Str(hotkey.Label.English) + ",\"zh\":" + Str(hotkey.Label.Chinese) + "}"));
         json.Append(",\"settings\":").Append(List(settings, SettingJson));
 

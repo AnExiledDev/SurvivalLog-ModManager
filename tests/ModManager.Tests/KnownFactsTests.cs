@@ -192,9 +192,9 @@ public class KnownFactsTests
         Assert.Contains("<div class=\"cf-why\">Both redraw the map.</div>", drawn);
     }
 
-    private static string Drawn(Engine engine) => engine.Evaluate("drawn.join('\\n')").AsString();
+    internal static string Drawn(Engine engine) => engine.Evaluate("drawn.join('\\n')").AsString();
 
-    private static Engine Open(params ModEntry[] mods)
+    internal static Engine Open(params ModEntry[] mods)
     {
         var engine = new Engine();
 

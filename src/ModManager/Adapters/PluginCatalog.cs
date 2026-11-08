@@ -32,6 +32,7 @@ internal sealed class PluginCatalog
     private readonly HashSet<string> _reportedFailures = new();
     private readonly ModAnswers _answers;
     private readonly GameItemTable _items;
+    private readonly Func<string?, GameFit?> _fitOf;
     private readonly Dictionary<string, IReadOnlyList<PluginFile>> _files = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string?> _hashes = new(StringComparer.OrdinalIgnoreCase);
 
@@ -44,8 +45,10 @@ internal sealed class PluginCatalog
 
     /// <param name="backupVersions">The names of a mod's backup folders, by GUID.</param>
     /// <param name="items">The game's items and recipes, which recipe lists are checked against.</param>
-    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, ProblemBook errors, string selfGuid, string? gameVersion, GameItemTable items, Action<string> log)
+    /// <param name="fitOf">The check of a DLL against the game's code, by the DLL's SHA-256; null until it is checked.</param>
+    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, ProblemBook errors, string selfGuid, string? gameVersion, GameItemTable items, Func<string?, GameFit?> fitOf, Action<string> log)
     {
+        _fitOf = fitOf;
         _items = items;
         _folders = folders;
         _updates = updates;
@@ -79,6 +82,7 @@ internal sealed class PluginCatalog
             PatchOverlaps = overlaps.TryGetValue(mod.Guid, out var shared) ? shared : Array.Empty<PatchOverlap>(),
             Errors = errors.ByMod.TryGetValue(mod.Guid, out var own) ? own : Array.Empty<ModProblem>(),
             Known = KnownFactsOf.For(mod, _updates.Index, _updates.Nexus, installed, HashOf(mod.Guid)),
+            Fit = _fitOf(HashOf(mod.Guid)),
         }));
 
         return (listed, errors.Unclaimed, _errors.Dropped);
@@ -309,6 +313,14 @@ internal sealed class PluginCatalog
 
         return _offAtStart;
     }
+
+    /// <summary>Each installed mod's DLL, on or off, where it is now, with its SHA-256; one DLL with two plugins is listed once.</summary>
+    public IReadOnlyList<(string Path, string Sha256)> Dlls() =>
+        Plugins().Select(plugin => plugin.Metadata.GUID).Concat(OffAtStart().Select(off => off.Plugin.Guid)).Distinct()
+            .Select(guid => (Start: StartPathOf(guid), Sha256: HashOf(guid)))
+            .Where(dll => dll.Start != null && dll.Sha256 != null)
+            .Select(dll => (CurrentPath(dll.Start!), dll.Sha256!))
+            .GroupBy(dll => dll.Item2).Select(group => group.First()).ToList();
 
     private string? StartPathOf(string guid) => Find(guid)?.Location ?? OffAtStart().Where(off => off.Plugin.Guid == guid).Select(off => off.Path).FirstOrDefault();
 
