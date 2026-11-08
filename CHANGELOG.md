@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.2
+
+- With Save Backups 0.5.0 or newer installed, your saves are backed up before updates are installed: the run you are playing, or every save on the title screen. Installs close together ask for one backup.
+- Made for Survival Log 1.1.20719.
+
 ## 0.18.1
 
 - With mods from Nexus Mods installed, the few Nexus file lists read each day now go first to the Nexus mods named most like yours, so most of them show their Nexus version from the first day.

@@ -353,6 +353,9 @@ internal sealed class PluginCatalog
     public Setting? Setting(SettingId id) =>
         Mod(id.Guid)?.State is ModState.Loaded loaded ? loaded.Settings.FirstOrDefault(setting => setting.Id == id) : null;
 
+    /// <summary>The assembly of a loaded plugin, or null when it is not loaded.</summary>
+    public Assembly? AssemblyOf(string guid) => Find(guid)?.Instance?.GetType().Assembly;
+
     private static IEnumerable<PluginInfo> Plugins() => IL2CPPChainloader.Instance.Plugins.Values;
 
     private static PluginInfo? Find(string guid) => IL2CPPChainloader.Instance.Plugins.TryGetValue(guid, out var plugin) ? plugin : null;

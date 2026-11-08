@@ -67,6 +67,9 @@ internal sealed class ModsSession
     /// <summary>The Entries call last sent for each List setting to the page that is there now.</summary>
     private readonly Dictionary<string, string> _entriesSent = new();
 
+    private const string SaveBackupsGuid = "com.dev.survivallog.savebackups";
+    private readonly SaveBackupAsk _backupAsk = new();
+
     public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, GameFitChecks fits, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
@@ -340,7 +343,11 @@ internal sealed class ModsSession
         if (mod == null || release == null || _updates.HasRolledBack(guid) || mod.Known.UpdateHeld != null) return;
 
         if (dllPath == null) _updates.Record(guid, new InstallState.Failed(problem ?? "it cannot be updated here"));
-        else _installer.Start(mod, release, dllPath, _catalog.IsStraightInPlugins(dllPath));
+        else
+        {
+            AskForBackup();
+            _installer.Start(mod, release, dllPath, _catalog.IsStraightInPlugins(dllPath));
+        }
     }
 
     private void ApproveInstall(string guid)
@@ -351,7 +358,33 @@ internal sealed class ModsSession
         if (mod == null || _updates.HasRolledBack(guid) || mod.Known.UpdateHeld != null) return;
 
         if (dllPath == null) _updates.Record(guid, new InstallState.Failed(problem ?? "it cannot be updated here"));
-        else _installer.Approve(mod, dllPath, _catalog.IsStraightInPlugins(dllPath));
+        else
+        {
+            AskForBackup();
+            _installer.Approve(mod, dllPath, _catalog.IsStraightInPlugins(dllPath));
+        }
+    }
+
+    /// <summary>Asks Save Backups, when it is there and new enough, to back up the saves before an update is installed.</summary>
+    private void AskForBackup()
+    {
+        if (!_backupAsk.TakeTurn(DateTime.UtcNow)) return;
+
+        if (SaveBackupAsk.Find(_catalog.AssemblyOf(SaveBackupsGuid)) is not { } call)
+        {
+            _log("no backup before updates: Save Backups is not loaded or is too old to be asked");
+
+            return;
+        }
+
+        try
+        {
+            _log("asked Save Backups for a backup before updates: " + call() + " saves");
+        }
+        catch (Exception ex)
+        {
+            _log("Save Backups could not back up before updates: " + ex.Message);
+        }
     }
 
     /// <summary>Every update not installed yet, failed ones again; the installs run side by side.</summary>
