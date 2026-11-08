@@ -86,6 +86,7 @@ public static class PageScript
         json.Append(",\"mods\":").Append(List(view.Mods, ModJson));
         json.Append(",\"problems\":").Append(List(view.Problems, Str));
         json.Append(",\"otherErrors\":").Append(List(view.OtherErrors, ErrorJson));
+        json.Append(",\"trash\":").Append(List(view.Trash, TrashJson));
 
         return json.Append('}').ToString();
     }
@@ -122,11 +123,15 @@ public static class PageScript
         json.Append(",\"update\":").Append(UpdateJson(mod.Update));
         json.Append(",\"known\":").Append(KnownJson(mod.Known));
         json.Append(",\"fit\":").Append(mod.Fit is { } fit ? "{\"checked\":" + Int(fit.Checked) + ",\"missingCount\":" + Int(fit.MissingCount) + ",\"missing\":" + List(fit.Missing, Str) + "}" : "null");
+        json.Append(",\"uninstallPrep\":").Append(Bool(mod.OffersUninstallPrep));
         json.Append(",\"hotkeys\":").Append(List(mod.Info.Hotkeys, hotkey => "{\"keys\":" + Str(hotkey.Keys) + ",\"en\":" + Str(hotkey.Label.English) + ",\"zh\":" + Str(hotkey.Label.Chinese) + "}"));
         json.Append(",\"settings\":").Append(List(settings, SettingJson));
 
         return json.Append('}').ToString();
     }
+
+    private static string TrashJson(TrashEntry item) =>
+        "{\"id\":" + Str(item.Id) + ",\"name\":" + Str(item.Name) + ",\"version\":" + Str(item.Version) + ",\"when\":" + Str(item.When) + ",\"settings\":" + Bool(item.HasSettings) + ",\"thisSession\":" + Bool(item.IsThisSession) + "}";
 
     private static string KnownJson(KnownFacts known)
     {
@@ -345,6 +350,7 @@ public static class PageScript
         ModSwitch.Locked locked => "{\"kind\":\"locked\",\"self\":" + Bool(locked.IsModManager) + ",\"neededBy\":" + List(locked.NeededBy, Str) + "}",
         ModSwitch.Held held => "{\"kind\":\"held\",\"next\":" + Bool(held.IsOnNextStart) + "}",
         ModSwitch.Unavailable => "{\"kind\":\"none\"}",
+        ModSwitch.Uninstalled uninstalled => "{\"kind\":\"uninstalled\",\"trash\":" + Str(uninstalled.TrashId) + "}",
         _ => throw new ArgumentOutOfRangeException(nameof(modSwitch), modSwitch, null),
     };
 

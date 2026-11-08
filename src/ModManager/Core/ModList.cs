@@ -150,6 +150,9 @@ public sealed record ModEntry(string Guid, string Name, string Version, string F
     /// <summary>What its DLL uses from the game's code, checked against this game build; null until it is checked.</summary>
     public GameFit? Fit { get; init; }
 
+    /// <summary>It has the UninstallPrep setting, which makes a save safe to load without the mod, so UNINSTALL points to it first.</summary>
+    public bool OffersUninstallPrep { get; init; }
+
     /// <summary>The name the mod asks to be shown by, else the one its plugin declares.</summary>
     public string DisplayName => Info.Name?.English ?? Name;
 
@@ -159,6 +162,7 @@ public sealed record ModEntry(string Guid, string Name, string Version, string F
         ModSwitch.Allowed allowed => allowed.IsOnNextStart,
         ModSwitch.Held held => held.IsOnNextStart,
         ModSwitch.Locked => true,
+        ModSwitch.Uninstalled => false,
         _ => State is not ModState.Off,
     };
 }
@@ -174,6 +178,9 @@ public sealed record ModsView(IReadOnlyList<ModEntry> Mods, IReadOnlyList<string
 
     /// <summary>Kinds of problem seen after the list was full, so not kept.</summary>
     public int ErrorsNotKept { get; init; }
+
+    /// <summary>The uninstalled mods in the trash, newest first.</summary>
+    public IReadOnlyList<TrashEntry> Trash { get; init; } = Array.Empty<TrashEntry>();
 }
 
 /// <summary>

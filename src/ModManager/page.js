@@ -127,7 +127,20 @@
       usesIn: n => n ? 'a material in ' + n + ' of the game\'s recipes' : 'not used by any of the game\'s recipes',
       listFull: n => n + ' items already. Remove one first.', noMatch: q => 'No item matches "' + q + '".',
       showing: (n, of) => 'Showing ' + n + ' of ' + of + '. Scroll for more, or search.',
-      copyList: 'COPY MOD LIST', copied: 'COPIED', copyFailed: 'COULD NOT COPY', copyHint: 'Copies every mod with its version and state, and the errors this session, to paste into a bug report.'
+      copyList: 'COPY MOD LIST', copied: 'COPIED', copyFailed: 'COULD NOT COPY', copyHint: 'Copies every mod with its version and state, and the errors this session, to paste into a bug report.',
+      uninstall: 'UNINSTALL', restore: 'RESTORE', cancel: 'CANCEL', pipUninstalled: 'UNINSTALLED', statusUninstalled: 'UNINSTALLED', uninstalledNext: 'gone from the next start',
+      uninstallTitle: name => 'Uninstall ' + name + '?',
+      uninstallBody: 'Its DLL moves to the trash now, and the game keeps running it until you quit. RESTORE on the TRASH page puts it back.',
+      prepOff: 'This mod can get your save ready to load without it: turn on its Uninstall Prep setting, save your game, then uninstall.',
+      prepOn: 'Uninstall Prep is on. Save your game before you quit, so the save loads without this mod.',
+      prepNotRunning: 'This mod can get saves ready to load without it, but only while it runs. To do that first, turn it on, restart the game and use its Uninstall Prep setting.',
+      prepTurnOn: 'TURN ON UNINSTALL PREP', removeSettings: 'Also remove its settings file',
+      uninstalledTitle: 'Uninstalled.', uninstalledBody: 'Its DLL is in the trash, so it will not start again. It keeps running until you quit the game. RESTORE puts it back.',
+      pageTrash: 'TRASH', trashTitle: 'Uninstalled mods',
+      trashIntro: 'Mods you uninstalled, with their settings file when you chose to remove it too. RESTORE puts a mod back where it was. EMPTY TRASH deletes them for good, except the ones uninstalled this session, which the game is still running.',
+      trashEmpty: 'The trash is empty.', emptyTrash: 'EMPTY TRASH', emptyYes: 'DELETE FOR GOOD',
+      emptyConfirm: n => 'Delete ' + n + (n === 1 ? ' mod' : ' mods') + ' for good? This cannot be undone.',
+      trashSettings: 'with its settings file', trashThisSession: 'this session'
     },
     zh: {
       loaded: '已加载', settings: '项设置', toggle: '切换', close: '关闭', search: '搜索所有设置',
@@ -245,7 +258,20 @@
       usesIn: n => n ? '游戏中 ' + n + ' 个配方的材料' : '游戏配方都不用它',
       listFull: n => '已经有 ' + n + ' 种物品，请先移除一种。', noMatch: q => '没有物品符合「' + q + '」。',
       showing: (n, of) => '已显示 ' + n + ' / ' + of + '，继续滚动或搜索。',
-      copyList: '复制模组列表', copied: '已复制', copyFailed: '无法复制', copyHint: '复制所有模组及其版本和状态，以及这次游戏的错误，可粘贴到问题反馈中。'
+      copyList: '复制模组列表', copied: '已复制', copyFailed: '无法复制', copyHint: '复制所有模组及其版本和状态，以及这次游戏的错误，可粘贴到问题反馈中。',
+      uninstall: '卸载', restore: '恢复', cancel: '取消', pipUninstalled: '已卸载', statusUninstalled: '已卸载', uninstalledNext: '下次启动时移除',
+      uninstallTitle: name => '卸载 ' + name + '？',
+      uninstallBody: '它的 DLL 现在会移到回收站，在你退出游戏之前游戏会继续运行它。在「回收站」页面点「恢复」可以把它放回去。',
+      prepOff: '这个模组可以让你的存档在没有它时也能读取：先开启它的「Uninstall Prep」设置，保存游戏，然后再卸载。',
+      prepOn: '「Uninstall Prep」已开启。退出前请保存游戏，这样存档在没有这个模组时也能读取。',
+      prepNotRunning: '这个模组可以让存档在没有它时也能读取，但只能在它运行时做到。如果要先这样做，请开启它，重启游戏，然后使用它的「Uninstall Prep」设置。',
+      prepTurnOn: '开启 UNINSTALL PREP', removeSettings: '同时移除它的设置文件',
+      uninstalledTitle: '已卸载。', uninstalledBody: '它的 DLL 在回收站中，所以不会再启动。在你退出游戏之前它会继续运行。「恢复」可以把它放回去。',
+      pageTrash: '回收站', trashTitle: '已卸载的模组',
+      trashIntro: '你卸载的模组，以及你选择一起移除的设置文件。「恢复」会把模组放回原处。「清空回收站」会永久删除它们，但这次卸载的除外，因为游戏仍在运行它们。',
+      trashEmpty: '回收站是空的。', emptyTrash: '清空回收站', emptyYes: '永久删除',
+      emptyConfirm: n => '永久删除 ' + n + ' 个模组？此操作无法撤销。',
+      trashSettings: '含设置文件', trashThisSession: '这次卸载'
     }
   };
 
@@ -281,7 +307,13 @@
     copied: null,
     showLibraries: false,
     ownShown: null,
-    ownFooter: null
+    ownFooter: null,
+    // The mod whose UNINSTALL waits for the player to confirm, and whether its settings file goes too.
+    confirmUninstall: null,
+    removeSettings: false,
+    confirmEmpty: false,
+    // Set while a trash action is on its way, so its note shows on the TRASH page.
+    noteFor: ''
   };
 
   const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite', issues: 'linkIssues', changelog: 'linkChangelog' };
@@ -344,6 +376,8 @@
   // Whether the mod will run from the next start, which is when what it needs has to be there.
   function isOnNext(m) {
     if (m.switch.kind === 'allowed' || m.switch.kind === 'held') return m.switch.next;
+
+    if (m.switch.kind === 'uninstalled') return false;
 
     return m.switch.kind === 'locked' || m.state !== 'off';
   }
@@ -416,6 +450,13 @@
 #slmm .hd-err.warn i { background: #e8813a; }
 #slmm .win.page-errors .bd { grid-template-columns: 1fr; }
 #slmm .win.page-errors .rail { display: none; }
+#slmm .win.page-trash .bd { grid-template-columns: 1fr; }
+#slmm .win.page-trash .rail { display: none; }
+#slmm .hd-trash i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: #888; border-radius: 3px; padding: 2px 7px; }
+#slmm .trash-page .notice { margin: 16px 0 0; }
+#slmm .tr-acts { display: flex; gap: 10px; margin-top: 16px; }
+#slmm .tr-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.25); }
+#slmm .un-cfg { display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer; }
 #slmm .errs-page { padding: 26px 40px 40px; }
 #slmm .errs-page .sec-t { margin-bottom: 8px; }
 #slmm .hd-deco { font-family: var(--mono); font-size: .85rem; color: var(--amber); opacity: .75; letter-spacing: 1px; display: flex; gap: 14px; }
@@ -888,7 +929,7 @@
 <div class="stage"><div class="win">
   <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
   <div class="hd">
-    <div class="hd-tabs"><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-err" data-page="errors"><span data-word="pageErrors"></span><i data-count="otherErrors"></i></div></div>
+    <div class="hd-tabs"><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-err" data-page="errors"><span data-word="pageErrors"></span><i data-count="otherErrors"></i></div><div class="hd-title hd-trash" data-page="trash"><span data-word="pageTrash"></span><i data-count="trash"></i></div></div>
     <div class="hd-deco"><span>// MOD MANAGER</span><span><b data-count="loaded">0</b> <span data-word="loaded"></span></span><span><b data-count="settings">0</b> <span data-word="settings"></span></span></div>
     <div class="hd-sp"></div>
     <div class="seg"><span data-lang="en">EN</span><span data-lang="zh">中文</span></div>
@@ -1049,10 +1090,15 @@
     if (!updates && state.filter === 'updates' || !withErrors && state.filter === 'errors') state.filter = 'all';
 
     const others = otherErrors();
+    const trashed = trash();
 
-    if (!others.length) state.page = 'mods';
+    // The TRASH page stays while it shows what EMPTY TRASH did, even with nothing left in it.
+    if (state.page === 'errors' && !others.length || state.page === 'trash' && !trashed.length && !trashNote()) state.page = 'mods';
 
     $('.win').classList.toggle('page-errors', state.page === 'errors');
+    $('.win').classList.toggle('page-trash', state.page === 'trash');
+    $('[data-page="trash"]').style.display = trashed.length || state.page === 'trash' ? '' : 'none';
+    setCount('trash', trashed.length);
     root.querySelectorAll('[data-page]').forEach(el => el.classList.toggle('on', el.dataset.page === state.page));
     $('[data-page="errors"]').style.display = others.length ? '' : 'none';
     $('[data-page="errors"]').classList.toggle('warn', !others.some(e => e.level === 'error'));
@@ -1152,6 +1198,56 @@
       '<div class="cf-intro">' + esc(word('otherErrorsIntro')) + '</div>' + others.map(errorBlock).join('') + '</div>';
   }
 
+  function trash() {
+    return state.view && state.view.trash ? state.view.trash : [];
+  }
+
+  function trashNote() {
+    return state.modNote && state.modNote.onTrash ? state.modNote : null;
+  }
+
+  // The TRASH page beside MODS: every uninstalled mod, with RESTORE, and EMPTY TRASH for the ones the game is not running.
+  function trashPage() {
+    const items = trash();
+    const note = trashNote();
+    const deletable = items.filter(t => !t.thisSession).length;
+    const shownNote = note ? notice(note.warn ? 'warn' : 'ok', '', state.lang === 'zh' ? note.zh : note.en) : '';
+    const confirm = state.confirmEmpty && deletable
+      ? '<div class="notice warn"><span class="ico">!</span><div><b>' + esc(word('emptyConfirm')(deletable)) + '</b><div class="acts"><div class="key-btn danger" data-act="emptyYes">' + esc(word('emptyYes')) + '</div><div class="key-btn" data-act="emptyNo">' + esc(word('cancel')) + '</div></div></div></div>'
+      : '';
+    const button = deletable && !state.confirmEmpty ? '<div class="tr-acts"><div class="key-btn danger" data-act="emptyTrash">' + esc(word('emptyTrash')) + '</div></div>' : '';
+    const rows = items.length ? items.map(trashRow).join('') : '<div class="empty"><div class="big">' + esc(word('trashEmpty')) + '</div></div>';
+
+    return '<div class="errs-page trash-page"><div class="sec-t">' + esc(word('trashTitle')) + ' &middot; ' + items.length + '</div>' +
+      '<div class="cf-intro">' + esc(word('trashIntro')) + '</div>' + shownNote + button + confirm + rows + '</div>';
+  }
+
+  function trashRow(t) {
+    const tags = [t.version ? 'v' + t.version : '', t.when, t.settings ? word('trashSettings') : '', t.thisSession ? word('trashThisSession') : ''].filter(tag => tag);
+
+    return '<div class="tr-item" data-trash-item="' + esc(t.id) + '"><div><div class="mname">' + esc(t.name) + '</div><div class="msub">' + tags.map(esc).join(' &middot; ') + '</div></div>' +
+      '<div class="key-btn" data-act="restore" data-trash="' + esc(t.id) + '">' + esc(word('restore')) + '</div></div>';
+  }
+
+  // The question UNINSTALL asks first: what the mod can do for saves, what stops with it, and whether its settings file goes too.
+  function uninstallConfirm(m) {
+    if (state.confirmUninstall !== m.guid || m.switch.kind !== 'allowed') return '';
+
+    const prep = m.settings.find(s => s.section === 'Uninstall' && s.key === 'UninstallPrep');
+    let prepLine = '';
+
+    if (prep && prep.current === 'true') prepLine = '<div>' + esc(word('prepOn')) + '</div>';
+    else if (prep) prepLine = '<div>' + esc(word('prepOff')) + '</div><div class="acts"><div class="key-btn" data-act="prepOn">' + esc(word('prepTurnOn')) + '</div></div>';
+    else if (m.uninstallPrep) prepLine = '<div>' + esc(word('prepNotRunning')) + '</div>';
+
+    const stops = m.switch.stops.length ? '<div>' + esc(word('alsoStops')(m.switch.stops.join(', '))) + '</div>' : '';
+    const hasSettingsFile = !m.loaded || m.settings.length > 0;
+    const settingsBox = hasSettingsFile ? '<label class="un-cfg"><input type="checkbox" data-uncfg="1"' + (state.removeSettings ? ' checked' : '') + '><span>' + esc(word('removeSettings')) + '</span></label>' : '';
+
+    return '<div class="notice warn"><span class="ico">!</span><div><b>' + esc(word('uninstallTitle')(nameOf(m))) + '</b> ' + esc(word('uninstallBody')) + prepLine + stops + settingsBox +
+      '<div class="acts"><div class="key-btn danger" data-act="uninstallYes">' + esc(word('uninstall')) + '</div><div class="key-btn" data-act="uninstallNo">' + esc(word('cancel')) + '</div></div></div></div>';
+  }
+
   function hasErrors(m) {
     return m.errors.length > 0;
   }
@@ -1184,7 +1280,8 @@
     const sub = m.loaded ? esc(m.version) + ' &middot; ' + esc(m.settings.length ? word('settingCount')(m.settings.length) : word('noSettings')) : esc(word(m.state === 'off' ? 'offSub' : 'notLoadedSub'));
     const isSelected = m.guid === state.selected && !state.query;
     const pips = (changed ? '<span class="pip chg">' + changed + '</span>' : '') +
-      (m.state === 'off' ? '<span class="pip offp">' + esc(word('statusOff')) + '</span>' : '') +
+      (m.state === 'off' && m.switch.kind !== 'uninstalled' ? '<span class="pip offp">' + esc(word('statusOff')) + '</span>' : '') +
+      (m.switch.kind === 'uninstalled' ? '<span class="pip offp">' + esc(word('pipUninstalled')) + '</span>' : '') +
       (isPending(m) ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : '') +
       (m.untested ? '<span class="pip ' + (hasLoggedErrors(m) ? 'warnp' : 'untp') + '">' + esc(word('pipUntested')) + '</span>' : '') +
       (hasLoggedErrors(m) ? '<span class="pip errp">' + esc(word('pipError')) + '</span>' : hasErrors(m) ? '<span class="pip wrnp">' + esc(word('pipWarning')) + '</span>' : '') +
@@ -1199,9 +1296,9 @@
   }
 
   function renderPane() {
-    if (state.page === 'errors') {
+    if (state.page === 'errors' || state.page === 'trash') {
       showOwnTab(null, null);
-      morph(pane, otherErrorsPage());
+      morph(pane, state.page === 'errors' ? otherErrorsPage() : trashPage());
 
       return;
     }
@@ -1232,7 +1329,7 @@
 
     const ownTab = ownTabOf(m, state.side);
     const railKey = m.guid + '\n' + state.lang;
-    const top = ownTab ? hero(m, true) : hero(m, false) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + untestedNotice(m) + fitNotice(m) + brokenNotice(m) + relationNotice(m) + updateNotice(m) + nexusNotice(m) + rollbackNotice(m);
+    const top = ownTab ? hero(m, true) : hero(m, false) + meta(m) + about(m) + links(m) + uninstallConfirm(m) + relations(m) + fixedHotkeys(m) + untestedNotice(m) + fitNotice(m) + brokenNotice(m) + relationNotice(m) + updateNotice(m) + nexusNotice(m) + rollbackNotice(m);
     const body = modNotices(m) + paneBody(m, names);
 
     morph(pane, top + (state.rail[railKey] ? '<div class="railed">' + tabs(m, names) + '<div>' + body + '</div></div>' : tabs(m, names) + body));
@@ -1308,6 +1405,8 @@
       }
       case 'held':
         return box(stateWord(m), word('heldUntilRestart'), !m.loaded, toggle(sw.next, true), '');
+      case 'uninstalled':
+        return box(word('statusUninstalled'), word('uninstalledNext'), true, '<div class="key-btn" data-act="restore" data-trash="' + esc(sw.trash) + '">' + esc(word('restore')) + '</div>', '');
       case 'locked':
         return box(word('statusRequired'), word(sw.self ? 'lockedSelf' : 'lockedNeeded'), false, toggle(true, true), sw.neededBy.length ? word('neededBy')(sw.neededBy.join(', ')) : '');
       default:
@@ -1611,7 +1710,7 @@
 
   // The note from the last switch flip on this mod, or else what the next start will do.
   function modNotices(m) {
-    const note = state.modNote && state.modNote.guid === m.guid ? state.modNote : null;
+    const note = state.modNote && state.modNote.guid === m.guid && !state.modNote.onTrash ? state.modNote : null;
 
     if (note) return notice(note.warn ? 'warn' : 'ok', '', state.lang === 'zh' ? note.zh : note.en);
 
@@ -1638,9 +1737,13 @@
     // Its page on Nexus Mods when Nexus knows it and the mod names no Nexus page itself; a newer version has its own notice.
     if (m.known.nexus && !m.known.nexus.newer && m.links.indexOf('nexus') < 0) buttons.push('<div class="key-btn" data-act="nexus">' + esc(word('linkNexus')) + ' &#x2197;</div>');
 
-    if (m.loaded) buttons.push('<div class="key-btn" data-act="showCfg">' + esc(word('openCfg')) + '</div>');
+    const isUninstalled = m.switch.kind === 'uninstalled';
 
-    if (m.settings.some(s => isChanged(s) && !s.readOnly)) buttons.push('<div class="key-btn danger" data-act="resetMod">' + esc(word('resetAll')) + '</div>');
+    if (m.loaded && !isUninstalled) buttons.push('<div class="key-btn" data-act="showCfg">' + esc(word('openCfg')) + '</div>');
+
+    if (!isUninstalled && m.settings.some(s => isChanged(s) && !s.readOnly)) buttons.push('<div class="key-btn danger" data-act="resetMod">' + esc(word('resetAll')) + '</div>');
+
+    if (m.switch.kind === 'allowed' && state.confirmUninstall !== m.guid) buttons.push('<div class="key-btn danger" data-act="uninstall">' + esc(word('uninstall')) + '</div>');
 
     return buttons.length ? '<div class="links">' + buttons.join('') + '</div>' : '';
   }
@@ -1682,6 +1785,8 @@
     if (state.side === 'changelog') return changelogBody(m);
 
     if (state.side === 'errors') return errorsBody(m);
+
+    if (m.switch.kind === 'uninstalled') return notice('', word('uninstalledTitle'), word('uninstalledBody'));
 
     if (m.state === 'off') return notice('', word('offTitle'), word('offBody'));
 
@@ -2704,6 +2809,7 @@
 
     if (page) {
       state.page = page.dataset.page;
+      state.confirmEmpty = false;
       render();
       pane.scrollTop = 0;
 
@@ -2774,6 +2880,28 @@
     else if (actName === 'needs') send('needs', [state.selected]);
     else if (actName === 'copyList') send('copyList');
     else if (actName === 'resetMod') resetMod();
+    else if (actName === 'uninstall' || actName === 'uninstallNo') {
+      state.confirmUninstall = actName === 'uninstall' ? state.selected : null;
+      state.removeSettings = false;
+      render();
+    } else if (actName === 'uninstallYes' && state.confirmUninstall) {
+      const guid = state.confirmUninstall;
+
+      state.confirmUninstall = null;
+      state.noteFor = '';
+      send('uninstall', [guid, state.removeSettings ? '1' : '0']);
+    } else if (actName === 'prepOn' && state.selected) send('set', [state.selected, 'Uninstall', 'UninstallPrep', 'true']);
+    else if (actName === 'restore') {
+      state.noteFor = state.page === 'trash' ? 'trash' : '';
+      send('restore', [act.dataset.trash]);
+    } else if (actName === 'emptyTrash' || actName === 'emptyNo') {
+      state.confirmEmpty = actName === 'emptyTrash';
+      render();
+    } else if (actName === 'emptyYes') {
+      state.confirmEmpty = false;
+      state.noteFor = 'trash';
+      send('emptyTrash');
+    }
     else if (actName === 'reset' && row) resetRow(row);
     else if ((actName === 'worldKeep' || actName === 'worldGlobal') && row) send('world', settingParts(row).slice(0, 3).concat([actName === 'worldKeep' ? 'keep' : 'global']));
     else if (actName === 'bind' && row) bind(row, act);
@@ -2840,7 +2968,10 @@
   }
 
   function select(guid) {
-    if (guid !== state.selected) state.modNote = null;
+    if (guid !== state.selected) {
+      state.modNote = null;
+      state.confirmUninstall = null;
+    }
 
     state.selected = guid;
     state.page = 'mods';
@@ -2897,6 +3028,12 @@
 
     if (target.dataset.switch && state.selected) {
       send('switch', [state.selected, target.checked ? '1' : '0']);
+
+      return;
+    }
+
+    if (target.dataset.uncfg) {
+      state.removeSettings = target.checked;
 
       return;
     }
@@ -3148,6 +3285,9 @@
     state.drafts = {};
     state.editing = null;
     state.copied = null;
+    state.confirmUninstall = null;
+    state.confirmEmpty = false;
+    state.noteFor = '';
 
     if (!modByGuid(state.selected)) state.selected = view.mods.length ? (view.mods.find(m => m.loaded) || view.mods[0]).guid : null;
 
@@ -3190,7 +3330,8 @@
     if (note === undefined && state.isTyping) return;
 
     if (note !== undefined) {
-      state.modNote = note;
+      state.modNote = note ? Object.assign({}, note, { onTrash: state.noteFor === 'trash' }) : note;
+      state.noteFor = '';
       state.binding = null;
     }
 

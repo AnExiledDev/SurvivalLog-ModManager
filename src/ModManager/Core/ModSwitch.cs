@@ -30,6 +30,13 @@ public abstract record ModSwitch
 
     /// <summary>Its DLL is not in the plugins folder or a folder for turned-off plugins, so there is nothing to move.</summary>
     public sealed record Unavailable : ModSwitch;
+
+    /// <summary>
+    /// Uninstalled this session: its DLL is in the trash, so BepInEx will not start it again. The game keeps running the
+    /// copy it loaded until it quits. RESTORE puts the files back, which is the only way back.
+    /// </summary>
+    /// <param name="TrashId">The trash item that holds its files.</param>
+    public sealed record Uninstalled(string TrashId) : ModSwitch;
 }
 
 public static class SwitchPlanner

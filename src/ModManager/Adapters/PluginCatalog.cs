@@ -33,6 +33,15 @@ internal sealed class PluginCatalog
     private readonly ModAnswers _answers;
     private readonly GameItemTable _items;
     private readonly Func<string?, GameFit?> _fitOf;
+    private readonly TrashCan _trash;
+    private readonly string _configFolder;
+    private readonly Dictionary<string, bool> _prepInConfig = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The trash item of each DLL uninstalled this session, by where the DLL was when the game started.</summary>
+    private readonly Dictionary<string, string> _trashed = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The ConfigFiles whose .cfg went to the trash with their mod, which then stop saving so the file is not made again.</summary>
+    private readonly Dictionary<string, bool> _savingStopped = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<PluginFile>> _files = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string?> _hashes = new(StringComparer.OrdinalIgnoreCase);
 
@@ -46,8 +55,11 @@ internal sealed class PluginCatalog
     /// <param name="backupVersions">The names of a mod's backup folders, by GUID.</param>
     /// <param name="items">The game's items and recipes, which recipe lists are checked against.</param>
     /// <param name="fitOf">The check of a DLL against the game's code, by the DLL's SHA-256; null until it is checked.</param>
-    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, ProblemBook errors, string selfGuid, string? gameVersion, GameItemTable items, Func<string?, GameFit?> fitOf, Action<string> log)
+    /// <param name="configFolder">BepInEx/config, where a mod that is not running keeps its .cfg.</param>
+    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, ProblemBook errors, string selfGuid, string? gameVersion, GameItemTable items, Func<string?, GameFit?> fitOf, TrashCan trash, string configFolder, Action<string> log)
     {
+        _trash = trash;
+        _configFolder = configFolder;
         _fitOf = fitOf;
         _items = items;
         _folders = folders;
@@ -159,6 +171,8 @@ internal sealed class PluginCatalog
 
         if (location == null || !_folders.IsOn(location)) return (null, "only a mod that is running from the plugins folder can be updated here");
 
+        if (_trashed.ContainsKey(location)) return (null, "it was uninstalled this session; restore it and restart the game first");
+
         if (_moves.ContainsKey(location)) return (null, "it was turned off this session; turn it on and restart the game first");
 
         return (location, null);
@@ -206,6 +220,102 @@ internal sealed class PluginCatalog
         return new ModNote(guid, false, SwitchNotes.Moved(mod.State is not ModState.Off, isOn, allowed.AlsoStops));
     }
 
+    /// <summary>
+    /// Moves the mod's DLL to the trash, and its .cfg too when asked. The game keeps running the copy it loaded, so the
+    /// mod stays in the list, marked uninstalled, until the game quits.
+    /// </summary>
+    public ModNote Uninstall(string guid, bool withSettings)
+    {
+        var mod = Mod(guid);
+        var startPath = StartPathOf(guid);
+
+        if (mod?.Switch is not ModSwitch.Allowed allowed || startPath == null) return new ModNote(guid, true, TrashNotes.CannotUninstall());
+
+        var current = CurrentPath(startPath);
+        var config = ConfigOf(guid);
+        var settingsPath = config?.ConfigFilePath ?? Path.Combine(_configFolder, guid + ".cfg");
+        var hasSettingsFile = File.Exists(settingsPath);
+        var isMovingSettings = withSettings && hasSettingsFile;
+        TrashItem item;
+
+        try
+        {
+            item = _trash.Put(guid, mod.DisplayName, mod.Version, current, isMovingSettings ? settingsPath : null);
+        }
+        catch (Exception ex)
+        {
+            _log("could not move " + guid + " to the trash: " + ex.Message);
+
+            return new ModNote(guid, true, TrashNotes.UninstallFailed(ex.Message));
+        }
+
+        _trashed[startPath] = item.Id;
+        _moves[startPath] = _trash.StoredPath(item, item.Dll);
+
+        if (isMovingSettings && config != null)
+        {
+            _savingStopped[guid] = config.SaveOnConfigSet;
+            config.SaveOnConfigSet = false;
+        }
+
+        _log("uninstalled " + guid + " from the next start: moved " + current + (isMovingSettings ? " and " + settingsPath : "") + " to the trash as " + item.Id);
+
+        return new ModNote(guid, false, TrashNotes.Uninstalled(hasSettingsFile, isMovingSettings, allowed.AlsoStops));
+    }
+
+    /// <summary>
+    /// Puts an uninstalled mod's files back where they were. One uninstalled this session is in the list again at once;
+    /// one from an earlier session shows from the next start, when BepInEx finds it.
+    /// </summary>
+    public ModNote Restore(string trashId)
+    {
+        var item = _trash.Items().FirstOrDefault(each => each.Id == trashId);
+
+        if (item == null) return new ModNote("", true, TrashNotes.Gone());
+
+        try
+        {
+            _trash.Restore(item);
+        }
+        catch (TrashTaken taken)
+        {
+            return new ModNote(item.Guid, true, TrashNotes.RestoreTaken(taken.Path));
+        }
+        catch (Exception ex)
+        {
+            _log("could not restore " + item.Id + " from the trash: " + ex.Message);
+
+            return new ModNote(item.Guid, true, TrashNotes.RestoreFailed(ex.Message));
+        }
+
+        var startPath = _trashed.Where(pair => pair.Value == item.Id).Select(pair => pair.Key).FirstOrDefault();
+        var isThisSession = startPath != null;
+
+        if (startPath != null)
+        {
+            _trashed.Remove(startPath);
+
+            if (string.Equals(Path.GetFullPath(startPath), Path.GetFullPath(item.Dll.From), StringComparison.OrdinalIgnoreCase)) _moves.Remove(startPath);
+            else _moves[startPath] = item.Dll.From;
+        }
+
+        if (_savingStopped.Remove(item.Guid, out var wasSaving) && ConfigOf(item.Guid) is { } config) config.SaveOnConfigSet = wasSaving;
+
+        _log("restored " + item.Id + " from the trash to " + string.Join(" and ", item.Files.Select(file => file.From)));
+
+        return new ModNote(item.Guid, false, TrashNotes.Restored(item.Name, _folders.IsOn(item.Dll.From), isThisSession));
+    }
+
+    /// <summary>Deletes for good every mod in the trash but the ones uninstalled this session, which the game is still running.</summary>
+    public ModNote EmptyTrash()
+    {
+        var (deleted, kept, failed) = _trash.Empty();
+
+        return new ModNote("", failed.Count > 0, TrashNotes.Emptied(deleted, kept, failed));
+    }
+
+    public IReadOnlyList<TrashEntry> Trash() => _trash.Items().Select(item => TrashEntry.Of(item, _trash.IsThisSession(item.Id))).ToList();
+
     public ConfigFile? ConfigOf(string guid) => Find(guid)?.Instance is BasePlugin plugin ? plugin.Config : null;
 
     public ConfigEntryBase? EntryOf(SettingId id)
@@ -240,23 +350,25 @@ internal sealed class PluginCatalog
         var location = plugin.Location;
         var info = InfoOf(guid, location);
         ModState state = plugin.Instance is BasePlugin loaded ? new ModState.Loaded(ModList.Arrange(guid, Found(guid, loaded.Config, loaded.GetType().Assembly), _startValues, info.SettingsApply)) : new ModState.NotLoaded();
-        ModSwitch modSwitch = location != null && _folders.IsOn(location) && nodes.FirstOrDefault(node => node.Guid == guid) is { } node
+        ModSwitch modSwitch = location != null && _trashed.TryGetValue(location, out var trashId) ? new ModSwitch.Uninstalled(trashId)
+            : location != null && _folders.IsOn(location) && nodes.FirstOrDefault(node => node.Guid == guid) is { } node
             ? SwitchPlanner.ForLoaded(node, nodes, _selfGuid, _folders.IsOn(CurrentPath(location)))
             : new ModSwitch.Unavailable();
 
         var version = plugin.Metadata.Version.ToString();
+        var offersPrep = state is ModState.Loaded running ? UninstallPrep.IsIn(running.Settings) : PrepInConfig(guid);
 
-        return Finish(new ModEntry(guid, plugin.Metadata.Name, version, Path.GetFileName(location ?? ""), state, info, modSwitch, _updates.StateOf(info.UpdateRepository, version)));
+        return Finish(new ModEntry(guid, plugin.Metadata.Name, version, Path.GetFileName(location ?? ""), state, info, modSwitch, _updates.StateOf(info.UpdateRepository, version)) { OffersUninstallPrep = offersPrep });
     }
 
     private ModEntry OffEntry((string Path, PluginFile Plugin) off)
     {
         var plugin = off.Plugin;
-        var modSwitch = new ModSwitch.Allowed(_folders.IsOn(CurrentPath(off.Path)), Array.Empty<string>());
+        ModSwitch modSwitch = _trashed.TryGetValue(off.Path, out var trashId) ? new ModSwitch.Uninstalled(trashId) : new ModSwitch.Allowed(_folders.IsOn(CurrentPath(off.Path)), Array.Empty<string>());
 
         var info = Info(plugin);
 
-        return Finish(new ModEntry(plugin.Guid, plugin.Name, plugin.Version, Path.GetFileName(off.Path), new ModState.Off(), info, modSwitch, _updates.StateOf(info.UpdateRepository, plugin.Version)));
+        return Finish(new ModEntry(plugin.Guid, plugin.Name, plugin.Version, Path.GetFileName(off.Path), new ModState.Off(), info, modSwitch, _updates.StateOf(info.UpdateRepository, plugin.Version)) { OffersUninstallPrep = PrepInConfig(plugin.Guid) });
     }
 
     private ModEntry Finish(ModEntry mod)
@@ -274,6 +386,28 @@ internal sealed class PluginCatalog
             ListedGameVersions = listed,
             IsUntestedOnGame = !Core.GameVersion.IsKnownToWork(mod.Info.GameVersions, listed, GameVersion),
         };
+    }
+
+    /// <summary>For a mod that is not running: whether its .cfg has the UninstallPrep setting. Read once, as the file only changes while the mod runs.</summary>
+    private bool PrepInConfig(string guid)
+    {
+        if (_prepInConfig.TryGetValue(guid, out var known)) return known;
+
+        var path = Path.Combine(_configFolder, guid + ".cfg");
+
+        try
+        {
+            known = File.Exists(path) && UninstallPrep.IsInConfig(File.ReadAllText(path));
+        }
+        catch (Exception ex)
+        {
+            ReportOnce(path + "/prep", "could not read " + path + ": " + ex.Message);
+            known = false;
+        }
+
+        _prepInConfig[guid] = known;
+
+        return known;
     }
 
     /// <summary>Reads the range the way BepInEx does; a range or version it cannot read is not held against the mod.</summary>

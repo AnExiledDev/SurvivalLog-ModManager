@@ -175,7 +175,16 @@ internal sealed class ModsSession
                 ShowConfigFile(show.Guid);
                 break;
             case PageCommand.Switch flip:
-                _page.Run(PageScript.Replace(Shown(), _catalog.Switch(flip.Guid, flip.IsOn)));
+                ShowAfter(_catalog.Switch(flip.Guid, flip.IsOn));
+                break;
+            case PageCommand.Uninstall uninstall:
+                ShowAfter(_catalog.Uninstall(uninstall.Guid, uninstall.WithSettings));
+                break;
+            case PageCommand.Restore restore:
+                ShowAfter(_catalog.Restore(restore.TrashId));
+                break;
+            case PageCommand.EmptyTrash:
+                ShowAfter(_catalog.EmptyTrash());
                 break;
             case PageCommand.OpenLink link:
                 OpenLink(link.Guid, link.Kind);
@@ -467,6 +476,9 @@ internal sealed class ModsSession
         }
     }
 
+    /// <summary>Redraws the page with the note of an action that has already run, so the list shows what it changed.</summary>
+    private void ShowAfter(ModNote note) => _page.Run(PageScript.Replace(Shown(), note));
+
     private ModsView View()
     {
         _watch.Collect();
@@ -479,6 +491,7 @@ internal sealed class ModsSession
             GameVersion = _catalog.GameVersion,
             OtherErrors = otherErrors,
             ErrorsNotKept = errorsNotKept,
+            Trash = _catalog.Trash(),
         };
     }
 

@@ -82,7 +82,7 @@ public static class ModReport
             _ => throw new ArgumentOutOfRangeException(nameof(mod), mod.State, null),
         };
         var isOnNow = mod.State is not ModState.Off;
-        var next = mod.IsOnNextStart == isOnNow ? "" : mod.IsOnNextStart ? ", on from the next start" : ", off from the next start";
+        var next = mod.Switch is ModSwitch.Uninstalled ? ", uninstalled from the next start" : mod.IsOnNextStart == isOnNow ? "" : mod.IsOnNextStart ? ", on from the next start" : ", off from the next start";
 
         return OneLine(mod.DisplayName) + " " + mod.Version + " (" + mod.Guid + ", " + mod.FileName + "): " + state + next;
     }

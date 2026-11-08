@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
@@ -74,7 +75,8 @@ public sealed class Plugin : BasePlugin
         var installer = new UpdateInstaller(updates, shelf, pins, userAgent, log.Write);
         var items = new GameItemTable(log.Write);
         var fits = new GameFitChecks(Path.Combine(Paths.BepInExRootPath, "interop"), Path.Combine(Paths.BepInExRootPath, "core"), new SavedFile(Path.Combine(Paths.BepInExRootPath, "mod-manager", "game-code-checks.json"), "checks of the mods against the game's code", log.Write), log.Write);
-        var catalog = new PluginCatalog(folders, updates, shelf.Versions, watch.Book, Guid, ReadGameVersion(log.Write), items, fits.FitOf, log.Write);
+        var trash = new TrashCan(Path.Combine(Paths.BepInExRootPath, "mod-manager", "trash"), new[] { folders.Plugins }.Concat(folders.OffFolders).Append(Paths.ConfigPath).ToList(), log.Write);
+        var catalog = new PluginCatalog(folders, updates, shelf.Versions, watch.Book, Guid, ReadGameVersion(log.Write), items, fits.FitOf, trash, Paths.ConfigPath, log.Write);
         var page = new WebPage(typeof(Plugin).Assembly, "ModManager.page.js", PageScript.Api, PageCommand.Prefix + "noscript", log.Write);
         var session = new ModsSession(page, catalog, items, updates, checks, nexus, fits, installer, watch, () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
 

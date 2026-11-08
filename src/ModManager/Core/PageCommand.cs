@@ -80,6 +80,16 @@ public abstract record PageCommand
     /// <summary>For a world rule while a world plays: keep the value for this world alone, or go back to global.</summary>
     public sealed record WorldScope(SettingId Id, bool KeepForWorld) : PageCommand;
 
+    /// <summary>Move the mod's DLL to the trash, and its .cfg too when the player ticked the box.</summary>
+    public sealed record Uninstall(string Guid, bool WithSettings) : PageCommand;
+
+    /// <summary>Put an uninstalled mod's files back where they were.</summary>
+    /// <param name="TrashId">The trash item, as the page was sent it.</param>
+    public sealed record Restore(string TrashId) : PageCommand;
+
+    /// <summary>Delete for good every mod in the trash that was not uninstalled this session.</summary>
+    public sealed record EmptyTrash : PageCommand;
+
     public sealed record Unknown(string Text) : PageCommand;
 
     public static PageCommand Parse(string message)
@@ -119,6 +129,9 @@ public abstract record PageCommand
         ("rollback", 2) => new RollBack(parts[1]),
         ("needs", 2) => new TurnOnNeeds(parts[1]),
         ("copyList", 1) => new CopyList(),
+        ("uninstall", 3) when parts[2] is "0" or "1" => new Uninstall(parts[1], parts[2] == "1"),
+        ("restore", 2) => new Restore(parts[1]),
+        ("emptyTrash", 1) => new EmptyTrash(),
         _ => null,
     };
 
