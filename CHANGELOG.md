@@ -2,7 +2,7 @@
 
 ## 0.17.1
 
-- Fixed Pack Rat's Grids and Items screens, which since 0.16.0 were squeezed into one row with most of the screen outside the window.
+- Fixed Pack Rat's Inventories and Items screens, which since 0.16.0 were squeezed into one row with most of the screen outside the window.
 - Made for Survival Log 1.1.20719.
 
 ## 0.17.0
