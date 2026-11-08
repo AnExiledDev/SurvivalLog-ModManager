@@ -36,8 +36,8 @@ public sealed class Plugin : BasePlugin
             "The key that opens and closes the Mods screen. Unbound by default: the Mods button in the Esc menu and on the title screen opens it. Set a key here to open it from the keyboard too. The key does nothing while you type in a text box.\n" +
             "打开和关闭「模组」界面的按键。默认不绑定：点击 Esc 菜单和标题画面中的「模组」按钮即可打开。在此设置按键后也可以用键盘打开。在输入框里打字时该按键不起作用。");
         var checkForUpdates = Config.Bind("Updates", "CheckForUpdates", true,
-            "Each time the game starts, ask GitHub whether mods that name a GitHub repository have a newer release. Only GitHub is contacted, and no account or key is needed. Default: on.\n" +
-            "每次启动游戏时，向 GitHub 查询标明了 GitHub 仓库的模组是否有新版本。只会连接 GitHub，不需要账号或密钥。默认开启。");
+            "Each time the game starts, look for mod updates and for what is known about your mods. GitHub is asked about mods that name a GitHub repository, the Survival Log Wiki (sldb.core-directive.com) for its list of mods, known problems and download copies, and Nexus Mods, at most once a day, for the newest version of each of the game's mods there. No account or key is needed, and nothing about you or your mods is sent. Default: on.\n" +
+            "每次启动游戏时，检查模组更新以及已知的模组信息。会向 GitHub 查询标明了 GitHub 仓库的模组，向生存日志 Wiki（sldb.core-directive.com）获取模组列表、已知问题和下载副本，并且每天最多一次向 Nexus Mods 查询本游戏各模组的最新版本。不需要账号或密钥，也不会发送任何关于你或你的模组的信息。默认开启。");
         var showToast = Config.Bind("Updates", "ShowToast", true,
             "After the update check at the start, show one message saying how many mods have updates. Click it to see them. Default: on.\n" +
             "启动时检查更新后，显示一条消息，说明有多少个模组有更新。点击即可查看。默认开启。");
@@ -67,7 +67,7 @@ public sealed class Plugin : BasePlugin
 
         var userAgent = "SurvivalLog-ModManager/" + Version;
         var updates = new UpdateBook();
-        var checks = new UpdateChecks(updates, new SavedGameVersions(Path.Combine(Paths.BepInExRootPath, "mod-manager", "game-versions"), log.Write), userAgent, log.Write);
+        var checks = new UpdateChecks(updates, new SavedGameVersions(Path.Combine(Paths.BepInExRootPath, "mod-manager", "game-versions"), log.Write), new SavedFile(Path.Combine(Paths.BepInExRootPath, "mod-manager", "index.json"), "index of the wiki's mods", log.Write), userAgent, log.Write);
         var shelf = new BackupShelf(Path.Combine(Paths.BepInExRootPath, "mod-manager", "backups"));
         var pins = new RepositoryPins(Path.Combine(Paths.BepInExRootPath, "mod-manager", "repositories"), log.Write);
         var installer = new UpdateInstaller(updates, shelf, pins, userAgent, log.Write);

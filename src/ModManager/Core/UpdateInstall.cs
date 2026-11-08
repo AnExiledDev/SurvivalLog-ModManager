@@ -90,7 +90,7 @@ public static class ReleaseAssets
     }
 }
 
-/// <summary>Downloads are only taken from GitHub, over https, including every redirect on the way.</summary>
+/// <summary>Downloads are only taken from GitHub and the wiki's copies, over https, including every redirect on the way.</summary>
 public static class DownloadAddress
 {
     public const int MaxHops = 5;
@@ -101,10 +101,10 @@ public static class DownloadAddress
 
         var host = uri.Host.ToLowerInvariant();
 
-        return host == "github.com" || host.EndsWith(".githubusercontent.com", StringComparison.Ordinal);
+        return host == "github.com" || host.EndsWith(".githubusercontent.com", StringComparison.Ordinal) || host == MirrorAddress.Host;
     }
 
-    /// <summary>The next address of a redirect, or null when it leaves GitHub or cannot be read.</summary>
+    /// <summary>The next address of a redirect, or null when it leaves GitHub and the wiki or cannot be read.</summary>
     public static Uri? Next(Uri request, string? location) =>
         !string.IsNullOrWhiteSpace(location) && Uri.TryCreate(request, location, out var next) && IsAllowed(next) ? next : null;
 }

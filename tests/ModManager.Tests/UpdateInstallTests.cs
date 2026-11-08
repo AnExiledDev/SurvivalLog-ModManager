@@ -67,7 +67,8 @@ public class DownloadAddressTests
     [InlineData("https://github.com/Ann/Map/releases/download/v1/Map.zip")]
     [InlineData("https://objects.githubusercontent.com/github-production-release-asset/1")]
     [InlineData("https://GitHub.com/Ann/Map.zip")]
-    public void GitHub_and_its_file_storage_over_https_are_allowed(string url)
+    [InlineData("https://sldb.core-directive.com/downloads/mods/Map-1.0.0.zip")]
+    public void GitHub_its_file_storage_and_the_wiki_over_https_are_allowed(string url)
     {
         Assert.True(DownloadAddress.IsAllowed(new System.Uri(url)));
     }
@@ -80,6 +81,9 @@ public class DownloadAddressTests
     [InlineData("https://evilgithubusercontent.com/Map.zip")]
     [InlineData("https://githubusercontent.com.evil.example/Map.zip")]
     [InlineData("file:///C:/Windows/system32/x.zip")]
+    [InlineData("http://sldb.core-directive.com/downloads/mods/Map.zip")]
+    [InlineData("https://sldb.core-directive.com.evil.example/Map.zip")]
+    [InlineData("https://evil.core-directive.com/Map.zip")]
     public void Anything_else_is_refused(string url)
     {
         Assert.False(DownloadAddress.IsAllowed(new System.Uri(url)));

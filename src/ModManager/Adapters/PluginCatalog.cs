@@ -33,6 +33,7 @@ internal sealed class PluginCatalog
     private readonly ModAnswers _answers;
     private readonly GameItemTable _items;
     private readonly Dictionary<string, IReadOnlyList<PluginFile>> _files = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string?> _hashes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Where each DLL moved this session, by where it was when the game started.</summary>
     private readonly Dictionary<string, string> _moves = new(StringComparer.OrdinalIgnoreCase);
@@ -254,7 +255,7 @@ internal sealed class PluginCatalog
 
     private ModEntry Finish(ModEntry mod)
     {
-        var listed = _updates.GameVersionsListed(mod.Info.UpdateRepository, mod.Version);
+        var listed = _updates.GameVersionsListed(mod.Info.UpdateRepository, mod.Guid, mod.Version, HashOf(mod.Guid));
         var install = _updates.InstallOf(mod.Guid);
         var rollback = mod.State is ModState.Loaded ? _updates.RollbackOf(mod.Guid, _backupVersions(mod.Guid), mod.Version) : new RollbackState.None();
 
@@ -339,6 +340,31 @@ internal sealed class PluginCatalog
         }
 
         _files[path] = known;
+
+        return known;
+    }
+
+    /// <summary>
+    /// The SHA-256 of the mod's DLL as it was at the start, which the wiki's index knows each release by. Read once per
+    /// DLL; one that can't be read has no hash, and the mod is then known by its version.
+    /// </summary>
+    internal string? HashOf(string guid)
+    {
+        if (StartPathOf(guid) is not { } path) return null;
+        if (_hashes.TryGetValue(path, out var known)) return known;
+
+        try
+        {
+            using var file = File.OpenRead(CurrentPath(path));
+            known = Sha256Text.Of(file);
+        }
+        catch (Exception ex)
+        {
+            ReportOnce(path + "/hash", "could not read " + path + " to know which release it is: " + ex.Message);
+            known = null;
+        }
+
+        _hashes[path] = known;
 
         return known;
     }

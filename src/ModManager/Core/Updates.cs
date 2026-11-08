@@ -350,12 +350,24 @@ public sealed class UpdateBook
 
     public void Record(string repository, LatestRelease latest) => _latest[repository] = latest;
 
+    /// <summary>The wiki's index: the saved copy until the wiki answers. Kept whether or not update checks run again.</summary>
+    public ModIndex Index { get; private set; } = ModIndex.Empty;
+
+    public void Record(ModIndex index) => Index = index;
+
     /// <summary>Game version lists are kept for the session whether or not update checks run again.</summary>
     public void Record(string repository, GameVersionList list) => _gameVersions[repository] = list;
 
-    /// <summary>The game versions the repository lists this version of its mod as working on; none when it lists nothing.</summary>
-    public IReadOnlyList<string> GameVersionsListed(string? repository, string modVersion) =>
-        repository != null && _gameVersions.TryGetValue(repository, out var list) ? list.For(modVersion) : Array.Empty<string>();
+    /// <summary>
+    /// The game versions the repository lists this version of its mod as working on; none when it lists nothing. When
+    /// the repository's list never came (GitHub not reached, nothing saved), the wiki's index lists what it was made for.
+    /// </summary>
+    public IReadOnlyList<string> GameVersionsListed(string? repository, string guid, string modVersion, string? dllSha256)
+    {
+        if (repository != null && _gameVersions.TryGetValue(repository, out var list)) return list.For(modVersion);
+
+        return Index.Identify(guid, modVersion, dllSha256)?.Games ?? Array.Empty<string>();
+    }
 
     /// <summary>Changelogs are kept for the session whether or not update checks run again.</summary>
     public void Record(Uri changelog, ChangelogState state) => _changelogs[changelog] = state;
@@ -399,7 +411,13 @@ public sealed class UpdateBook
     /// <summary>After a rollback the mod's files are left alone until the next start, so nothing can install over them.</summary>
     public bool HasRolledBack(string guid) => _rollbacks.TryGetValue(guid, out var tried) && tried is RollbackState.Done;
 
-    public LatestRelease? Latest(string? repository) => repository != null && _latest.TryGetValue(repository, out var latest) ? latest : null;
+    /// <summary>GitHub's answer; when GitHub could not be reached, the newest release the wiki has stands in for it.</summary>
+    public LatestRelease? Latest(string? repository)
+    {
+        if (repository == null || !_latest.TryGetValue(repository, out var latest)) return null;
+
+        return latest is LatestRelease.Failed && Index.LatestOf(repository) is { } mirrored ? mirrored : latest;
+    }
 
     public NotesState Notes(LatestRelease.Found release, string installedVersion) => _notes.TryGetValue(NotesKey(release, installedVersion), out var notes) ? notes : new NotesState.NotAsked();
 

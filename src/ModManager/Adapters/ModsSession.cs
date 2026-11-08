@@ -88,7 +88,7 @@ internal sealed class ModsSession
         {
             // On the first frame rather than in Load, so plugins that load after this one are in the list.
             _hasStarted = true;
-            _checks.LoadSavedGameVersions(UpdateRepositories());
+            _checks.LoadSaved(UpdateRepositories());
 
             if (_isCheckingForUpdates()) CheckForUpdates(true);
         }
@@ -177,7 +177,7 @@ internal sealed class ModsSession
                 FetchChangelog(changelog.Guid);
                 break;
             case PageCommand.OpenUpdate openUpdate:
-                Open(UpdateFor(openUpdate.Guid)?.PageUrl);
+                Open(UpdateFor(openUpdate.Guid)?.PageUrl is { } page ? MirrorAddress.ForLanguage(page, GameLanguage.IsChinese()) : null);
                 break;
             case PageCommand.Install install:
                 StartInstall(install.Guid);

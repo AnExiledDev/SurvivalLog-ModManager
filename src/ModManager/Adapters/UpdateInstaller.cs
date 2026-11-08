@@ -11,11 +11,13 @@ using ModManager.Core;
 namespace ModManager.Adapters;
 
 /// <summary>
-/// Downloads a mod's update from its GitHub release and puts the files in place for the next game start. The running
+/// Downloads a mod's update, from the wiki's copy first and its GitHub release when the wiki has none or its copy
+/// fails, and puts the files in place for the next game start. The running
 /// game keeps the DLL it loaded: Windows lets a loaded DLL be moved, so the old files are moved to a backup folder and
 /// the new ones moved in beside them. Any failure puts the old files back. A rollback works the same way backwards.
-/// Before anything is written, the update must come from the repository pinned at the mod's first install, must be the
-/// same mod, and waits for the player when it can do something the installed version could not.
+/// Before anything is written, the update must match the SHA-256 in the wiki's index or come from the repository pinned
+/// at the mod's first install, must be the same mod, and waits for the player when it can do something the installed
+/// version could not.
 /// </summary>
 internal sealed class UpdateInstaller
 {
@@ -46,11 +48,15 @@ internal sealed class UpdateInstaller
     {
         if (_book.InstallOf(mod.Guid) is InstallState.Installing or InstallState.Installed or InstallState.Refused || _book.HasRolledBack(mod.Guid)) return;
 
+        var mirrored = _book.Index.MirrorFor(mod.Guid, mod.Info.UpdateRepository, release.Tag);
+
         _waiting.TryRemove(mod.Guid, out _);
-        _log("installing " + mod.Guid + " " + release.Tag + " over " + mod.Version);
+        _log("installing " + mod.Guid + " " + release.Tag + " over " + mod.Version + (mirrored != null ? ", from the wiki's copy " + mirrored.File : ""));
         Run(mod, release.Tag, async () =>
         {
-            var (download, stopped) = await Fetch(mod, release, Path.GetFileName(dllPath)).ConfigureAwait(false);
+            var (download, stopped) = mirrored != null && await FromMirror(mirrored).ConfigureAwait(false) is { } copy
+                ? (new Downloaded(release.Tag, copy), null)
+                : await Fetch(mod, release, Path.GetFileName(dllPath)).ConfigureAwait(false);
 
             return download == null ? stopped ?? new InstallState.Failed("nothing to install") : Place(mod, download, dllPath, isSharedFolder, isApproved: false);
         });
@@ -134,6 +140,24 @@ internal sealed class UpdateInstaller
     };
 
     private sealed record Downloaded(string Tag, byte[] Zip);
+
+    /// <summary>
+    /// The wiki's copy of the release, or null when it could not be had, so GitHub is asked instead. The repository
+    /// pin is not needed here: the index names the mod's GUID and repository and the zip's SHA-256, and a copy that
+    /// does not match the hash is thrown away. The same checks of what the zip holds run on it as on GitHub's.
+    /// </summary>
+    private async Task<byte[]?> FromMirror(IndexRelease release)
+    {
+        var (body, problem) = await Download(MirrorAddress.FileUri(release.File)).ConfigureAwait(false);
+
+        problem ??= Sha256Text.Mismatch(body, release);
+
+        if (problem == null) return body;
+
+        _finished.Enqueue(() => _log("the wiki's copy " + release.File + " is not used, so GitHub is asked instead: " + problem));
+
+        return null;
+    }
 
     /// <summary>The release's zip, from the repository pinned at the mod's first install (pinned now when this is it).</summary>
     private async Task<(Downloaded? Download, InstallState? Stopped)> Fetch(ModEntry mod, LatestRelease.Found release, string dllName)
@@ -256,7 +280,7 @@ internal sealed class UpdateInstaller
         }
     }
 
-    /// <summary>Follows GitHub's redirects to its file storage by hand, so no hop can leave GitHub.</summary>
+    /// <summary>Follows redirects by hand, so no hop can leave GitHub and the wiki.</summary>
     private async Task<(byte[] Body, string? Problem)> Download(Uri uri)
     {
         try
@@ -268,7 +292,7 @@ internal sealed class UpdateInstaller
 
                 if (status is 301 or 302 or 303 or 307 or 308)
                 {
-                    uri = DownloadAddress.Next(uri, response.Headers.Location?.OriginalString) ?? throw new InvalidOperationException("the download was sent away from GitHub: " + response.Headers.Location);
+                    uri = DownloadAddress.Next(uri, response.Headers.Location?.OriginalString) ?? throw new InvalidOperationException("the download was sent away from GitHub and the wiki: " + response.Headers.Location);
 
                     continue;
                 }

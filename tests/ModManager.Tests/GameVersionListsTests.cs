@@ -96,9 +96,9 @@ public class GameVersionListsTests
 
         book.Record("Ann/Mod", GameVersionLists.Parse(List).List);
 
-        Assert.Equal(new[] { "1.1.18902", "1.1.19131" }, book.GameVersionsListed("ann/mod", "0.4.0"));
-        Assert.Empty(book.GameVersionsListed("Ann/Other", "0.4.0"));
-        Assert.Empty(book.GameVersionsListed(null, "0.4.0"));
+        Assert.Equal(new[] { "1.1.18902", "1.1.19131" }, book.GameVersionsListed("ann/mod", "com.ann.mod", "0.4.0", null));
+        Assert.Empty(book.GameVersionsListed("Ann/Other", "com.ann.mod", "0.4.0", null));
+        Assert.Empty(book.GameVersionsListed(null, "com.ann.mod", "0.4.0", null));
     }
 
     [Fact]
@@ -109,6 +109,6 @@ public class GameVersionListsTests
         book.Record("Ann/Mod", GameVersionLists.Parse(List).List);
         book.Clear();
 
-        Assert.NotEmpty(book.GameVersionsListed("Ann/Mod", "0.4.0"));
+        Assert.NotEmpty(book.GameVersionsListed("Ann/Mod", "com.ann.mod", "0.4.0", null));
     }
 }

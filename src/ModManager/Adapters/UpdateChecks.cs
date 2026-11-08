@@ -12,8 +12,8 @@ using ModManager.Core;
 namespace ModManager.Adapters;
 
 /// <summary>
-/// Asks GitHub for the latest release of each repository in the background and hands the answers to the main thread,
-/// which records them in the <see cref="UpdateBook"/>. Needs no account or key.
+/// Asks GitHub for the latest release of each repository in the background, and the wiki for its index of mods, and
+/// hands the answers to the main thread, which records them in the <see cref="UpdateBook"/>. Needs no account or key.
 /// </summary>
 internal sealed class UpdateChecks
 {
@@ -28,7 +28,13 @@ internal sealed class UpdateChecks
     private readonly ConcurrentQueue<Action> _finished = new();
     private readonly UpdateBook _book;
     private readonly SavedGameVersions _saved;
+    private readonly SavedFile _savedIndex;
     private readonly Action<string> _log;
+
+    /// <summary>The wiki's index was read this session, so it is not asked for again.</summary>
+    private bool _hasIndex;
+
+    private bool _isFetchingIndex;
 
     /// <summary>Repositories asked for their game version list this session; each is asked once.</summary>
     private readonly HashSet<string> _askedForGameVersions = new(StringComparer.OrdinalIgnoreCase);
@@ -36,10 +42,11 @@ internal sealed class UpdateChecks
     /// <summary>Bumped when checks start or stop, so answers from an earlier run are dropped.</summary>
     private int _run;
 
-    public UpdateChecks(UpdateBook book, SavedGameVersions saved, string userAgent, Action<string> log)
+    public UpdateChecks(UpdateBook book, SavedGameVersions saved, SavedFile savedIndex, string userAgent, Action<string> log)
     {
         _book = book;
         _saved = saved;
+        _savedIndex = savedIndex;
         _log = log;
         _client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = Timeout };
         _client.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
@@ -53,6 +60,12 @@ internal sealed class UpdateChecks
         _book.Clear();
         _log("checking GitHub for updates of " + unique.Count + (unique.Count == 1 ? " repository" : " repositories"));
 
+        if (!_hasIndex && !_isFetchingIndex)
+        {
+            _isFetchingIndex = true;
+            _ = Index();
+        }
+
         foreach (var repository in unique)
         {
             _book.Record(repository, new LatestRelease.Checking());
@@ -62,13 +75,20 @@ internal sealed class UpdateChecks
         }
     }
 
-    /// <summary>Main thread: the lists saved at earlier starts, used until (or unless) the repositories answer.</summary>
-    public void LoadSavedGameVersions(IEnumerable<string> repositories)
+    /// <summary>Main thread: the lists and the index saved at earlier starts, used until (or unless) fresh ones come.</summary>
+    public void LoadSaved(IEnumerable<string> repositories)
     {
         foreach (var repository in repositories.Distinct(StringComparer.OrdinalIgnoreCase))
         {
             if (_saved.Read(repository) is { } text) _book.Record(repository, GameVersionLists.Parse(text).List);
         }
+
+        if (_savedIndex.Read() is not { } index) return;
+
+        var (read, problem) = ModIndexReader.Parse(index);
+
+        if (read != null) _book.Record(read.Index);
+        else _log("the saved index of the wiki's mods is not used: " + problem);
     }
 
     public void Stop()
@@ -155,6 +175,37 @@ internal sealed class UpdateChecks
             if (state is ChangelogState.Failed failed) _log("could not load the changelog " + changelog + ": " + failed.Reason);
         });
     }
+
+    /// <summary>Kept when update checks stop, like the game version lists: it is what the wiki knows, not an update check.</summary>
+    private async Task Index()
+    {
+        var answer = await Limited(() => Send(new HttpRequestMessage(HttpMethod.Get, MirrorAddress.Index), true)).ConfigureAwait(false);
+        var (read, problem) = answer is HttpAnswer.Answered { Status: 200 } ok ? ModIndexReader.Parse(ok.Body) : (null, Problem(answer));
+
+        _finished.Enqueue(() =>
+        {
+            _isFetchingIndex = false;
+
+            if (read == null)
+            {
+                _log("could not load the index of the wiki's mods, so " + (_book.Index.Mods.Count > 0 ? "the saved one stays in use" : "updates come from GitHub alone") + ": " + problem);
+
+                return;
+            }
+
+            _hasIndex = true;
+            _book.Record(read.Index);
+            _savedIndex.Save(((HttpAnswer.Answered)answer).Body);
+            _log("the wiki's index lists " + read.Index.Mods.Count + " mods" + (read.Ignored.Count > 0 ? "; passed over: " + string.Join("; ", read.Ignored.Take(10)) : ""));
+        });
+    }
+
+    private static string Problem(HttpAnswer answer) => answer switch
+    {
+        HttpAnswer.Unreachable unreachable => unreachable.Reason,
+        HttpAnswer.Answered answered => "the wiki answered " + answered.Status,
+        _ => "no answer",
+    };
 
     /// <summary>Kept when update checks stop or start again, like a changelog, since the list does not depend on them.</summary>
     private async Task GameVersions(string repository)
