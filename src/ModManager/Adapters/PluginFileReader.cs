@@ -19,6 +19,7 @@ internal static class PluginFileReader
     private const string DependencyAttribute = "BepInEx.BepInDependency";
     private const string IncompatibilityAttribute = "BepInEx.BepInIncompatibility";
     private const string MetadataAttribute = "System.Reflection.AssemblyMetadataAttribute";
+    private const string PatcherAttribute = "BepInEx.Preloader.Core.Patching.PatcherPluginInfoAttribute";
 
     /// <summary>Shares the file with everyone, so a DLL the game has loaded can still be read and moved.</summary>
     public static IReadOnlyList<PluginFile> Read(string path)
@@ -40,6 +41,18 @@ internal static class PluginFileReader
                 .Where(attribute => attribute.AttributeType.FullName == PluginAttribute && attribute.ConstructorArguments.Count == 3)
                 .Select(attribute => new PluginFile(Text(attribute, 0), Text(attribute, 1), Text(attribute, 2), metadata, RelationsOf(type))))
             .Where(plugin => plugin.Guid.Length > 0)
+            .ToList();
+    }
+
+    /// <summary>The GUIDs of the BepInEx patchers a DLL in the patchers folder declares.</summary>
+    public static IReadOnlyList<string> PatcherGuids(string path)
+    {
+        using var assembly = Open(path);
+
+        return assembly.MainModule.GetTypes()
+            .SelectMany(type => type.CustomAttributes.Where(attribute => attribute.AttributeType.FullName == PatcherAttribute && attribute.ConstructorArguments.Count == 3))
+            .Select(attribute => Text(attribute, 0))
+            .Where(guid => guid.Length > 0)
             .ToList();
     }
 

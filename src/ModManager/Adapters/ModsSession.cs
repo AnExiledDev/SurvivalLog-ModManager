@@ -513,6 +513,7 @@ internal sealed class ModsSession
             OtherErrors = otherErrors,
             ErrorsNotKept = errorsNotKept,
             Trash = _catalog.Trash(),
+            Health = _catalog.Health(mods),
         };
     }
 

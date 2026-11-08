@@ -181,6 +181,9 @@ public sealed record ModsView(IReadOnlyList<ModEntry> Mods, IReadOnlyList<string
 
     /// <summary>The uninstalled mods in the trash, newest first.</summary>
     public IReadOnlyList<TrashEntry> Trash { get; init; } = Array.Empty<TrashEntry>();
+
+    /// <summary>What is wrong with how BepInEx and the mods are installed, the worst first.</summary>
+    public IReadOnlyList<HealthFinding> Health { get; init; } = Array.Empty<HealthFinding>();
 }
 
 /// <summary>

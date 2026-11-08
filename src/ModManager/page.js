@@ -141,6 +141,20 @@
       trashEmpty: 'The trash is empty.', emptyTrash: 'EMPTY TRASH', emptyYes: 'DELETE FOR GOOD',
       emptyConfirm: n => 'Delete ' + n + (n === 1 ? ' mod' : ' mods') + ' for good? This cannot be undone.',
       trashSettings: 'with its settings file', trashThisSession: 'this session',
+      pageHealth: 'HEALTH', healthTitle: 'Install check', healthNone: 'Nothing wrong was found.',
+      healthIntro: 'Problems with how BepInEx and the mods are installed, found by looking at the game folder each time this screen opens.',
+      hBepInEx: v => 'BepInEx ' + v + ' is installed',
+      hBepInExBody: v => 'These mods are made and tested on BepInEx ' + v + ' for IL2CPP games. Another build can keep mods from starting or cause errors. If mods misbehave, install that build.',
+      hToolkit: name => name + ' needs a newer Exiled\'s Toolkit',
+      hToolkitBody: (range, installed) => 'It needs ' + range + ', and you have version ' + installed + ', so BepInEx will not start it. Update Exiled\'s Toolkit.',
+      hSameGuid: guid => 'One mod is in more than one DLL: ' + guid,
+      hSameGuidBody: 'BepInEx starts only one of them, and it may not be the newest. Keep one and delete the others:',
+      hSameDll: 'The same DLL is installed twice',
+      hSameDllBody: 'Only one copy is used, and it may be the older one. Keep one and delete the others:',
+      hNested: 'This folder should not be in plugins',
+      hNestedBody: 'This usually means a mod was unpacked one folder too deep. Its DLLs still start, but anything in it meant for BepInEx/config or BepInEx/patchers does nothing there. Move what is inside to the right folders:',
+      hUnused: 'Settings files without a mod',
+      hUnusedBody: 'No installed mod goes by these names, so they are most likely left from mods you removed. They do nothing and can be deleted from BepInEx/config:',
       pendTitle: n => (n === 1 ? '1 change waits' : n + ' changes wait') + ' for the next start.',
       pendShow: 'SHOW', pendHide: 'HIDE', undo: 'UNDO', quitGame: 'QUIT GAME',
       pendOn: 'turns on', pendOff: 'turns off', pendUninstalled: 'uninstalled',
@@ -278,6 +292,20 @@
       trashEmpty: '回收站是空的。', emptyTrash: '清空回收站', emptyYes: '永久删除',
       emptyConfirm: n => '永久删除 ' + n + ' 个模组？此操作无法撤销。',
       trashSettings: '含设置文件', trashThisSession: '这次卸载',
+      pageHealth: '安装检查', healthTitle: '安装检查', healthNone: '没有发现问题。',
+      healthIntro: '每次打开这个界面时都会查看游戏文件夹，列出 BepInEx 和模组在安装上的问题。',
+      hBepInEx: v => '安装的是 BepInEx ' + v,
+      hBepInExBody: v => '这些模组是在适用于 IL2CPP 游戏的 BepInEx ' + v + ' 上制作和测试的。其他版本可能让模组无法启动或出错。如果模组出现问题，请安装这个版本。',
+      hToolkit: name => name + ' 需要更新版本的 Exiled\'s Toolkit',
+      hToolkitBody: (range, installed) => '它需要 ' + range + '，而你的版本是 ' + installed + '，所以 BepInEx 不会启动它。请更新 Exiled\'s Toolkit。',
+      hSameGuid: guid => '同一个模组出现在多个 DLL 中：' + guid,
+      hSameGuidBody: 'BepInEx 只会启动其中一个，而且可能不是最新的。保留一个，删除其他的：',
+      hSameDll: '同一个 DLL 安装了两次',
+      hSameDllBody: '只会用到其中一份，而且可能是旧的那份。保留一个，删除其他的：',
+      hNested: '这个文件夹不应该在 plugins 里面',
+      hNestedBody: '这通常说明模组解压时多了一层文件夹。里面的 DLL 仍会启动，但本该放进 BepInEx/config 或 BepInEx/patchers 的文件放在这里不起作用。请把里面的内容移到正确的文件夹：',
+      hUnused: '没有对应模组的设置文件',
+      hUnusedBody: '没有已安装的模组用到这些名字，所以它们很可能是已移除的模组留下的。它们不起作用，可以从 BepInEx/config 删除：',
       pendTitle: n => n + ' 项改动将在下次启动时生效。',
       pendShow: '展开', pendHide: '收起', undo: '撤销', quitGame: '退出游戏',
       pendOn: '将开启', pendOff: '将关闭', pendUninstalled: '已卸载',
@@ -470,6 +498,16 @@
 #slmm .win.page-trash .rail { display: none; }
 #slmm .hd-trash i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: #888; border-radius: 3px; padding: 2px 7px; }
 #slmm .trash-page .notice { margin: 16px 0 0; }
+#slmm .win.page-health .bd { grid-template-columns: 1fr; }
+#slmm .win.page-health .rail { display: none; }
+#slmm .hd-health i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: #888; border-radius: 3px; padding: 2px 7px; }
+#slmm .hd-health.err i { background: var(--red); }
+#slmm .hd-health.warn i { background: #e8813a; }
+#slmm .hl-item { padding: 14px 16px; margin-top: 12px; border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid #888; background: rgba(0,0,0,0.25); }
+#slmm .hl-item.err { border-left-color: var(--red); }
+#slmm .hl-item.warn { border-left-color: #e8813a; }
+#slmm .hl-b { margin-top: 6px; color: #ccc; font-size: .92rem; line-height: 1.45; }
+#slmm .hl-files { margin-top: 6px; font-family: var(--mono); font-size: .82rem; color: #aaa; word-break: break-all; }
 #slmm .tr-acts { display: flex; gap: 10px; margin-top: 16px; }
 #slmm .pend { display: none; padding: 8px 24px 8px 26px; border-top: 1px solid rgba(235,163,8,0.35); background: rgba(235,163,8,0.06); }
 #slmm .win.has-pend { grid-template-rows: 70px 1fr auto 56px; }
@@ -957,7 +995,7 @@
 <div class="stage"><div class="win">
   <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
   <div class="hd">
-    <div class="hd-tabs"><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-err" data-page="errors"><span data-word="pageErrors"></span><i data-count="otherErrors"></i></div><div class="hd-title hd-trash" data-page="trash"><span data-word="pageTrash"></span><i data-count="trash"></i></div></div>
+    <div class="hd-tabs"><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-err" data-page="errors"><span data-word="pageErrors"></span><i data-count="otherErrors"></i></div><div class="hd-title hd-health" data-page="health"><span data-word="pageHealth"></span><i data-count="health"></i></div><div class="hd-title hd-trash" data-page="trash"><span data-word="pageTrash"></span><i data-count="trash"></i></div></div>
     <div class="hd-deco"><span>// MOD MANAGER</span><span><b data-count="loaded">0</b> <span data-word="loaded"></span></span><span><b data-count="settings">0</b> <span data-word="settings"></span></span></div>
     <div class="hd-sp"></div>
     <div class="seg"><span data-lang="en">EN</span><span data-lang="zh">中文</span></div>
@@ -1121,14 +1159,20 @@
 
     const others = otherErrors();
     const trashed = trash();
+    const found = health();
 
-    // The TRASH page stays while it shows what EMPTY TRASH did, even with nothing left in it.
-    if (state.page === 'errors' && !others.length || state.page === 'trash' && !trashed.length && !trashNote()) state.page = 'mods';
+    // The TRASH and HEALTH pages stay while they show what their last button did, even with nothing left in them.
+    if (state.page === 'errors' && !others.length || state.page === 'trash' && !trashed.length && !trashNote() || state.page === 'health' && !found.length) state.page = 'mods';
 
     $('.win').classList.toggle('page-errors', state.page === 'errors');
     $('.win').classList.toggle('page-trash', state.page === 'trash');
+    $('.win').classList.toggle('page-health', state.page === 'health');
     $('[data-page="trash"]').style.display = trashed.length || state.page === 'trash' ? '' : 'none';
     setCount('trash', trashed.length);
+    $('[data-page="health"]').style.display = found.length || state.page === 'health' ? '' : 'none';
+    $('[data-page="health"]').classList.toggle('err', healthLevel(found) === 'err');
+    $('[data-page="health"]').classList.toggle('warn', healthLevel(found) === 'warn');
+    setCount('health', found.length);
     root.querySelectorAll('[data-page]').forEach(el => el.classList.toggle('on', el.dataset.page === state.page));
     $('[data-page="errors"]').style.display = others.length ? '' : 'none';
     $('[data-page="errors"]').classList.toggle('warn', !others.some(e => e.level === 'error'));
@@ -1252,6 +1296,42 @@
       '<div class="cf-intro">' + esc(word('trashIntro')) + '</div>' + shownNote + button + confirm + rows + '</div>';
   }
 
+  function health() {
+    return state.view && state.view.health ? state.view.health : [];
+  }
+
+  // How much each finding matters: err keeps a mod from starting the way it should, warn may, info only explains.
+  const HEALTH_LEVEL = { bepinex: 'warn', toolkit: 'err', sameGuid: 'err', sameDll: 'warn', nested: 'warn', unusedCfg: 'info' };
+
+  function healthLevel(found) {
+    return found.some(f => HEALTH_LEVEL[f.kind] === 'err') ? 'err' : found.some(f => HEALTH_LEVEL[f.kind] === 'warn') ? 'warn' : 'info';
+  }
+
+  // The HEALTH page beside MODS: what is wrong with how BepInEx and the mods are installed.
+  function healthPage() {
+    const found = health();
+    const items = found.length ? found.map(healthItem).join('') : '<div class="empty"><div class="big">' + esc(word('healthNone')) + '</div></div>';
+
+    return '<div class="errs-page health-page"><div class="sec-t">' + esc(word('healthTitle')) + ' &middot; ' + found.length + '</div>' +
+      '<div class="cf-intro">' + esc(word('healthIntro')) + '</div>' + items + '</div>';
+  }
+
+  function healthItem(f) {
+    const files = list => '<div class="hl-files">' + list.map(file => '<div>' + esc(file) + '</div>').join('') + '</div>';
+    const item = (title, body, more) => '<div class="hl-item ' + (HEALTH_LEVEL[f.kind] || 'info') + '" data-health="' + esc(f.kind) + '"><div class="mname">' + esc(title) + '</div>' +
+      (body ? '<div class="hl-b">' + esc(body) + '</div>' : '') + (more || '') + '</div>';
+
+    switch (f.kind) {
+      case 'bepinex': return item(word('hBepInEx')(f.found), word('hBepInExBody')(f.tested));
+      case 'toolkit': return item(word('hToolkit')(f.mod), word('hToolkitBody')(f.range, f.installed));
+      case 'sameGuid': return item(word('hSameGuid')(f.guid), word('hSameGuidBody'), files(f.files));
+      case 'sameDll': return item(word('hSameDll'), word('hSameDllBody'), files(f.files));
+      case 'nested': return item(word('hNested'), word('hNestedBody'), files([f.folder]));
+      case 'unusedCfg': return item(word('hUnused'), word('hUnusedBody'), files(f.files));
+      default: return '';
+    }
+  }
+
   function trashRow(t) {
     const tags = [t.version ? 'v' + t.version : '', t.when, t.settings ? word('trashSettings') : '', t.thisSession ? word('trashThisSession') : ''].filter(tag => tag);
 
@@ -1326,9 +1406,9 @@
   }
 
   function renderPane() {
-    if (state.page === 'errors' || state.page === 'trash') {
+    if (state.page === 'errors' || state.page === 'trash' || state.page === 'health') {
       showOwnTab(null, null);
-      morph(pane, state.page === 'errors' ? otherErrorsPage() : trashPage());
+      morph(pane, state.page === 'errors' ? otherErrorsPage() : state.page === 'trash' ? trashPage() : healthPage());
 
       return;
     }

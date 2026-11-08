@@ -14,7 +14,7 @@ While the Mods screen is open, the game's own hotkeys are paused, and Esc closes
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| `CheckForUpdates` | `true` | Each time the game starts, ask GitHub whether mods that name a GitHub repository have a newer release. Only GitHub is contacted, and no account or key is needed. Turning it off stops the checks at once. |
+| `CheckForUpdates` | `true` | Each time the game starts, look for mod updates and for what is known about your mods. GitHub is asked about mods that name a GitHub repository, the Survival Log Wiki (`sldb.core-directive.com`) for its list of mods, known problems and download copies, and Nexus Mods, at most once a day, for the newest version of each of the game's mods there. No account or key is needed, and none of your files, settings or saves are sent. Turning it off stops the checks at once. |
 | `ShowToast` | `true` | After the update check at the start, show one message saying how many mods have updates. Click it to see them. |
 
 ## Interface

@@ -87,6 +87,7 @@ public static class PageScript
         json.Append(",\"problems\":").Append(List(view.Problems, Str));
         json.Append(",\"otherErrors\":").Append(List(view.OtherErrors, ErrorJson));
         json.Append(",\"trash\":").Append(List(view.Trash, TrashJson));
+        json.Append(",\"health\":").Append(List(view.Health, HealthJson));
 
         return json.Append('}').ToString();
     }
@@ -129,6 +130,17 @@ public static class PageScript
 
         return json.Append('}').ToString();
     }
+
+    private static string HealthJson(HealthFinding finding) => finding switch
+    {
+        HealthFinding.OtherBepInEx bepInEx => "{\"kind\":\"bepinex\",\"found\":" + Str(bepInEx.Found) + ",\"tested\":" + Str(HealthCheck.TestedBepInEx) + "}",
+        HealthFinding.OldToolkit toolkit => "{\"kind\":\"toolkit\",\"mod\":" + Str(toolkit.Mod) + ",\"range\":" + Str(toolkit.Range) + ",\"installed\":" + Str(toolkit.Installed) + "}",
+        HealthFinding.SameGuid same => "{\"kind\":\"sameGuid\",\"guid\":" + Str(same.Guid) + ",\"files\":" + List(same.Files, Str) + "}",
+        HealthFinding.SameDll same => "{\"kind\":\"sameDll\",\"files\":" + List(same.Files, Str) + "}",
+        HealthFinding.NestedFolder nested => "{\"kind\":\"nested\",\"folder\":" + Str(nested.Folder) + "}",
+        HealthFinding.UnusedSettings unused => "{\"kind\":\"unusedCfg\",\"files\":" + List(unused.Files, Str) + "}",
+        _ => "{\"kind\":\"unknown\"}",
+    };
 
     private static string TrashJson(TrashEntry item) =>
         "{\"id\":" + Str(item.Id) + ",\"name\":" + Str(item.Name) + ",\"version\":" + Str(item.Version) + ",\"when\":" + Str(item.When) + ",\"settings\":" + Bool(item.HasSettings) + ",\"thisSession\":" + Bool(item.IsThisSession) + "}";

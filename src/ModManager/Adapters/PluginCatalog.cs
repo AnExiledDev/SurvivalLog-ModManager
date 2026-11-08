@@ -36,6 +36,7 @@ internal sealed class PluginCatalog
     private readonly TrashCan _trash;
     private readonly string _configFolder;
     private readonly Dictionary<string, bool> _prepInConfig = new(StringComparer.OrdinalIgnoreCase);
+    private readonly InstallScanner _scanner;
 
     /// <summary>The trash item of each DLL uninstalled this session, by where the DLL was when the game started.</summary>
     private readonly Dictionary<string, string> _trashed = new(StringComparer.OrdinalIgnoreCase);
@@ -56,8 +57,10 @@ internal sealed class PluginCatalog
     /// <param name="items">The game's items and recipes, which recipe lists are checked against.</param>
     /// <param name="fitOf">The check of a DLL against the game's code, by the DLL's SHA-256; null until it is checked.</param>
     /// <param name="configFolder">BepInEx/config, where a mod that is not running keeps its .cfg.</param>
-    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, ProblemBook errors, string selfGuid, string? gameVersion, GameItemTable items, Func<string?, GameFit?> fitOf, TrashCan trash, string configFolder, Action<string> log)
+    /// <param name="scanner">Looks at the BepInEx folder for the health check.</param>
+    public PluginCatalog(PluginFolders folders, UpdateBook updates, Func<string, IReadOnlyList<string>> backupVersions, ProblemBook errors, string selfGuid, string? gameVersion, GameItemTable items, Func<string?, GameFit?> fitOf, TrashCan trash, string configFolder, InstallScanner scanner, Action<string> log)
     {
+        _scanner = scanner;
         _trash = trash;
         _configFolder = configFolder;
         _fitOf = fitOf;
@@ -315,6 +318,24 @@ internal sealed class PluginCatalog
     }
 
     public IReadOnlyList<TrashEntry> Trash() => _trash.Items().Select(item => TrashEntry.Of(item, _trash.IsThisSession(item.Id))).ToList();
+
+    /// <summary>What is wrong with how BepInEx and the mods are installed, looked at again each time the screen asks.</summary>
+    public IReadOnlyList<HealthFinding> Health(IReadOnlyList<ModEntry> mods)
+    {
+        try
+        {
+            var inUse = Plugins().Select(plugin => (plugin.Instance as BasePlugin)?.Config?.ConfigFilePath).OfType<string>().ToList();
+            var scan = _scanner.Scan(Paths.BepInExVersion?.ToString() ?? "", inUse, _trash.Items().Select(item => item.Guid));
+
+            return HealthCheck.Find(scan, mods, ExiledToolkit.Plugin.Guid);
+        }
+        catch (Exception ex)
+        {
+            ReportOnce("health", "could not run the health check: " + ex.Message);
+
+            return Array.Empty<HealthFinding>();
+        }
+    }
 
     public ConfigFile? ConfigOf(string guid) => Find(guid)?.Instance is BasePlugin plugin ? plugin.Config : null;
 

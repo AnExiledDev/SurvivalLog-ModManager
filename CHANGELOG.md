@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.18.0
+
+- Updates of the mods listed on the Survival Log Wiki now download from the wiki first, so they install even where GitHub is slow or blocked. A copy that is not exactly the released file is never used, and the update comes from GitHub instead.
+- When GitHub can't be reached, mods listed on the wiki still show their newest version, INSTALL UPDATE still works, and GET UPDATE opens the mod's page on the wiki.
+- Mods from Nexus Mods now show when Nexus has a newer version, with a NEXUS button that opens the mod's page there. The Mod Manager asks Nexus at most once a day and needs no account.
+- A mod version that is known not to work gets a BROKEN mark with the reason, and an update to such a version is marked HELD and never installed.
+- Mods known not to work together are listed at the top of the Conflicts tab.
+- A mod that uses game code this game version no longer has gets an OUTDATED mark, and its page lists what is missing.
+- New UNINSTALL button on a mod's page. It moves the mod to a trash folder, and its settings file too if you tick the box. Before it does, it tells you whether the mod can get your save ready to load without it, and which other mods stop with it.
+- New TRASH page beside MODS. RESTORE puts an uninstalled mod back, and EMPTY TRASH deletes them for good.
+- A bar at the bottom of the screen now lists every change that waits for the next start, with UNDO to take one back and QUIT GAME to quit and use them.
+- New HEALTH page beside MODS that shows problems with how mods are installed: the same mod or DLL installed twice, a folder unpacked one level too deep, a BepInEx build other than the one these mods are made for, a mod that needs a newer Exiled's Toolkit, and settings files left from mods you removed.
+- Made for Survival Log 1.1.20719.
+
 ## 0.17.1
 
 - Fixed Pack Rat's Inventories and Items screens, which since 0.16.0 were squeezed into one row with most of the screen outside the window.
