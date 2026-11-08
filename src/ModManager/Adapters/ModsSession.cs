@@ -215,6 +215,14 @@ internal sealed class ModsSession
             case PageCommand.RollBack rollBack:
                 RollBack(rollBack.Guid);
                 break;
+            case PageCommand.RollForward forward:
+                ShowAfter(RollForward(forward.Guid));
+                break;
+            case PageCommand.QuitGame:
+                // The game saves the run in its own quit handler (GameSaveManager.OnApplicationQuit), as when its window is closed.
+                _log("quitting the game, as the player asked");
+                Application.Quit();
+                break;
             case PageCommand.TurnOnNeeds needs:
                 TurnOnNeeds(needs.Guid);
                 break;
@@ -367,6 +375,19 @@ internal sealed class ModsSession
         RefreshOpen();
     }
 
+    /// <summary>UNDO for a rollback done this session; a note only when it could not be undone.</summary>
+    private ModNote? RollForward(string guid)
+    {
+        var mod = _catalog.Mod(guid);
+
+        if (mod == null || Rollback.UndoTo(mod.Rollback, mod.Version) is not { } version) return null;
+
+        var (dllPath, problem) = _catalog.InstallPathOf(guid);
+        var result = dllPath == null ? new RollbackState.Failed(version, problem ?? "its files cannot be changed here") : _installer.RollBack(mod, version, dllPath);
+
+        return result is RollbackState.Failed failed ? new ModNote(guid, true, RollbackNotes.UndoFailed(version, failed.Reason)) : null;
+    }
+
     private void RefreshOpen()
     {
         if (_isOpen) _page.Run(PageScript.Refresh(Shown()));
@@ -477,7 +498,7 @@ internal sealed class ModsSession
     }
 
     /// <summary>Redraws the page with the note of an action that has already run, so the list shows what it changed.</summary>
-    private void ShowAfter(ModNote note) => _page.Run(PageScript.Replace(Shown(), note));
+    private void ShowAfter(ModNote? note) => _page.Run(PageScript.Replace(Shown(), note));
 
     private ModsView View()
     {

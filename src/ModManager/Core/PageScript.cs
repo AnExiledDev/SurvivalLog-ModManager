@@ -117,7 +117,7 @@ public static class PageScript
         json.Append(",\"patchOverlaps\":").Append(List(mod.PatchOverlaps, OverlapJson));
         json.Append(",\"errors\":").Append(List(mod.Errors, ErrorJson));
         json.Append(",\"install\":").Append(InstallJson(mod.Install));
-        json.Append(",\"rollback\":").Append(RollbackJson(mod.Rollback));
+        json.Append(",\"rollback\":").Append(RollbackJson(mod.Rollback, mod.Version));
         json.Append(",\"changelog\":").Append(ChangelogJson(mod.Changelog));
         json.Append(",\"switch\":").Append(SwitchJson(mod.Switch));
         json.Append(",\"update\":").Append(UpdateJson(mod.Update));
@@ -387,11 +387,11 @@ public static class PageScript
         _ => throw new ArgumentOutOfRangeException(nameof(changelog), changelog, null),
     };
 
-    private static string RollbackJson(RollbackState rollback) => rollback switch
+    private static string RollbackJson(RollbackState rollback, string runningVersion) => rollback switch
     {
         RollbackState.None => "{\"kind\":\"none\"}",
         RollbackState.Available available => "{\"kind\":\"available\",\"version\":" + Str(available.Version) + "}",
-        RollbackState.Done done => "{\"kind\":\"done\",\"version\":" + Str(done.Version) + "}",
+        RollbackState.Done done => "{\"kind\":\"done\",\"version\":" + Str(done.Version) + ",\"same\":" + Bool(Rollback.IsBackToRunning(done, runningVersion)) + "}",
         RollbackState.Failed failed => "{\"kind\":\"failed\",\"version\":" + Str(failed.Version) + ",\"reason\":" + Str(failed.Reason) + "}",
         _ => throw new ArgumentOutOfRangeException(nameof(rollback), rollback, null),
     };

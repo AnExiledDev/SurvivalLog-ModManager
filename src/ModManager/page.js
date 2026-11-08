@@ -140,7 +140,13 @@
       trashIntro: 'Mods you uninstalled, with their settings file when you chose to remove it too. RESTORE puts a mod back where it was. EMPTY TRASH deletes them for good, except the ones uninstalled this session, which the game is still running.',
       trashEmpty: 'The trash is empty.', emptyTrash: 'EMPTY TRASH', emptyYes: 'DELETE FOR GOOD',
       emptyConfirm: n => 'Delete ' + n + (n === 1 ? ' mod' : ' mods') + ' for good? This cannot be undone.',
-      trashSettings: 'with its settings file', trashThisSession: 'this session'
+      trashSettings: 'with its settings file', trashThisSession: 'this session',
+      pendTitle: n => (n === 1 ? '1 change waits' : n + ' changes wait') + ' for the next start.',
+      pendShow: 'SHOW', pendHide: 'HIDE', undo: 'UNDO', quitGame: 'QUIT GAME',
+      pendOn: 'turns on', pendOff: 'turns off', pendUninstalled: 'uninstalled',
+      pendUpdate: tag => 'update to ' + tag + ' installed', pendRollback: version => 'rolled back to ' + version,
+      pendSetting: label => label + ' changed, applies after a restart', pendSettingMaybe: label => label + ' changed, may apply only after a restart',
+      quitTitle: 'Quit the game now?', quitBody: 'The game saves your run as it does when you close its window. Start it again to use the changes.', quitYes: 'QUIT NOW'
     },
     zh: {
       loaded: '已加载', settings: '项设置', toggle: '切换', close: '关闭', search: '搜索所有设置',
@@ -271,7 +277,13 @@
       trashIntro: '你卸载的模组，以及你选择一起移除的设置文件。「恢复」会把模组放回原处。「清空回收站」会永久删除它们，但这次卸载的除外，因为游戏仍在运行它们。',
       trashEmpty: '回收站是空的。', emptyTrash: '清空回收站', emptyYes: '永久删除',
       emptyConfirm: n => '永久删除 ' + n + ' 个模组？此操作无法撤销。',
-      trashSettings: '含设置文件', trashThisSession: '这次卸载'
+      trashSettings: '含设置文件', trashThisSession: '这次卸载',
+      pendTitle: n => n + ' 项改动将在下次启动时生效。',
+      pendShow: '展开', pendHide: '收起', undo: '撤销', quitGame: '退出游戏',
+      pendOn: '将开启', pendOff: '将关闭', pendUninstalled: '已卸载',
+      pendUpdate: tag => '已安装更新 ' + tag, pendRollback: version => '已退回到 ' + version,
+      pendSetting: label => '「' + label + '」已修改，重启后生效', pendSettingMaybe: label => '「' + label + '」已修改，可能需要重启才生效',
+      quitTitle: '现在退出游戏？', quitBody: '游戏会像关闭窗口时一样保存你的进度。重新启动游戏即可使用这些改动。', quitYes: '立即退出'
     }
   };
 
@@ -312,6 +324,10 @@
     confirmUninstall: null,
     removeSettings: false,
     confirmEmpty: false,
+    // The bar of changes that wait for the next start: whether its list is open, and whether QUIT GAME asks to confirm.
+    pendOpen: true,
+    confirmQuit: false,
+    pendItems: [],
     // Set while a trash action is on its way, so its note shows on the TRASH page.
     noteFor: ''
   };
@@ -455,6 +471,18 @@
 #slmm .hd-trash i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: #888; border-radius: 3px; padding: 2px 7px; }
 #slmm .trash-page .notice { margin: 16px 0 0; }
 #slmm .tr-acts { display: flex; gap: 10px; margin-top: 16px; }
+#slmm .pend { display: none; padding: 8px 24px 8px 26px; border-top: 1px solid rgba(235,163,8,0.35); background: rgba(235,163,8,0.06); }
+#slmm .win.has-pend { grid-template-rows: 70px 1fr auto 56px; }
+#slmm .win.has-pend .pend { display: block; }
+#slmm .pend-hd { display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: .85rem; color: var(--amber); letter-spacing: .5px; }
+#slmm .pend-hd b { flex: 1; font-weight: 400; }
+#slmm .pend .key-btn { padding: 4px 10px; font-size: .78rem; }
+#slmm .pend-list { max-height: 132px; overflow-y: auto; margin-top: 6px; }
+#slmm .pend-row { display: flex; align-items: center; gap: 14px; padding: 3px 0; font-size: .88rem; }
+#slmm .pend-row .pn { color: #fff; min-width: 240px; }
+#slmm .pend-row .pt { flex: 1; color: #aaa; }
+#slmm .pend-quit { display: flex; align-items: center; gap: 12px; margin-top: 6px; font-size: .88rem; color: #ccc; }
+#slmm .pend-quit span { flex: 1; }
 #slmm .tr-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.25); }
 #slmm .un-cfg { display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer; }
 #slmm .errs-page { padding: 26px 40px 40px; }
@@ -952,6 +980,7 @@
     </div>
     <div class="pane"></div>
   </div>
+  <div class="pend"></div>
   <div class="ft"><div class="status-dot"></div><div class="ft-t"></div><div class="key-btn" data-act="copyList"></div></div>
   <div class="pk-host"></div>
 </div></div>`;
@@ -1072,6 +1101,7 @@
     renderList();
     renderPane();
     renderFooter();
+    renderPend();
     list.scrollTop = listScroll;
     pane.scrollTop = paneScroll;
 
@@ -1260,7 +1290,7 @@
   function updatePip(m) {
     const pip = (cls, key) => '<span class="pip ' + cls + '">' + esc(word(key)) + '</span>';
 
-    if (m.install.kind === 'installed' || m.rollback.kind === 'done') return pip('chg', 'pipRestart');
+    if (m.install.kind === 'installed' || (m.rollback.kind === 'done' && !m.rollback.same)) return pip('chg', 'pipRestart');
 
     if (hasNexusUpdate(m)) return pip('upd', 'pipNexus');
 
@@ -2729,6 +2759,51 @@
     renderCopyButton();
   }
 
+  // Everything that changes when the game starts again, each with what takes it back (null when nothing can yet).
+  function pendingChanges() {
+    const items = [];
+    const add = (m, text, undo) => items.push({ mod: m, text: text, undo: undo });
+    const isOnNow = m => m.state !== 'off';
+
+    for (const m of mods()) {
+      if (m.switch.kind === 'uninstalled') add(m, word('pendUninstalled'), () => send('restore', [m.switch.trash]));
+      else if (isPending(m)) add(m, word(m.switch.next ? 'pendOn' : 'pendOff'), () => send('switch', [m.guid, isOnNow(m) ? '1' : '0']));
+      else if (m.switch.kind === 'held' && m.switch.next !== isOnNow(m)) add(m, word(m.switch.next ? 'pendOn' : 'pendOff') + (state.lang === 'zh' ? '，' : ', ') + word('heldUntilRestart'), null);
+
+      if (m.install.kind === 'installed') add(m, word('pendUpdate')(tagText(m.install.tag)), m.rollback.kind === 'available' ? () => send('rollback', [m.guid]) : null);
+
+      if (m.rollback.kind === 'done' && !m.rollback.same) add(m, word('pendRollback')(m.rollback.version), () => send('rollForward', [m.guid]));
+
+      for (const s of m.settings) {
+        if (isChangedThisSession(s) && s.apply !== 'live' && !s.readOnly) add(m, word(s.apply === 'restart' ? 'pendSetting' : 'pendSettingMaybe')(s.label), () => send('set', [m.guid, s.section, s.key, s.atStart]));
+      }
+    }
+
+    return items;
+  }
+
+  function renderPend() {
+    const items = pendingChanges();
+    const host = $('.pend');
+
+    state.pendItems = items;
+    $('.win').classList.toggle('has-pend', items.length > 0);
+
+    if (!items.length) {
+      state.confirmQuit = false;
+      if (host.innerHTML) host.innerHTML = '';
+
+      return;
+    }
+
+    const button = (act, text, cls) => '<div class="key-btn' + (cls ? ' ' + cls : '') + '" data-act="' + act + '">' + esc(text) + '</div>';
+    const head = '<div class="pend-hd"><span>&#x21BB;</span><b>' + esc(word('pendTitle')(items.length)) + '</b>' + button('pendToggle', word(state.pendOpen ? 'pendHide' : 'pendShow')) + (state.confirmQuit ? '' : button('quitGame', word('quitGame'))) + '</div>';
+    const quit = state.confirmQuit ? '<div class="pend-quit"><span><b>' + esc(word('quitTitle')) + '</b> ' + esc(word('quitBody')) + '</span>' + button('quitYes', word('quitYes'), 'danger') + button('quitNo', word('cancel')) + '</div>' : '';
+    const row = (item, i) => '<div class="pend-row"><span class="pn">' + esc(nameOf(item.mod)) + '</span><span class="pt">' + esc(item.text) + '</span>' + (item.undo ? '<div class="key-btn" data-act="undo" data-undo="' + i + '">' + esc(word('undo')) + '</div>' : '') + '</div>';
+
+    morph(host, head + quit + (state.pendOpen ? '<div class="pend-list">' + items.map(row).join('') + '</div>' : ''));
+  }
+
   function renderCopyButton() {
     const button = $('[data-act="copyList"]');
 
@@ -2901,7 +2976,18 @@
       state.confirmEmpty = false;
       state.noteFor = 'trash';
       send('emptyTrash');
-    }
+    } else if (actName === 'pendToggle') {
+      state.pendOpen = !state.pendOpen;
+      renderPend();
+    } else if (actName === 'undo') {
+      const item = state.pendItems[Number(act.dataset.undo)];
+
+      state.noteFor = '';
+      if (item && item.undo) item.undo();
+    } else if (actName === 'quitGame' || actName === 'quitNo') {
+      state.confirmQuit = actName === 'quitGame';
+      renderPend();
+    } else if (actName === 'quitYes' && state.confirmQuit) send('quitGame');
     else if (actName === 'reset' && row) resetRow(row);
     else if ((actName === 'worldKeep' || actName === 'worldGlobal') && row) send('world', settingParts(row).slice(0, 3).concat([actName === 'worldKeep' ? 'keep' : 'global']));
     else if (actName === 'bind' && row) bind(row, act);
@@ -3287,6 +3373,7 @@
     state.copied = null;
     state.confirmUninstall = null;
     state.confirmEmpty = false;
+    state.confirmQuit = false;
     state.noteFor = '';
 
     if (!modByGuid(state.selected)) state.selected = view.mods.length ? (view.mods.find(m => m.loaded) || view.mods[0]).guid : null;

@@ -71,6 +71,12 @@ public abstract record PageCommand
     /// <summary>Put back the files this mod's last update replaced, for the next game start.</summary>
     public sealed record RollBack(string Guid) : PageCommand;
 
+    /// <summary>Undo a rollback done this session: put back the files of the version the game is running.</summary>
+    public sealed record RollForward(string Guid) : PageCommand;
+
+    /// <summary>Quit the game, the way closing its window does.</summary>
+    public sealed record QuitGame : PageCommand;
+
     /// <summary>Turn on, from the next start, the installed mods this one needs that are off.</summary>
     public sealed record TurnOnNeeds(string Guid) : PageCommand;
 
@@ -127,6 +133,8 @@ public abstract record PageCommand
         ("approve", 2) => new ApproveInstall(parts[1]),
         ("installAll", 1) => new InstallAll(),
         ("rollback", 2) => new RollBack(parts[1]),
+        ("rollForward", 2) => new RollForward(parts[1]),
+        ("quitGame", 1) => new QuitGame(),
         ("needs", 2) => new TurnOnNeeds(parts[1]),
         ("copyList", 1) => new CopyList(),
         ("uninstall", 3) when parts[2] is "0" or "1" => new Uninstall(parts[1], parts[2] == "1"),

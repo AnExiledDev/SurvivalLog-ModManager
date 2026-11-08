@@ -70,6 +70,30 @@ public static class Rollback
             .FirstOrDefault();
     }
 
+    /// <summary>
+    /// Which version's files are in the mod's folder now: the update installed this session, the version a rollback
+    /// this session put back, or else the one the game is running.
+    /// </summary>
+    public static string OnDisk(InstallState install, RollbackState rollback, string runningVersion) => install switch
+    {
+        InstallState.Installed installed => installed.Tag,
+        _ => rollback is RollbackState.Done done ? done.Version : runningVersion,
+    };
+
+    /// <summary>
+    /// A rollback this session put back the files of the version the game is running, as one right after an install
+    /// does, so the next start runs what runs now.
+    /// </summary>
+    public static bool IsBackToRunning(RollbackState rollback, string runningVersion) =>
+        rollback is RollbackState.Done done && BackupFolder.IsSameVersion(done.Version, runningVersion);
+
+    /// <summary>
+    /// The version UNDO puts back after a rollback this session: the one the game is running, whose files the rollback
+    /// set aside. Null when no rollback changed what the next start runs.
+    /// </summary>
+    public static string? UndoTo(RollbackState rollback, string runningVersion) =>
+        rollback is RollbackState.Done && !IsBackToRunning(rollback, runningVersion) ? runningVersion : null;
+
     /// <summary>The version a rollback button would go to, or null when there is nothing to try.</summary>
     public static string? VersionToTry(RollbackState state) => state switch
     {
@@ -77,6 +101,13 @@ public static class Rollback
         RollbackState.Failed failed => failed.Version,
         _ => null,
     };
+}
+
+public static class RollbackNotes
+{
+    /// <summary>A failed swap puts back what it moved, so the files the rollback placed are still there.</summary>
+    public static BilingualText UndoFailed(string version, string reason) =>
+        new("Could not go back to " + version + ": " + reason + ". The rollback still stands.", "无法回到 " + version + "：" + reason + "。退回仍然有效。");
 }
 
 /// <summary>A file to move or copy, by full path.</summary>

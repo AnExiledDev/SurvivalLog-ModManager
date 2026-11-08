@@ -87,23 +87,26 @@ internal sealed class UpdateInstaller
 
     /// <summary>
     /// Main thread; the files are small, so it runs at once. Puts back the backup of <paramref name="version"/> and
-    /// records how it went. Does nothing while an install of the mod runs.
+    /// records how it went, which it also returns. Does nothing while an install of the mod runs, and returns null.
     /// </summary>
-    public void RollBack(ModEntry mod, string version, string dllPath)
+    public RollbackState? RollBack(ModEntry mod, string version, string dllPath)
     {
-        if (_book.InstallOf(mod.Guid) is InstallState.Installing) return;
+        if (_book.InstallOf(mod.Guid) is InstallState.Installing) return null;
 
-        var diskVersion = _book.InstallOf(mod.Guid) is InstallState.Installed installed ? installed.Tag : mod.Version;
+        var diskVersion = Rollback.OnDisk(_book.InstallOf(mod.Guid), mod.Rollback, mod.Version);
         var backup = _shelf.FolderOf(mod.Guid, version);
         var aside = _shelf.FolderOf(mod.Guid, diskVersion);
         var (steps, problem) = RollbackPlan.For(Path.GetDirectoryName(dllPath) ?? ".", Path.GetFileName(dllPath), backup, _shelf.FilesIn(backup), _shelf.InstalledFiles(mod.Guid, diskVersion), aside);
         var result = steps == null ? new RollbackState.Failed(version, problem ?? "there is nothing to roll back") : FileSwap.Restore(DiskFiles.Instance, steps, version);
 
-        _book.Record(mod.Guid, result);
+        // Undoing a rollback that fails leaves the rolled-back files in place, as the swap puts back what it moved, so the rollback still stands.
+        _book.Record(mod.Guid, result is RollbackState.Failed && mod.Rollback is RollbackState.Done ? mod.Rollback : result);
 
         if (result is RollbackState.Done) _book.Record(mod.Guid, new InstallState.None());
 
         _log(result is RollbackState.Failed failed ? "could not roll " + mod.Guid + " back to " + version + ": " + failed.Reason : "rolled " + mod.Guid + " back to " + version + "; it is used from the next start, the files it replaced are in " + aside);
+
+        return result;
     }
 
     private void Run(ModEntry mod, string tag, Func<Task<InstallState>> install)
