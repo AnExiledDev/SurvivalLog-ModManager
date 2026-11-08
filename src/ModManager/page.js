@@ -85,7 +85,15 @@
       installFailed: reason => 'Could not install the update: ' + reason + '.',
       installRefused: reason => 'The Mod Manager will not install this update: ' + reason + '. GET UPDATE still lets you install it by hand.',
       installAll: n => 'INSTALL ALL UPDATES (' + n + ')',
-      pipAsk: 'ASK', pipRefused: 'REFUSED',
+      pipAsk: 'ASK', pipRefused: 'REFUSED', pipHeld: 'HELD', pipBroken: 'BROKEN', pipNexus: 'NEXUS',
+      heldBroken: n => (n === 1 ? '1 update is' : n + ' updates are') + ' known not to work (marked HELD), so the Mod Manager will not install ' + (n === 1 ? 'it' : 'them') + '. Open ' + (n === 1 ? 'it' : 'one') + ' to see why.',
+      heldUpdate: tag => 'Version ' + tag + ' is known not to work, so the Mod Manager will not install it:',
+      brokenTitle: 'This version is known not to work.',
+      nexusTitle: version => 'Version ' + version + ' is on Nexus Mods.',
+      nexusBody: version => 'You have ' + version + '. The Mod Manager cannot install mods from Nexus Mods, so download it from its page there.',
+      nexusCurrent: 'up to date on Nexus',
+      knownConflicts: 'Known not to work together',
+      knownConflictsWhy: 'These mods are known to break each other. Keep only one of them on.',
       heldAsking: n => (n === 1 ? '1 update waits for you' : n + ' updates wait for you') + ' (marked ASK): it can do things the installed version cannot. Open it to see what, and click INSTALL ANYWAY if you trust where it comes from.',
       heldRefused: n => 'The Mod Manager will not install ' + (n === 1 ? '1 update' : n + ' updates') + ' (marked REFUSED). Open it to see why.',
       needsApproval: (tag, powers) => 'Version ' + tag + ' can do things the installed version cannot: it can ' + andList(powers) + '. Mods can have good reasons for this. Install it only if you trust where it comes from.',
@@ -192,7 +200,15 @@
       installFailed: reason => '无法安装更新：' + reason + '。',
       installRefused: reason => '模组管理器不会安装此更新：' + reason + '。仍可通过「获取更新」手动安装。',
       installAll: n => '安装全部更新（' + n + '）',
-      pipAsk: '待确认', pipRefused: '已拒绝',
+      pipAsk: '待确认', pipRefused: '已拒绝', pipHeld: '已暂缓', pipBroken: '已知故障', pipNexus: 'NEXUS',
+      heldBroken: n => n + ' 个更新已知无法正常工作（标为「已暂缓」），模组管理器不会安装。打开查看原因。',
+      heldUpdate: tag => '版本 ' + tag + ' 已知无法正常工作，模组管理器不会安装它：',
+      brokenTitle: '此版本已知无法正常工作。',
+      nexusTitle: version => 'Nexus Mods 上已有版本 ' + version + '。',
+      nexusBody: version => '你的版本是 ' + version + '。模组管理器无法从 Nexus Mods 安装模组，请到它在那里的页面下载。',
+      nexusCurrent: 'Nexus 上已是最新',
+      knownConflicts: '已知不能一起使用',
+      knownConflictsWhy: '这些模组已知会互相破坏。只保留其中一个开启。',
       heldAsking: n => n + ' 个更新等你确认（标为「待确认」）：它能做到当前版本做不到的事。打开查看详情，信任它的来源时点「仍然安装」。',
       heldRefused: n => '模组管理器不会安装 ' + n + ' 个更新（标为「已拒绝」）。打开查看原因。',
       needsApproval: (tag, powers) => '版本 ' + tag + ' 能做到当前版本做不到的事：它可以' + powers.join('、') + '。模组这样做可能有正当理由。只有在信任它的来源时才安装。',
@@ -298,7 +314,11 @@
   const isChanged = s => s.current !== s.default;
   const isChangedThisSession = s => s.current !== s.atStart;
   const hasUpdate = m => m.update.kind === 'available';
-  const canInstall = m => hasUpdate(m) && (m.install.kind === 'none' || m.install.kind === 'failed') && m.rollback.kind !== 'done';
+  const isHeld = m => hasUpdate(m) && !!m.known.updateHeld;
+  const canInstall = m => hasUpdate(m) && !isHeld(m) && (m.install.kind === 'none' || m.install.kind === 'failed') && m.rollback.kind !== 'done';
+  // A newer version on Nexus Mods, for a mod the update check has nothing for: shown, not installed.
+  const hasNexusUpdate = m => !hasUpdate(m) && !!m.known.nexus && m.known.nexus.newer;
+  const isUpdatable = m => hasUpdate(m) || hasNexusUpdate(m);
   const tagText = tag => /^[vV]\d/.test(tag) ? tag.slice(1) : tag;
   const settingId = (mod, s) => mod.guid + '\n' + s.section + '\n' + s.key;
   const mods = () => (state.view ? state.view.mods : []);
@@ -1015,7 +1035,7 @@
   function renderChrome() {
     const all = mods();
     const openKey = state.view ? state.view.openKey : '';
-    const updates = all.filter(hasUpdate).length;
+    const updates = all.filter(isUpdatable).length;
 
     const withErrors = all.filter(hasErrors).length;
 
@@ -1056,7 +1076,7 @@
     let shown = mods();
 
     if (state.filter === 'changed') shown = shown.filter(m => m.settings.some(isChanged));
-    else if (state.filter === 'updates') shown = shown.filter(hasUpdate);
+    else if (state.filter === 'updates') shown = shown.filter(isUpdatable);
     else if (state.filter === 'errors') shown = shown.filter(hasErrors);
 
     if (q) shown = shown.filter(m => [m.name, m.nameZh, m.plugin, m.guid].some(text => text.toLowerCase().indexOf(q) >= 0) || m.settings.some(s => matchesQuery(m, s, q)));
@@ -1106,10 +1126,11 @@
   function installAllHeader(installable) {
     const asking = mods().filter(m => hasUpdate(m) && m.install.kind === 'needsApproval').length;
     const refused = mods().filter(m => hasUpdate(m) && m.install.kind === 'refused').length;
+    const broken = mods().filter(isHeld).length;
     const held = (count, key) => count ? '<div class="upd-line bad held-line">' + esc(word(key)(count)) + '</div>' : '';
 
     return (installable ? '<div class="key-btn all-btn" data-act="installAll">' + esc(word('installAll')(installable)) + '</div>' : '') +
-      held(asking, 'heldAsking') + held(refused, 'heldRefused');
+      held(asking, 'heldAsking') + held(refused, 'heldRefused') + held(broken, 'heldBroken');
   }
 
   function otherErrors() {
@@ -1138,7 +1159,11 @@
 
     if (m.install.kind === 'installed' || m.rollback.kind === 'done') return pip('chg', 'pipRestart');
 
+    if (hasNexusUpdate(m)) return pip('upd', 'pipNexus');
+
     if (!hasUpdate(m)) return '';
+
+    if (isHeld(m)) return pip('wrnp', 'pipHeld');
 
     switch (m.install.kind) {
       case 'needsApproval': return pip('wrnp', 'pipAsk');
@@ -1156,6 +1181,7 @@
       (isPending(m) ? '<span class="pip chg">' + esc(word('pipRestart')) + '</span>' : '') +
       (m.untested ? '<span class="pip ' + (hasLoggedErrors(m) ? 'warnp' : 'untp') + '">' + esc(word('pipUntested')) + '</span>' : '') +
       (hasLoggedErrors(m) ? '<span class="pip errp">' + esc(word('pipError')) + '</span>' : hasErrors(m) ? '<span class="pip wrnp">' + esc(word('pipWarning')) + '</span>' : '') +
+      (m.known.broken ? '<span class="pip errp">' + esc(word('pipBroken')) + '</span>' : '') +
       updatePip(m);
 
     return '<div class="mod' + (isSelected ? ' sel' : '') + (m.loaded ? '' : ' off') + '" data-mod="' + esc(m.guid) + '" style="animation-delay:' + delay + 'ms">' +
@@ -1192,13 +1218,13 @@
 
     if (names.indexOf(state.tab) < 0) state.tab = '';
 
-    if (state.side === 'conflicts' && !m.patchOverlaps.length || state.side === 'changelog' && m.changelog.kind === 'none' || state.side === 'errors' && !hasErrors(m)) state.side = '';
+    if (state.side === 'conflicts' && !conflictCount(m) || state.side === 'changelog' && m.changelog.kind === 'none' || state.side === 'errors' && !hasErrors(m)) state.side = '';
 
     if (isOwnSide(state.side) && !ownTabOf(m, state.side)) state.side = '';
 
     const ownTab = ownTabOf(m, state.side);
     const railKey = m.guid + '\n' + state.lang;
-    const top = ownTab ? hero(m, true) : hero(m, false) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + untestedNotice(m) + relationNotice(m) + updateNotice(m) + rollbackNotice(m);
+    const top = ownTab ? hero(m, true) : hero(m, false) + meta(m) + about(m) + links(m) + relations(m) + fixedHotkeys(m) + untestedNotice(m) + brokenNotice(m) + relationNotice(m) + updateNotice(m) + nexusNotice(m) + rollbackNotice(m);
     const body = modNotices(m) + paneBody(m, names);
 
     morph(pane, top + (state.rail[railKey] ? '<div class="railed">' + tabs(m, names) + '<div>' + body + '</div></div>' : tabs(m, names) + body));
@@ -1287,7 +1313,9 @@
     const category = m.category && word('categories')[m.category] ? '<span class="id"><b>' + esc(word('categories')[m.category]) + '</b></span>' : '';
     const library = m.library ? '<span class="id"><b>' + esc(word('library')) + '</b></span>' : '';
 
-    return '<div class="meta"><span class="id">v<b>' + esc(m.version) + '</b></span>' + updateStatus(m.update) + author + category + library + '<span class="id"><b>' + esc(m.guid) + '</b></span>' + file + '</div>';
+    const nexus = m.known.nexus && !m.known.nexus.newer ? '<span class="id upd-ok" title="' + esc(m.known.nexus.version) + '">' + esc(word('nexusCurrent')) + '</span>' : '';
+
+    return '<div class="meta"><span class="id">v<b>' + esc(m.version) + '</b></span>' + updateStatus(m.update) + nexus + author + category + library + '<span class="id"><b>' + esc(m.guid) + '</b></span>' + file + '</div>';
   }
 
   // How the update check went, beside the version. An available update gets its own notice instead.
@@ -1304,11 +1332,30 @@
     }
   }
 
+  // An update known not to work says why in place of the install line and offers no install button.
   function updateNotice(m) {
     if (!hasUpdate(m)) return '';
 
+    const line = isHeld(m) ? '<div class="upd-line bad">' + esc(word('heldUpdate')(tagText(m.update.tag))) + ' ' + esc(textOf(m.known.updateHeld)) + '</div>' : installLine(m.install);
+    const button = m.rollback.kind === 'done' || isHeld(m) ? '' : installButton(m.install);
+
     return '<div class="notice upd"><span class="ico">&#x2191;</span><div class="upd-main"><b>' + esc(word('updateTitle')(tagText(m.update.tag))) + '</b> ' + esc(word('updateBody')(m.version)) +
-      releaseNotes(m.update.notes) + installLine(m.install) + '<div class="upd-act">' + (m.rollback.kind === 'done' ? '' : installButton(m.install)) + '<div class="key-btn" data-act="update">' + esc(word('getUpdate')) + ' &#x2197;</div></div></div></div>';
+      releaseNotes(m.update.notes) + line + '<div class="upd-act">' + button + '<div class="key-btn" data-act="update">' + esc(word('getUpdate')) + ' &#x2197;</div></div></div></div>';
+  }
+
+  // The installed version is on the wiki's list of broken builds.
+  function brokenNotice(m) {
+    if (!m.known.broken) return '';
+
+    return '<div class="notice warn"><span class="ico">!</span><div><b>' + esc(word('brokenTitle')) + '</b> ' + esc(textOf(m.known.broken)) + '</div></div>';
+  }
+
+  // A newer version on Nexus Mods, with a button to its page: the Mod Manager cannot download from Nexus.
+  function nexusNotice(m) {
+    if (!hasNexusUpdate(m)) return '';
+
+    return '<div class="notice upd"><span class="ico">&#x2191;</span><div class="upd-main"><b>' + esc(word('nexusTitle')(m.known.nexus.version)) + '</b> ' + esc(word('nexusBody')(m.version)) +
+      '<div class="upd-act"><div class="key-btn" data-act="nexus">' + esc(word('linkNexus')) + ' &#x2197;</div></div></div></div>';
   }
 
   // "a, b and c": the English list of what an update newly does.
@@ -1405,7 +1452,12 @@
 
       return count ? '<span class="cf-pill"><span class="rd ' + risk + '"></span>' + count + ' ' + esc(word('risk')[risk]) + '</span>' : '';
     };
-    let html = '<div class="cf"><div class="cf-intro">' + esc(word('conflictsIntro')) + '</div><div class="cf-sum">' + risks.map(pill).join('') + '</div>';
+    const knownBlock = c => '<div class="cf-mod likely"><div class="cf-head"><span class="rel" data-mod="' + esc(c.guid) + '">' + esc(otherName(c)) + '</span></div><div class="cf-why">' + esc(textOf(c)) + '</div></div>';
+    const known = m.known.conflicts.length ? '<div class="sec"><div class="sec-t">' + esc(word('knownConflicts')) + '</div><div class="cf-why">' + esc(word('knownConflictsWhy')) + '</div>' + m.known.conflicts.map(knownBlock).join('') + '</div>' : '';
+
+    if (!m.patchOverlaps.length) return '<div class="cf">' + known + '</div>';
+
+    let html = '<div class="cf">' + known + '<div class="cf-intro">' + esc(word('conflictsIntro')) + '</div><div class="cf-sum">' + risks.map(pill).join('') + '</div>';
 
     for (const risk of risks) {
       const members = m.patchOverlaps.filter(o => o.risk === risk);
@@ -1560,6 +1612,9 @@
       if (LINK_WORDS[kind]) buttons.push('<div class="key-btn" data-act="link" data-kind="' + esc(kind) + '">' + esc(word(LINK_WORDS[kind])) + ' &#x2197;</div>');
     }
 
+    // Its page on Nexus Mods when Nexus knows it and the mod names no Nexus page itself; a newer version has its own notice.
+    if (m.known.nexus && !m.known.nexus.newer && m.links.indexOf('nexus') < 0) buttons.push('<div class="key-btn" data-act="nexus">' + esc(word('linkNexus')) + ' &#x2197;</div>');
+
     if (m.loaded) buttons.push('<div class="key-btn" data-act="showCfg">' + esc(word('openCfg')) + '</div>');
 
     if (m.settings.some(s => isChanged(s) && !s.readOnly)) buttons.push('<div class="key-btn danger" data-act="resetMod">' + esc(word('resetAll')) + '</div>');
@@ -1567,10 +1622,16 @@
     return buttons.length ? '<div class="links">' + buttons.join('') + '</div>' : '';
   }
 
+  // Mods known not to work with this one, and mods that patch the same game code.
+  function conflictCount(m) {
+    return m.known.conflicts.length + m.patchOverlaps.length;
+  }
+
   // A tab per settings section once there are two, then a Changelog tab when the mod names one the page can show,
-  // a Conflicts tab when other mods patch the same game code, and an Errors tab when the mod logged any this session.
+  // a Conflicts tab when other mods are known not to work with it or patch the same game code, and an Errors tab when
+  // the mod logged any this session.
   function tabs(m, names) {
-    const hasConflicts = m.patchOverlaps.length > 0;
+    const hasConflicts = conflictCount(m) > 0;
     const hasChangelog = m.changelog.kind !== 'none';
 
     const own = ownTabs(m);
@@ -1581,10 +1642,10 @@
     const sideTab = (side, inner) => '<div class="tab tab-x' + (state.side === side ? ' on' : '') + '" data-side="' + esc(side) + '">' + inner + '</div>';
     const shown = shownSettings(m);
     const sectionTabs = names.length < 2 ? '' : names.map(n => tab(n, n, shown.filter(s => s.section === n))).join('');
-    const worst = ['likely', 'may', 'harmless'].find(risk => m.patchOverlaps.some(o => o.risk === risk));
+    const worst = m.known.conflicts.length ? 'likely' : ['likely', 'may', 'harmless'].find(risk => m.patchOverlaps.some(o => o.risk === risk));
     const ownTabsHtml = own.map(t => sideTab(OWN_SIDE + t.id, esc(ownTitle(t)))).join('');
     const changelogTab = hasChangelog ? sideTab('changelog', esc(word('tabChangelog'))) : '';
-    const conflictsTab = hasConflicts ? sideTab('conflicts', esc(word('tabConflicts')) + ' <i>' + m.patchOverlaps.length + '</i><span class="rd ' + worst + '"></span>') : '';
+    const conflictsTab = hasConflicts ? sideTab('conflicts', esc(word('tabConflicts')) + ' <i>' + conflictCount(m) + '</i><span class="rd ' + worst + '"></span>') : '';
     const errorsTab = hasErrors(m) ? sideTab('errors', esc(word('tabErrors')) + ' <i>' + m.errors.length + '</i><span class="rd ' + (m.errors.some(e => e.level === 'error') ? 'likely' : 'may') + '"></span>') : '';
 
     return '<div class="tabs">' + tab('', word(names.length < 2 ? 'tabSettings' : 'tabAll'), shown) + sectionTabs + ownTabsHtml + changelogTab + conflictsTab + errorsTab + '</div>';
@@ -2529,7 +2590,7 @@
     const waiting = mods().some(m => m.settings.some(s => isChangedThisSession(s) && s.apply !== 'live'));
     const restarts = mods().filter(isPending).length;
     const restartText = restarts ? ' <em>' + esc(word('footerRestart')(restarts)) + '</em>' : '';
-    const updates = mods().filter(hasUpdate).length;
+    const updates = mods().filter(isUpdatable).length;
     const updateText = updates ? ' <em>' + esc(word('footerUpdates')(updates)) + '</em>' : '';
 
     const changedText = changed ? word('footerSome')(changed) + (waiting ? ' <em>' + esc(word('footerRestartHint')) + '</em>' : '') : esc(word('footerNone'));
@@ -2682,6 +2743,7 @@
     if (actName === 'showCfg') send('showCfg', [state.selected]);
     else if (actName === 'link') send('link', [state.selected, act.dataset.kind]);
     else if (actName === 'update') send('update', [state.selected]);
+    else if (actName === 'nexus') send('nexus', [state.selected]);
     else if (actName === 'install') send('install', [state.selected]);
     else if (actName === 'approve') send('approve', [state.selected]);
     else if (actName === 'installAll') send('installAll');
@@ -3115,7 +3177,7 @@
   }
 
   function openOn(filter) {
-    const first = filter === 'updates' ? mods().find(hasUpdate) : null;
+    const first = filter === 'updates' ? mods().find(isUpdatable) : null;
 
     state.filter = filter;
     state.query = '';

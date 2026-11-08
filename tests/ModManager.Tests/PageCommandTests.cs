@@ -73,11 +73,12 @@ public class PageCommandTests
     }
 
     [Fact]
-    public void Notes_and_update_name_the_mod_only()
+    public void Notes_update_changelog_and_nexus_name_the_mod_only()
     {
         Assert.Equal(new PageCommand.Notes("g"), PageCommand.Parse("slmod|modmanager|notes|g"));
         Assert.Equal(new PageCommand.OpenUpdate("g"), PageCommand.Parse("slmod|modmanager|update|g"));
         Assert.Equal(new PageCommand.Changelog("g"), PageCommand.Parse("slmod|modmanager|changelog|g"));
+        Assert.Equal(new PageCommand.OpenNexus("g"), PageCommand.Parse("slmod|modmanager|nexus|g"));
     }
 
     [Theory]
@@ -85,6 +86,7 @@ public class PageCommandTests
     [InlineData("slmod|modmanager|notes")]
     [InlineData("slmod|modmanager|changelog")]
     [InlineData("slmod|modmanager|changelog|g|https%3A%2F%2Fevil.example")]
+    [InlineData("slmod|modmanager|nexus|g|https%3A%2F%2Fevil.example")]
     [InlineData("slmod|othermod|open")]
     [InlineData("slmod|modmanager|switch|g|yes")]
     [InlineData("slmod|modmanager|link|g|https%3A%2F%2Fevil.example")]

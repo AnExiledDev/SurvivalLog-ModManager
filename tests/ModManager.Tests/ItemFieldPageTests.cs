@@ -13,7 +13,7 @@ namespace ModManager.Tests;
 /// </summary>
 public class ItemFieldPageTests
 {
-    private const string StandIns = """
+    internal const string StandIns = """
         var drawn = [];
         var listeners = {};
         var posted = [];

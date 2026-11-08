@@ -355,6 +355,11 @@ public sealed class UpdateBook
 
     public void Record(ModIndex index) => Index = index;
 
+    /// <summary>What Nexus Mods said at the last daily check, or the saved copy. Kept whether or not update checks run again.</summary>
+    public NexusCache Nexus { get; private set; } = NexusCache.Empty;
+
+    public void Record(NexusCache nexus) => Nexus = nexus;
+
     /// <summary>Game version lists are kept for the session whether or not update checks run again.</summary>
     public void Record(string repository, GameVersionList list) => _gameVersions[repository] = list;
 

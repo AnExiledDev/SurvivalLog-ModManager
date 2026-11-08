@@ -35,6 +35,7 @@ internal sealed class ModsSession
     private readonly PluginCatalog _catalog;
     private readonly UpdateBook _updates;
     private readonly UpdateChecks _checks;
+    private readonly NexusLookups _nexus;
     private readonly UpdateInstaller _installer;
     private readonly LogWatch _watch;
     private readonly PageMailbox _mailbox;
@@ -65,12 +66,13 @@ internal sealed class ModsSession
     /// <summary>The Entries call last sent for each List setting to the page that is there now.</summary>
     private readonly Dictionary<string, string> _entriesSent = new();
 
-    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
+    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
         _updates = updates;
         _checks = checks;
+        _nexus = nexus;
         _installer = installer;
         _watch = watch;
         _mailbox = PageInbox.Listen(PageCommand.Prefix);
@@ -89,6 +91,7 @@ internal sealed class ModsSession
             // On the first frame rather than in Load, so plugins that load after this one are in the list.
             _hasStarted = true;
             _checks.LoadSaved(UpdateRepositories());
+            _nexus.LoadSaved();
 
             if (_isCheckingForUpdates()) CheckForUpdates(true);
         }
@@ -99,10 +102,13 @@ internal sealed class ModsSession
 
         var hasChecked = _checks.TakeFinished();
         var hasInstalled = _installer.TakeFinished();
+        var hasAskedNexus = _nexus.TakeFinished();
 
         if (hasChecked) TellUpdatesOnce();
 
-        if ((hasChecked || hasInstalled) && _isOpen) _page.Run(PageScript.Refresh(Shown()));
+        if (_nexus.IsWaiting && _checks.IsIndexSettled && _isCheckingForUpdates()) AskNexus();
+
+        if ((hasChecked || hasInstalled || hasAskedNexus) && _isOpen) _page.Run(PageScript.Refresh(Shown()));
         else RedrawForNewErrors(now);
 
         if (_capture.Target != null)
@@ -179,6 +185,9 @@ internal sealed class ModsSession
             case PageCommand.OpenUpdate openUpdate:
                 Open(UpdateFor(openUpdate.Guid)?.PageUrl is { } page ? MirrorAddress.ForLanguage(page, GameLanguage.IsChinese()) : null);
                 break;
+            case PageCommand.OpenNexus openNexus:
+                Open(_catalog.Mod(openNexus.Guid)?.Known.Nexus is { } nexus ? NexusApi.PageUrl(nexus.ModId) : null);
+                break;
             case PageCommand.Install install:
                 StartInstall(install.Guid);
                 RefreshOpen();
@@ -210,10 +219,27 @@ internal sealed class ModsSession
     /// <summary>Starts or stops the update checks, at the start and whenever the player changes the setting.</summary>
     public void CheckForUpdates(bool isOn)
     {
-        if (isOn) _checks.Start(UpdateRepositories());
-        else _checks.Stop();
+        if (isOn)
+        {
+            _checks.Start(UpdateRepositories());
+        }
+        else
+        {
+            _checks.Stop();
+            _nexus.Stop();
+        }
 
         if (_isOpen) _page.Run(PageScript.Refresh(Shown()));
+    }
+
+    /// <summary>Once the wiki's index has settled, so the mods that are the wiki's are known and not looked up on Nexus.</summary>
+    private void AskNexus()
+    {
+        var index = _updates.Index;
+        var foreign = _catalog.Mods().Where(mod => index.ModOf(mod.Guid) == null && mod.Guid != Plugin.Guid).Select(mod => index.NexusIdOf(mod.Guid)).ToList();
+        var ours = index.Mods.Select(mod => mod.NexusId).OfType<int>().ToHashSet();
+
+        _nexus.Start(ours, foreign);
     }
 
     private IEnumerable<string> UpdateRepositories() => _catalog.Mods().Select(mod => mod.Info.UpdateRepository).OfType<string>();
@@ -227,7 +253,7 @@ internal sealed class ModsSession
 
         _hasToldUpdates = true;
 
-        var count = _catalog.Mods().Count(mod => mod.Update is UpdateState.Available);
+        var count = _catalog.Mods().Count(mod => mod.Update is UpdateState.Available && mod.Known.UpdateHeld == null);
 
         if (count == 0 || !_isShowingUpdateToast()) return;
 
@@ -284,7 +310,8 @@ internal sealed class ModsSession
         var release = UpdateFor(guid);
         var (dllPath, problem) = _catalog.InstallPathOf(guid);
 
-        if (mod == null || release == null || _updates.HasRolledBack(guid)) return;
+        // An update known to be broken is never installed, whatever the page asked.
+        if (mod == null || release == null || _updates.HasRolledBack(guid) || mod.Known.UpdateHeld != null) return;
 
         if (dllPath == null) _updates.Record(guid, new InstallState.Failed(problem ?? "it cannot be updated here"));
         else _installer.Start(mod, release, dllPath, _catalog.IsStraightInPlugins(dllPath));
@@ -295,7 +322,7 @@ internal sealed class ModsSession
         var mod = _catalog.Mod(guid);
         var (dllPath, problem) = _catalog.InstallPathOf(guid);
 
-        if (mod == null || _updates.HasRolledBack(guid)) return;
+        if (mod == null || _updates.HasRolledBack(guid) || mod.Known.UpdateHeld != null) return;
 
         if (dllPath == null) _updates.Record(guid, new InstallState.Failed(problem ?? "it cannot be updated here"));
         else _installer.Approve(mod, dllPath, _catalog.IsStraightInPlugins(dllPath));
@@ -304,7 +331,7 @@ internal sealed class ModsSession
     /// <summary>Every update not installed yet, failed ones again; the installs run side by side.</summary>
     private void InstallAll()
     {
-        var waiting = _catalog.Mods().Where(mod => mod.Update is UpdateState.Available && mod.Install is InstallState.None or InstallState.Failed && mod.Rollback is not RollbackState.Done).ToList();
+        var waiting = _catalog.Mods().Where(mod => mod.Update is UpdateState.Available && mod.Install is InstallState.None or InstallState.Failed && mod.Rollback is not RollbackState.Done && mod.Known.UpdateHeld == null).ToList();
 
         _log("installing all " + waiting.Count + " updates");
 

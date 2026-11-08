@@ -36,6 +36,11 @@ internal sealed class UpdateChecks
 
     private bool _isFetchingIndex;
 
+    private bool _hasAskedForIndex;
+
+    /// <summary>The wiki was asked for its index this session and answered, or could not be reached.</summary>
+    public bool IsIndexSettled => _hasAskedForIndex && !_isFetchingIndex;
+
     /// <summary>Repositories asked for their game version list this session; each is asked once.</summary>
     private readonly HashSet<string> _askedForGameVersions = new(StringComparer.OrdinalIgnoreCase);
 
@@ -63,6 +68,7 @@ internal sealed class UpdateChecks
         if (!_hasIndex && !_isFetchingIndex)
         {
             _isFetchingIndex = true;
+            _hasAskedForIndex = true;
             _ = Index();
         }
 

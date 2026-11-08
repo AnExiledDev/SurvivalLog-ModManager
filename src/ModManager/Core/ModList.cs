@@ -144,6 +144,9 @@ public sealed record ModEntry(string Guid, string Name, string Version, string F
     /// <summary>Warnings and errors this session that came from the mod, or went through a game method it shares with another mod.</summary>
     public IReadOnlyList<ModProblem> Errors { get; init; } = Array.Empty<ModProblem>();
 
+    /// <summary>What the wiki's index and Nexus Mods know about it: broken builds, mods it does not work with, its newest version on Nexus.</summary>
+    public KnownFacts Known { get; init; } = KnownFacts.None;
+
     /// <summary>The name the mod asks to be shown by, else the one its plugin declares.</summary>
     public string DisplayName => Info.Name?.English ?? Name;
 

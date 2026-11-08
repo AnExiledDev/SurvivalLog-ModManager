@@ -70,6 +70,7 @@ internal sealed class PluginCatalog
         var overlaps = PatchOverlaps.Find(SharedPatches());
         var declaredBy = mods.Select(mod => mod.Guid).Distinct().ToDictionary(guid => guid, DeclaredOf);
         var errors = ProblemOwners.Assign(_errors.All(), Owners(mods), overlaps);
+        var installed = mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal);
 
         var listed = ModList.SortByName(mods.Select(mod => mod with
         {
@@ -77,6 +78,7 @@ internal sealed class PluginCatalog
             Dependents = RelationResolver.Dependents(mod.Guid, declaredBy, mods),
             PatchOverlaps = overlaps.TryGetValue(mod.Guid, out var shared) ? shared : Array.Empty<PatchOverlap>(),
             Errors = errors.ByMod.TryGetValue(mod.Guid, out var own) ? own : Array.Empty<ModProblem>(),
+            Known = KnownFactsOf.For(mod, _updates.Index, _updates.Nexus, installed, HashOf(mod.Guid)),
         }));
 
         return (listed, errors.Unclaimed, _errors.Dropped);

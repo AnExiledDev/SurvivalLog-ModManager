@@ -120,11 +120,26 @@ public static class PageScript
         json.Append(",\"changelog\":").Append(ChangelogJson(mod.Changelog));
         json.Append(",\"switch\":").Append(SwitchJson(mod.Switch));
         json.Append(",\"update\":").Append(UpdateJson(mod.Update));
+        json.Append(",\"known\":").Append(KnownJson(mod.Known));
         json.Append(",\"hotkeys\":").Append(List(mod.Info.Hotkeys, hotkey => "{\"keys\":" + Str(hotkey.Keys) + ",\"en\":" + Str(hotkey.Label.English) + ",\"zh\":" + Str(hotkey.Label.Chinese) + "}"));
         json.Append(",\"settings\":").Append(List(settings, SettingJson));
 
         return json.Append('}').ToString();
     }
+
+    private static string KnownJson(KnownFacts known)
+    {
+        var json = new StringBuilder("{");
+
+        json.Append("\"broken\":").Append(Text(known.Broken));
+        json.Append(",\"updateHeld\":").Append(Text(known.UpdateHeld));
+        json.Append(",\"conflicts\":").Append(List(known.Conflicts, conflict => "{\"guid\":" + Str(conflict.OtherGuid) + ",\"en\":" + Str(conflict.Why.English) + ",\"zh\":" + Str(conflict.Why.Chinese) + "}"));
+        json.Append(",\"nexus\":").Append(known.Nexus is { } nexus ? "{\"id\":" + Int(nexus.ModId) + ",\"name\":" + Str(nexus.Name) + ",\"version\":" + Str(nexus.Version) + ",\"newer\":" + Bool(nexus.IsNewer) + "}" : "null");
+
+        return json.Append('}').ToString();
+    }
+
+    private static string Text(BilingualText? text) => text == null ? "null" : "{\"en\":" + Str(text.English) + ",\"zh\":" + Str(text.Chinese) + "}";
 
     private static string SettingJson(Setting setting)
     {

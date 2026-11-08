@@ -56,6 +56,9 @@ public abstract record PageCommand
     /// <summary>Open the page of the release this mod can update to. The address comes from GitHub's own redirect.</summary>
     public sealed record OpenUpdate(string Guid) : PageCommand;
 
+    /// <summary>Open the mod's page on Nexus Mods. The page names the mod only; the address comes from what Nexus said about it.</summary>
+    public sealed record OpenNexus(string Guid) : PageCommand;
+
     /// <summary>Download the release this mod can update to and put its files in place for the next game start.</summary>
     public sealed record Install(string Guid) : PageCommand;
 
@@ -109,6 +112,7 @@ public abstract record PageCommand
         ("notes", 2) => new Notes(parts[1]),
         ("changelog", 2) => new Changelog(parts[1]),
         ("update", 2) => new OpenUpdate(parts[1]),
+        ("nexus", 2) => new OpenNexus(parts[1]),
         ("install", 2) => new Install(parts[1]),
         ("approve", 2) => new ApproveInstall(parts[1]),
         ("installAll", 1) => new InstallAll(),

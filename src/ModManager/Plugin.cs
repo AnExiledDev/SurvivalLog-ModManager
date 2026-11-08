@@ -68,13 +68,14 @@ public sealed class Plugin : BasePlugin
         var userAgent = "SurvivalLog-ModManager/" + Version;
         var updates = new UpdateBook();
         var checks = new UpdateChecks(updates, new SavedGameVersions(Path.Combine(Paths.BepInExRootPath, "mod-manager", "game-versions"), log.Write), new SavedFile(Path.Combine(Paths.BepInExRootPath, "mod-manager", "index.json"), "index of the wiki's mods", log.Write), userAgent, log.Write);
+        var nexus = new NexusLookups(updates, new SavedFile(Path.Combine(Paths.BepInExRootPath, "mod-manager", "nexus.json"), "answers from Nexus Mods", log.Write), Version, log.Write);
         var shelf = new BackupShelf(Path.Combine(Paths.BepInExRootPath, "mod-manager", "backups"));
         var pins = new RepositoryPins(Path.Combine(Paths.BepInExRootPath, "mod-manager", "repositories"), log.Write);
         var installer = new UpdateInstaller(updates, shelf, pins, userAgent, log.Write);
         var items = new GameItemTable(log.Write);
         var catalog = new PluginCatalog(folders, updates, shelf.Versions, watch.Book, Guid, ReadGameVersion(log.Write), items, log.Write);
         var page = new WebPage(typeof(Plugin).Assembly, "ModManager.page.js", PageScript.Api, PageCommand.Prefix + "noscript", log.Write);
-        var session = new ModsSession(page, catalog, items, updates, checks, installer, watch, () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
+        var session = new ModsSession(page, catalog, items, updates, checks, nexus, installer, watch, () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
 
         // Walked on a worker from now, so the item pickers usually find the icons ready.
         WebIcons.StartScan();
