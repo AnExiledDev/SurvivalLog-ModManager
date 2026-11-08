@@ -801,9 +801,9 @@
 #slmm .el-rows { border: 1px solid rgba(220,188,120,0.16); border-radius: 3px; background: rgba(0,0,0,0.22); max-height: 460px; overflow: auto; }
 #slmm .el-rows::-webkit-scrollbar { width: 6px; }
 #slmm .el-rows::-webkit-scrollbar-thumb { background: rgba(235,163,8,0.35); border-radius: 3px; }
-#slmm .el-row, #slmm .pr { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-#slmm .el-row:last-child, #slmm .pr:last-child { border-bottom: 0; }
-#slmm .el-row:hover, #slmm .pr:hover { background: rgba(235,163,8,0.05); }
+#slmm .el-row, #slmm .pk-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+#slmm .el-row:last-child, #slmm .pk-row:last-child { border-bottom: 0; }
+#slmm .el-row:hover, #slmm .pk-row:hover { background: rgba(235,163,8,0.05); }
 #slmm .el-row.pop { animation: el-flash .5s; }
 #slmm .el-ic { width: 46px; height: 46px; flex-shrink: 0; display: grid; place-items: center; border-radius: 3px; border: 1px solid rgba(255,255,255,0.07); background: radial-gradient(circle at 50% 40%, rgba(255,214,140,0.14), rgba(0,0,0,0) 70%), #0e0c0a; }
 #slmm .el-ic img { width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.7)); }
@@ -837,19 +837,19 @@
 #slmm .pk.rows .pk-bd { grid-template-columns: 250px minmax(0, 1fr); }
 #slmm .pk.rows .pk-info { display: none; }
 #slmm .pk.rows .pk-grid { display: block; padding: 0; }
-#slmm .pr.in { background: rgba(143,199,191,0.04); }
-#slmm .pr.has, #slmm .el-row.has { box-shadow: inset 3px 0 0 var(--amber); }
+#slmm .pk-row.in { background: rgba(143,199,191,0.04); }
+#slmm .pk-row.has, #slmm .el-row.has { box-shadow: inset 3px 0 0 var(--amber); }
 #slmm .el-have { flex-shrink: 0; padding: 3px 8px; border: 1px solid rgba(235,163,8,0.45); border-radius: 2px; background: rgba(235,163,8,0.1); color: var(--amber); font: 700 .74rem var(--mono); letter-spacing: 1px; white-space: nowrap; }
-#slmm .pr-grp { flex-shrink: 0; font: .72rem var(--mono); letter-spacing: 1px; color: #7a6e5a; white-space: nowrap; }
-#slmm .pr-val { flex-shrink: 0; font: 700 .8rem var(--mono); color: var(--teal); }
-#slmm .pr-btn { flex-shrink: 0; min-width: 116px; padding: 7px 12px; text-align: center; border: 1px solid var(--amber); border-radius: 2px; background: rgba(235,163,8,0.1); color: var(--amber); font: 700 .8rem var(--mono); letter-spacing: 1.5px; cursor: pointer; }
-#slmm .pr-btn:hover { background: rgba(235,163,8,0.3); color: #fff; }
-#slmm .pr-btn.off { opacity: .35; pointer-events: none; }
-#slmm .pr-btn.in { border-color: rgba(143,199,191,0.5); background: rgba(143,199,191,0.08); color: var(--teal); }
-#slmm .pr-btn i { display: none; font-style: normal; }
-#slmm .pr-btn.in:hover { border-color: rgba(255,90,90,0.6); background: rgba(255,90,90,0.08); color: #ff8a7a; }
-#slmm .pr-btn.in:hover b { display: none; }
-#slmm .pr-btn.in:hover i { display: inline; }
+#slmm .pk-grp { flex-shrink: 0; font: .72rem var(--mono); letter-spacing: 1px; color: #7a6e5a; white-space: nowrap; }
+#slmm .pk-val { flex-shrink: 0; font: 700 .8rem var(--mono); color: var(--teal); }
+#slmm .pk-btn { flex-shrink: 0; min-width: 116px; padding: 7px 12px; text-align: center; border: 1px solid var(--amber); border-radius: 2px; background: rgba(235,163,8,0.1); color: var(--amber); font: 700 .8rem var(--mono); letter-spacing: 1.5px; cursor: pointer; }
+#slmm .pk-btn:hover { background: rgba(235,163,8,0.3); color: #fff; }
+#slmm .pk-btn.off { opacity: .35; pointer-events: none; }
+#slmm .pk-btn.in { border-color: rgba(143,199,191,0.5); background: rgba(143,199,191,0.08); color: var(--teal); }
+#slmm .pk-btn i { display: none; font-style: normal; }
+#slmm .pk-btn.in:hover { border-color: rgba(255,90,90,0.6); background: rgba(255,90,90,0.08); color: #ff8a7a; }
+#slmm .pk-btn.in:hover b { display: none; }
+#slmm .pk-btn.in:hover i { display: inline; }
 @keyframes el-flash { 0% { background: rgba(235,163,8,0.25); } 100% { background: transparent; } }
 `;
 
@@ -2271,13 +2271,13 @@
 
     const line = item => {
       const got = inList[String(item.id)];
-      const group = showGroup && item.group && catalogOf(s).shelves.length ? '<span class="pr-grp">' + esc(textOf(item.group)) + '</span>' : '';
-      const value = got && hasValue(s) ? '<span class="pr-val">' + esc(hasChoice(s) ? valueLabel(s, got.count) : '\u00d7' + got.count) + '</span>' : '';
+      const group = showGroup && item.group && catalogOf(s).shelves.length ? '<span class="pk-grp">' + esc(textOf(item.group)) + '</span>' : '';
+      const value = got && hasValue(s) ? '<span class="pk-val">' + esc(hasChoice(s) ? valueLabel(s, got.count) : '\u00d7' + got.count) + '</span>' : '';
       const button = got
-        ? '<span class="pr-btn in" data-act="pkDrop" data-id="' + esc(item.id) + '"><b>&#x2713; ' + esc(word('added')) + '</b><i>' + esc(word('remove')) + '</i></span>'
-        : '<span class="pr-btn' + (full ? ' off' : '') + '" data-act="pkAdd" data-id="' + esc(item.id) + '">+ ' + esc(word('addEntry')) + '</span>';
+        ? '<span class="pk-btn in" data-act="pkDrop" data-id="' + esc(item.id) + '"><b>&#x2713; ' + esc(word('added')) + '</b><i>' + esc(word('remove')) + '</i></span>'
+        : '<span class="pk-btn' + (full ? ' off' : '') + '" data-act="pkAdd" data-id="' + esc(item.id) + '">+ ' + esc(word('addEntry')) + '</span>';
 
-      return '<div class="pr' + (got ? ' in' : '') + (item.have ? ' has' : '') + '">' + entryText(item, itemText(item), '') + haveTag(item) + group + value + button + '</div>';
+      return '<div class="pk-row' + (got ? ' in' : '') + (item.have ? ' has' : '') + '">' + entryText(item, itemText(item), '') + haveTag(item) + group + value + button + '</div>';
     };
 
     let out = found.slice(0, p.shown).map(line).join('');

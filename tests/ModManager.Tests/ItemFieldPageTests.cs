@@ -252,8 +252,8 @@ public class ItemFieldPageTests
         Assert.Contains("data-cat=\"Beds\"><span>Beds</span><i>2</i>", picker);
         Assert.DoesNotContain("Used in recipes", picker);
         Assert.Contains("<div class=\"pk rows\">", picker);
-        Assert.Contains("<div class=\"el-nm\">Sleeping Bag<span>睡袋</span></div></div><span class=\"pr-grp\">Beds</span><span class=\"pr-btn\" data-act=\"pkAdd\" data-id=\"9080\">+ ADD</span>", picker);
-        Assert.Contains("<span class=\"pr-btn in\" data-act=\"pkDrop\" data-id=\"9076\"><b>&#x2713; ADDED</b>", picker);
+        Assert.Contains("<div class=\"el-nm\">Sleeping Bag<span>睡袋</span></div></div><span class=\"pk-grp\">Beds</span><span class=\"pk-btn\" data-act=\"pkAdd\" data-id=\"9080\">+ ADD</span>", picker);
+        Assert.Contains("<span class=\"pk-btn in\" data-act=\"pkDrop\" data-id=\"9076\"><b>&#x2713; ADDED</b>", picker);
 
         var drawnBefore = engine.Evaluate("drawn.length").AsNumber();
 
@@ -262,7 +262,7 @@ public class ItemFieldPageTests
         Assert.EndsWith("|SmallTurbine|BedModes|9076:Sleep,9080:Auto", engine.Evaluate("sets().join('\\n')").AsString());
 
         // The picker is drawn again, not closed, and shows the new entry as added before the mod answers.
-        var after = engine.Evaluate("drawn.slice(" + drawnBefore + ").filter(function (h) { return h.indexOf('pr-btn') >= 0; }).pop() || ''").AsString();
+        var after = engine.Evaluate("drawn.slice(" + drawnBefore + ").filter(function (h) { return h.indexOf('pk-btn') >= 0; }).pop() || ''").AsString();
 
         Assert.Contains("data-act=\"pkDrop\" data-id=\"9080\"", after);
     }
@@ -287,19 +287,19 @@ public class ItemFieldPageTests
         var picker = engine.Evaluate("drawn.join('\\n')").AsString();
 
         Assert.Contains("data-cat=\"~have\"><span>&#x2605; You have</span><i>2</i>", picker);
-        Assert.Contains("<div class=\"pr has\">", picker);
+        Assert.Contains("<div class=\"pk-row has\">", picker);
 
         // The shelf lists only what the player has, each with its group.
         var before = engine.Evaluate("drawn.length").AsNumber();
 
         engine.Execute("fire('click', { target: el('DIV', ['pk-cat'], { cat: '~have' }, { '.pk-host': {}, '.pk-cat': { dataset: { cat: '~have' } } }) })");
 
-        var shelf = engine.Evaluate("drawn.slice(" + before + ").filter(function (h) { return h.indexOf('pr-btn') >= 0; }).pop() || ''").AsString();
+        var shelf = engine.Evaluate("drawn.slice(" + before + ").filter(function (h) { return h.indexOf('pk-btn') >= 0; }).pop() || ''").AsString();
 
         Assert.Contains("data-id=\"i12\"", shelf);
         Assert.Contains("data-id=\"i14\"", shelf);
         Assert.DoesNotContain("data-id=\"i13\"", shelf);
-        Assert.Contains("<span class=\"el-have\">You have 1</span><span class=\"pr-grp\">Food</span>", shelf);
+        Assert.Contains("<span class=\"el-have\">You have 1</span><span class=\"pk-grp\">Food</span>", shelf);
     }
 
     [Fact]
@@ -356,7 +356,7 @@ public class ItemFieldPageTests
     }
 
     private static string PickerButton(string name, string id) =>
-        "el('SPAN', ['pr-btn'], { act: '" + name + "', id: '" + id + "' }, { '.pk-host': {}, '[data-act]': { dataset: { act: '" + name + "', id: '" + id + "' } } })";
+        "el('SPAN', ['pk-btn'], { act: '" + name + "', id: '" + id + "' }, { '.pk-host': {}, '[data-act]': { dataset: { act: '" + name + "', id: '" + id + "' } } })";
 
     [Fact]
     public void A_number_each_entry_carries_steps_by_a_tenth_and_stays_in_its_range()
