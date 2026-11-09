@@ -111,6 +111,29 @@ public abstract record PageCommand
     /// <summary>Open a Nexus Mods page by its number, for a mod BROWSE shows.</summary>
     public sealed record OpenNexusPage(int NexusId) : PageCommand;
 
+    /// <summary>Save the setup as it will be at the next start as a profile of this name, replacing one of the same name.</summary>
+    public sealed record ProfileSave(string Name) : PageCommand;
+
+    public sealed record ProfileDelete(string Name) : PageCommand;
+
+    /// <summary>Put a saved profile's share code on the clipboard.</summary>
+    public sealed record ProfileCopy(string Name) : PageCommand;
+
+    /// <summary>Show what a saved profile would change.</summary>
+    public sealed record ProfileShow(string Name) : PageCommand;
+
+    /// <summary>Read a pasted share code or mod list and show what it would change.</summary>
+    public sealed record ProfilePaste(string Text) : PageCommand;
+
+    /// <summary>Carry out the profile being shown.</summary>
+    public sealed record ProfileUse : PageCommand;
+
+    /// <summary>Save the pasted profile being shown.</summary>
+    public sealed record ProfileKeep : PageCommand;
+
+    /// <summary>Stop showing a profile.</summary>
+    public sealed record ProfileClose : PageCommand;
+
     public sealed record Unknown(string Text) : PageCommand;
 
     public static PageCommand Parse(string message)
@@ -160,6 +183,14 @@ public abstract record PageCommand
         ("browseUndo", 2) => new BrowseUndo(parts[1]),
         ("askAuthor", 2) when NexusIdOf(parts[1]) is { } id => new AskAuthor(id),
         ("nexusPage", 2) when NexusIdOf(parts[1]) is { } id => new OpenNexusPage(id),
+        ("profileSave", 2) => new ProfileSave(parts[1]),
+        ("profileDelete", 2) => new ProfileDelete(parts[1]),
+        ("profileCopy", 2) => new ProfileCopy(parts[1]),
+        ("profileShow", 2) => new ProfileShow(parts[1]),
+        ("profilePaste", 2) => new ProfilePaste(parts[1]),
+        ("profileUse", 1) => new ProfileUse(),
+        ("profileKeep", 1) => new ProfileKeep(),
+        ("profileClose", 1) => new ProfileClose(),
         _ => null,
     };
 

@@ -189,6 +189,8 @@ public sealed record ModsView(IReadOnlyList<ModEntry> Mods, IReadOnlyList<string
     public IReadOnlyList<BrowseMod> Browse { get; init; } = Array.Empty<BrowseMod>();
 
     public BrowseFeed BrowseFeed { get; init; } = BrowseFeed.Off;
+
+    public ProfilesView Profiles { get; init; } = ProfilesView.Empty;
 }
 
 /// <summary>

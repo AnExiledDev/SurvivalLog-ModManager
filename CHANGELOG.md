@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.0
+
+- New PROFILES page beside BROWSE. SAVE THIS SETUP keeps which mods are on and off and every setting you changed, so you can go back to it later.
+- COPY CODE copies a profile as a short code to share. Paste a code, or a list from COPY MOD LIST, and SEE CHANGES lists everything it would change before anything does. USE THIS SETUP turns mods on and off for the next start, changes the settings at once, and installs the mods it needs from BROWSE where it can. Mods it needs that BROWSE can't install get OPEN ON NEXUS.
+- The search box on BROWSE no longer clears itself as you type.
+- Made for Survival Log 1.1.20719.
+
 ## 0.19.0
 
 - New BROWSE page beside MODS: every mod for Survival Log on Nexus Mods, with search, filters and sorting.

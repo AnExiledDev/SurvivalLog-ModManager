@@ -161,6 +161,22 @@
       bwNeeds: names => 'It also needs ' + andList(names) + ', which you download by hand.',
       bwEndorsed: n => n + ' endorsements', bwDownloads: n => n + ' downloads',
       pendNew: 'Installed, starts from the next start',
+      pageProfiles: 'PROFILES', pfTitle: 'Profiles',
+      pfIntro: 'A profile is a setup you can go back to: which mods are on and which are off, and every setting you changed. Mods turn on and off from the next start; settings change at once. COPY CODE gives a short code to share, and anyone with the Mod Manager can paste it here to get the same setup, with the mods it needs installed from BROWSE.',
+      pfName: 'Name this setup', pfSave: 'SAVE THIS SETUP', pfNone: 'No profiles yet. Save your setup to make one.',
+      pfFacts: (mods, on, settings) => mods + (mods === 1 ? ' mod, ' : ' mods, ') + on + ' on, ' + settings + (settings === 1 ? ' changed setting' : ' changed settings'),
+      pfShow: 'SEE CHANGES', pfCopy: 'COPY CODE', pfDelete: 'DELETE', pfDeleteYes: 'DELETE PROFILE',
+      pfDeleteAsk: name => 'Delete the profile "' + name + '"?',
+      pfPasteTitle: 'Paste a code', pfPasteHint: 'A profile code someone shared, or a list from COPY MOD LIST.',
+      pfChanges: name => 'What "' + name + '" changes',
+      pfListOnly: 'This is a mod list, so it only turns mods on and off and leaves your settings alone.',
+      pfNothing: 'Your setup already matches it.',
+      pfOn: 'Turn on from the next start', pfOff: 'Turn off from the next start', pfInstall: 'Install from BROWSE',
+      pfMissing: 'Not installed: download by hand', pfSet: 'Settings that change now', pfWait: 'Settings set once the mod runs',
+      pfWaitRow: (name, n) => name + ': ' + n + (n === 1 ? ' setting' : ' settings') + '. Use the profile again after the next start.',
+      pfVersion: 'Another version installed', pfVersionRow: (name, have, wanted) => name + ': you have ' + have + ', the profile has ' + wanted + '.',
+      pfStays: 'Cannot be turned off here', pfBlank: '(blank)',
+      pfUse: 'USE THIS SETUP', pfKeep: 'SAVE AS PROFILE', pfClose: 'CLOSE',
       healthIntro: 'Problems with how BepInEx and the mods are installed, found by looking at the game folder each time this screen opens.',
       hBepInEx: v => 'BepInEx ' + v + ' is installed',
       hBepInExBody: v => 'These mods are made and tested on BepInEx ' + v + ' for IL2CPP games. Another build can keep mods from starting or cause errors. If mods misbehave, install that build.',
@@ -331,6 +347,22 @@
       bwNeeds: names => '它还需要' + names.join('、') + '，需要手动下载。',
       bwEndorsed: n => n + ' 个点赞', bwDownloads: n => n + ' 次下载',
       pendNew: '已安装，下次启动时生效',
+      pageProfiles: '配置方案', pfTitle: '配置方案',
+      pfIntro: '配置方案是一套可以随时换回去的配置：哪些模组开启、哪些关闭，以及你改过的每项设置。模组的开关从下次启动起生效，设置立即生效。「复制代码」会生成一段可分享的短代码，任何使用模组管理器的人都可以把它粘贴到这里，得到同样的配置，所需的模组从「浏览」安装。',
+      pfName: '为当前配置命名', pfSave: '保存当前配置', pfNone: '还没有配置方案。保存当前配置即可创建一个。',
+      pfFacts: (mods, on, settings) => mods + ' 个模组，' + on + ' 个开启，' + settings + ' 项已改设置',
+      pfShow: '查看变化', pfCopy: '复制代码', pfDelete: '删除', pfDeleteYes: '删除配置方案',
+      pfDeleteAsk: name => '删除配置方案「' + name + '」？',
+      pfPasteTitle: '粘贴代码', pfPasteHint: '别人分享的配置方案代码，或「复制模组列表」复制的列表。',
+      pfChanges: name => '「' + name + '」会改变的内容',
+      pfListOnly: '这是模组列表，只会开关模组，不会改动你的设置。',
+      pfNothing: '你的配置已经与它一致。',
+      pfOn: '下次启动起开启', pfOff: '下次启动起关闭', pfInstall: '从「浏览」安装',
+      pfMissing: '未安装：需要手动下载', pfSet: '立即更改的设置', pfWait: '模组运行后才能设置',
+      pfWaitRow: (name, n) => name + '：' + n + ' 项设置。下次启动后请再使用一次此配置方案。',
+      pfVersion: '安装的版本不同', pfVersionRow: (name, have, wanted) => name + '：你的是 ' + have + '，配置方案中是 ' + wanted + '。',
+      pfStays: '无法在这里关闭', pfBlank: '（空）',
+      pfUse: '使用此配置', pfKeep: '保存为配置方案', pfClose: '关闭',
       healthIntro: '每次打开这个界面时都会查看游戏文件夹，列出 BepInEx 和模组在安装上的问题。',
       hBepInEx: v => '安装的是 BepInEx ' + v,
       hBepInExBody: v => '这些模组是在适用于 IL2CPP 游戏的 BepInEx ' + v + ' 上制作和测试的。其他版本可能让模组无法启动或出错。如果模组出现问题，请安装这个版本。',
@@ -400,7 +432,10 @@
     browseQuery: '',
     browseFilter: 'all',
     browseSort: 'endorsed',
-    asked: null
+    asked: null,
+    // PROFILES: the profile whose DELETE asks first, and the one whose code was last copied.
+    pfDelete: null,
+    pfCopied: null
   };
 
   const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite', issues: 'linkIssues', changelog: 'linkChangelog' };
@@ -545,8 +580,8 @@
 #slmm .win.page-browse .bd { grid-template-columns: 1fr; }
 #slmm .win.page-browse .rail { display: none; }
 #slmm .bw-bar { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; margin: 16px 0 18px; }
-#slmm .bw-find { width: 280px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); color: #ddd; padding: 7px 10px; font-size: .95rem; outline: none; }
-#slmm .bw-find:focus { border-color: var(--amber); }
+#slmm .bw-find, #slmm .pf-name { width: 280px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); color: #ddd; padding: 7px 10px; font-size: .95rem; outline: none; }
+#slmm .bw-find:focus, #slmm .pf-name:focus { border-color: var(--amber); }
 #slmm .bw-bar .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 #slmm .bw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; }
 #slmm .bw-card { display: grid; grid-template-columns: 140px 1fr; gap: 14px; padding: 12px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.02); }
@@ -564,6 +599,20 @@
 #slmm .bw-card .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 #slmm .bw-card .upd-line { margin-top: 8px; }
 #slmm .win.page-health .rail { display: none; }
+#slmm .win.page-profiles .bd { grid-template-columns: 1fr; }
+#slmm .win.page-profiles .rail { display: none; }
+#slmm .profiles-page .notice { margin: 16px 0 0; }
+#slmm .pf-save { display: flex; gap: 10px; align-items: center; margin: 18px 0 6px; }
+#slmm .pf-acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+#slmm .pf-sub { margin-top: 26px; }
+#slmm .pf-paste { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); color: #ddd; padding: 8px 10px; font-family: var(--mono); font-size: .85rem; outline: none; resize: vertical; }
+#slmm .pf-paste:focus { border-color: var(--amber); }
+#slmm .pf-check { margin-top: 10px; padding: 4px 16px 16px; border: 1px solid rgba(235,163,8,0.35); background: rgba(235,163,8,0.04); }
+#slmm .pf-line { margin-top: 4px; }
+#slmm .pf-line .key-btn { display: inline-block; padding: 2px 8px; font-size: .75rem; margin-left: 6px; }
+#slmm .pf-st { color: #999; }
+#slmm .pf-val { font-family: var(--mono); color: #aaa; }
+#slmm .pf-val.to { color: var(--amber); }
 #slmm .hd-health i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: #888; border-radius: 3px; padding: 2px 7px; }
 #slmm .hd-health.err i { background: var(--red); }
 #slmm .hd-health.warn i { background: #e8813a; }
@@ -1059,7 +1108,7 @@
 <div class="stage"><div class="win">
   <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
   <div class="hd">
-    <div class="hd-tabs"><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-err" data-page="errors"><span data-word="pageErrors"></span><i data-count="otherErrors"></i></div><div class="hd-title hd-health" data-page="health"><span data-word="pageHealth"></span><i data-count="health"></i></div><div class="hd-title hd-trash" data-page="trash"><span data-word="pageTrash"></span><i data-count="trash"></i></div><div class="hd-title hd-browse" data-page="browse"><span data-word="pageBrowse"></span></div></div>
+    <div class="hd-tabs"><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-err" data-page="errors"><span data-word="pageErrors"></span><i data-count="otherErrors"></i></div><div class="hd-title hd-health" data-page="health"><span data-word="pageHealth"></span><i data-count="health"></i></div><div class="hd-title hd-trash" data-page="trash"><span data-word="pageTrash"></span><i data-count="trash"></i></div><div class="hd-title hd-browse" data-page="browse"><span data-word="pageBrowse"></span></div><div class="hd-title hd-profiles" data-page="profiles"><span data-word="pageProfiles"></span></div></div>
     <div class="hd-deco"><span>// MOD MANAGER</span><span><b data-count="loaded">0</b> <span data-word="loaded"></span></span><span><b data-count="settings">0</b> <span data-word="settings"></span></span></div>
     <div class="hd-sp"></div>
     <div class="seg"><span data-lang="en">EN</span><span data-lang="zh">中文</span></div>
@@ -1167,7 +1216,8 @@
     syncAttributes(have, want);
 
     if (have.tagName === 'INPUT') {
-      if (have.value !== want.value) have.value = want.value;
+      // A text box drawn without a value keeps what the player typed; a redraw on each key would wipe it otherwise.
+      if (want.hasAttribute('value') && have.value !== want.value) have.value = want.value;
 
       if (have.checked !== want.checked) have.checked = want.checked;
     }
@@ -1232,6 +1282,7 @@
     $('.win').classList.toggle('page-trash', state.page === 'trash');
     $('.win').classList.toggle('page-health', state.page === 'health');
     $('.win').classList.toggle('page-browse', state.page === 'browse');
+    $('.win').classList.toggle('page-profiles', state.page === 'profiles');
     $('[data-page="trash"]').style.display = trashed.length || state.page === 'trash' ? '' : 'none';
     setCount('trash', trashed.length);
     $('[data-page="health"]').style.display = found.length || state.page === 'health' ? '' : 'none';
@@ -1448,6 +1499,65 @@
     return card ? browse().find(b => b.key === card.dataset.bw) || null : null;
   }
 
+  function profiles() {
+    return state.view && state.view.profiles ? state.view.profiles : { saved: [], check: null, problem: null, note: null };
+  }
+
+  // The PROFILES page: saved setups, a box to paste a shared code or mod list in, and what the one opened would change.
+  function profilesPage() {
+    const p = profiles();
+    const button = (act, text, cls, name) => '<div class="key-btn' + (cls ? ' ' + cls : '') + '" data-act="' + act + '"' + (name !== undefined ? ' data-pf="' + esc(name) + '"' : '') + '>' + esc(text) + '</div>';
+    const bilingual = text => text ? (state.lang === 'zh' ? text.zh : text.en) : '';
+    const note = p.note ? notice('ok', '', bilingual(p.note)) : '';
+    const save = '<div class="pf-save"><input class="pf-name" autocomplete="off" spellcheck="false" maxlength="60" placeholder="' + esc(word('pfName')) + '">' + button('pfSave', word('pfSave'), 'go') + '</div>';
+    const rows = p.saved.length ? p.saved.map(profileRow).join('') : '<div class="empty"><div class="big">' + esc(word('pfNone')) + '</div></div>';
+    const paste = '<div class="sec-t pf-sub">' + esc(word('pfPasteTitle')) + '</div><div class="cf-intro">' + esc(word('pfPasteHint')) + '</div>' +
+      '<textarea class="pf-paste" spellcheck="false" rows="3"></textarea><div class="tr-acts">' + button('pfPaste', word('pfShow')) + '</div>' +
+      (p.problem ? notice('warn', '', bilingual(p.problem)) : '');
+
+    return '<div class="errs-page profiles-page"><div class="sec-t">' + esc(word('pfTitle')) + ' &middot; ' + p.saved.length + '</div>' +
+      '<div class="cf-intro">' + esc(word('pfIntro')) + '</div>' + note + profileCheck(p.check) + save + rows + paste + '</div>';
+  }
+
+  function profileRow(pf) {
+    const button = (act, text, cls) => '<div class="key-btn' + (cls ? ' ' + cls : '') + '" data-act="' + act + '" data-pf="' + esc(pf.name) + '">' + esc(text) + '</div>';
+    const copied = state.pfCopied && state.pfCopied.name === pf.name && state.pfCopied.ok !== null ? state.pfCopied.ok : null;
+    const copy = '<div class="key-btn' + (copied === true ? ' ok' : copied === false ? ' bad' : '') + '" data-act="pfCopy" data-pf="' + esc(pf.name) + '">' + esc(word(copied === null ? 'pfCopy' : copied ? 'copied' : 'copyFailed')) + '</div>';
+    const confirm = state.pfDelete === pf.name
+      ? '<div class="notice warn"><span class="ico">!</span><div><b>' + esc(word('pfDeleteAsk')(pf.name)) + '</b><div class="acts">' + button('pfDeleteYes', word('pfDeleteYes'), 'danger') + button('pfDeleteNo', word('cancel')) + '</div></div></div>'
+      : '';
+
+    return '<div class="tr-item pf-item" data-profile="' + esc(pf.name) + '"><div><div class="mname">' + esc(pf.name) + '</div><div class="msub">' + esc(word('pfFacts')(pf.mods, pf.on, pf.settings)) + '</div></div>' +
+      '<div class="pf-acts">' + button('pfShow', word('pfShow')) + copy + button('pfDelete', word('pfDelete'), 'danger') + '</div></div>' + confirm;
+  }
+
+  // What using the profile opened would change, grouped the way it happens: switches and installs next start, settings now.
+  function profileCheck(check) {
+    if (!check) return '';
+
+    const value = v => v === '' ? word('pfBlank') : v;
+    const of = kind => check.steps.filter(step => step.kind === kind);
+    const group = (title, items, row) => items.length ? '<div class="hl-item info pf-group"><div class="mname">' + esc(title) + ' &middot; ' + items.length + '</div><div class="hl-b">' + items.map(row).join('') + '</div></div>' : '';
+    const line = text => '<div class="pf-line">' + esc(text) + '</div>';
+    const installLine = step => {
+      const install = step.install || { kind: 'none' };
+      const status = install.kind === 'installing' ? word('bwInstalling') : install.kind === 'installed' ? word('bwDone')(tagText(install.tag)) : install.kind === 'failed' ? word('bwFailed')(install.reason) : install.kind === 'refused' ? word('bwRefused')(install.reason) : install.kind === 'needsApproval' ? word('bwApproval')(tagText(install.tag), install.powers.map(power => word('powers')[power] || power)) : '';
+
+      return '<div class="pf-line">' + esc(step.name) + (status ? ' <span class="pf-st">' + esc(status) + '</span>' : '') + (install.kind === 'needsApproval' ? ' <span class="key-btn" data-act="pfApprove" data-guid="' + esc(step.guid) + '">' + esc(word('installAnyway')) + '</span>' : '') + '</div>';
+    };
+    const missingLine = step => '<div class="pf-line">' + esc(step.name) + (step.nexus ? ' <span class="key-btn" data-act="bwNeedNexus" data-nexus="' + step.nexus + '">' + esc(word('bwOpenNexus')) + '</span>' : '') + '</div>';
+    const setLine = step => '<div class="pf-line">' + esc(step.name + ': ' + step.label) + ' <span class="pf-val">' + esc(value(step.from)) + '</span> &rarr; <span class="pf-val to">' + esc(value(step.to)) + '</span></div>';
+    const acts = '<div class="tr-acts">' + (check.steps.some(step => step.kind === 'on' || step.kind === 'off' || step.kind === 'set' || step.kind === 'install' && (step.install.kind === 'none' || step.install.kind === 'failed')) ? '<div class="key-btn go" data-act="pfUse">' + esc(word('pfUse')) + '</div>' : '') +
+      (check.pasted ? '<div class="key-btn" data-act="pfKeep">' + esc(word('pfKeep')) + '</div>' : '') + '<div class="key-btn" data-act="pfClose">' + esc(word('pfClose')) + '</div></div>';
+    const body = check.steps.length
+      ? group(word('pfOn'), of('on'), step => line(step.name)) + group(word('pfOff'), of('off'), step => line(step.name)) + group(word('pfInstall'), of('install'), installLine) +
+        group(word('pfMissing'), of('missing'), missingLine) + group(word('pfSet'), of('set'), setLine) + group(word('pfWait'), of('wait'), step => line(word('pfWaitRow')(step.name, step.count))) +
+        group(word('pfVersion'), of('version'), step => line(word('pfVersionRow')(step.name, step.installed, step.wanted))) + group(word('pfStays'), of('stays'), step => line(step.name))
+      : '<div class="cf-intro">' + esc(word('pfNothing')) + '</div>';
+
+    return '<div class="pf-check"><div class="sec-t pf-sub">' + esc(word('pfChanges')(check.name)) + '</div>' + (check.withSettings ? '' : '<div class="cf-intro">' + esc(word('pfListOnly')) + '</div>') + body + acts + '</div>';
+  }
+
   function health() {
     return state.view && state.view.health ? state.view.health : [];
   }
@@ -1558,9 +1668,9 @@
   }
 
   function renderPane() {
-    if (state.page === 'errors' || state.page === 'trash' || state.page === 'health' || state.page === 'browse') {
+    if (state.page === 'errors' || state.page === 'trash' || state.page === 'health' || state.page === 'browse' || state.page === 'profiles') {
       showOwnTab(null, null);
-      morph(pane, state.page === 'errors' ? otherErrorsPage() : state.page === 'trash' ? trashPage() : state.page === 'health' ? healthPage() : browsePage());
+      morph(pane, state.page === 'errors' ? otherErrorsPage() : state.page === 'trash' ? trashPage() : state.page === 'health' ? healthPage() : state.page === 'browse' ? browsePage() : profilesPage());
 
       return;
     }
@@ -3210,6 +3320,30 @@
       state.asked = { key: browseOf(act).key, ok: null };
       send('askAuthor', [String(browseOf(act).nexus)]);
     }
+    else if (actName === 'pfSave') {
+      const field = root.querySelector('.pf-name');
+
+      send('profileSave', [field ? field.value : '']);
+
+      if (field) field.value = '';
+    } else if (actName === 'pfShow') send('profileShow', [act.dataset.pf]);
+    else if (actName === 'pfCopy') {
+      state.pfCopied = { name: act.dataset.pf, ok: null };
+      send('profileCopy', [act.dataset.pf]);
+    } else if (actName === 'pfDelete' || actName === 'pfDeleteNo') {
+      state.pfDelete = actName === 'pfDelete' ? act.dataset.pf : null;
+      render();
+    } else if (actName === 'pfDeleteYes' && state.pfDelete) {
+      send('profileDelete', [state.pfDelete]);
+      state.pfDelete = null;
+    } else if (actName === 'pfPaste') {
+      const field = root.querySelector('.pf-paste');
+
+      send('profilePaste', [field ? field.value : '']);
+    } else if (actName === 'pfUse') send('profileUse');
+    else if (actName === 'pfKeep') send('profileKeep');
+    else if (actName === 'pfClose') send('profileClose');
+    else if (actName === 'pfApprove') send('browseApprove', [act.dataset.guid]);
     else if (actName === 'resetMod') resetMod();
     else if (actName === 'uninstall' || actName === 'uninstallNo') {
       state.confirmUninstall = actName === 'uninstall' ? state.selected : null;
@@ -3804,6 +3938,19 @@
     renderCopyButton();
   }
 
+  let pfCopiedTimer = 0;
+
+  function profileCopied(name, isCopied) {
+    state.pfCopied = { name: name, ok: !!isCopied };
+    clearTimeout(pfCopiedTimer);
+    pfCopiedTimer = setTimeout(() => {
+      state.pfCopied = null;
+
+      if (root.classList.contains('on')) render();
+    }, COPIED_MS);
+    render();
+  }
+
   function asked(isCopied) {
     if (state.asked) state.asked.ok = !!isCopied;
 
@@ -3833,6 +3980,6 @@
   });
   window.addEventListener('resize', fit);
 
-  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, escape: escape, tabsChanged: tabsChanged, icons: icons, banners: banners, items: items, entries: entries, copied: copied, asked: asked };
+  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, escape: escape, tabsChanged: tabsChanged, icons: icons, banners: banners, items: items, entries: entries, copied: copied, asked: asked, profileCopied: profileCopied };
   sendReady();
 })();

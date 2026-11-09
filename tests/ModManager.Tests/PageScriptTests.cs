@@ -451,7 +451,7 @@ public class PageScriptTests
         var view = new ModsView(new[] { Loaded() }, System.Array.Empty<string>(), false, "F10");
 
         Assert.EndsWith("},\"updates\")", PageScript.Open(view, "updates"));
-        Assert.EndsWith("]})", PageScript.Open(view));
+        Assert.EndsWith("null}})", PageScript.Open(view));
     }
 
     [Fact]

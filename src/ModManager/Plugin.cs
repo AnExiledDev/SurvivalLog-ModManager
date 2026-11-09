@@ -18,7 +18,7 @@ namespace ModManager;
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "com.dev.survivallog.modmanager";
-    public const string Version = "0.19.0";
+    public const string Version = "0.20.0";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
     private const string ToolkitVersion = ">=0.19.0";
@@ -79,7 +79,7 @@ public sealed class Plugin : BasePlugin
         var scanner = new InstallScanner(Paths.BepInExRootPath, Paths.PluginPath, Paths.PatcherPluginPath, Paths.ConfigPath, log.Write);
         var catalog = new PluginCatalog(folders, updates, shelf.Versions, watch.Book, Guid, ReadGameVersion(log.Write), items, fits.FitOf, trash, Paths.ConfigPath, scanner, log.Write);
         var page = new WebPage(typeof(Plugin).Assembly, "ModManager.page.js", PageScript.Api, PageCommand.Prefix + "noscript", log.Write);
-        var session = new ModsSession(page, catalog, items, updates, checks, nexus, fits, installer, watch, () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
+        var session = new ModsSession(page, catalog, items, updates, checks, nexus, fits, installer, watch, new SavedFile(Path.Combine(Paths.BepInExRootPath, "mod-manager", "profiles.txt"), "profiles", log.Write), () => openKey.Value, () => checkForUpdates.Value, () => showToast.Value, log.Write);
 
         // Walked on a worker from now, so the item pickers usually find the icons ready.
         WebIcons.StartScan();

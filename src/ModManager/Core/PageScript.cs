@@ -63,6 +63,9 @@ public static class PageScript
     /// <summary>Says whether the request to a mod's author is on the clipboard, as its Nexus posts open.</summary>
     public static string Asked(bool isCopied) => Call("asked", Bool(isCopied));
 
+    /// <summary>Whether a profile's code reached the clipboard, for its COPY CODE button.</summary>
+    public static string ProfileCopied(string name, bool isCopied) => Call("profileCopied", Str(name) + "," + Bool(isCopied));
+
     public static string Update(ModEntry mod, SettingNote? note) => Call("update", ModJson(mod) + "," + (note == null ? "null" : NoteJson(note)));
 
     /// <summary>Redraws everything while the screen stays open, after a change that touches more than one mod.</summary>
@@ -93,6 +96,7 @@ public static class PageScript
         json.Append(",\"health\":").Append(List(view.Health, HealthJson));
         json.Append(",\"browseFeed\":").Append(Str(view.BrowseFeed.ToString().ToLowerInvariant()));
         json.Append(",\"browse\":").Append(List(view.Browse, BrowseJson));
+        json.Append(",\"profiles\":").Append(ProfilesJson(view.Profiles));
 
         return json.Append('}').ToString();
     }
@@ -164,6 +168,26 @@ public static class PageScript
         ",\"fresh\":" + Bool(mod.IsFresh) +
         ",\"needs\":" + List(mod.Needs, need => "{\"name\":" + Str(need.Name) + ",\"nexus\":" + (need.NexusId is { } needId ? Int(needId) : "null") + "}") +
         "}";
+
+    private static string ProfilesJson(ProfilesView profiles) =>
+        "{\"saved\":" + List(profiles.Saved, profile => "{\"name\":" + Str(profile.Name) + ",\"mods\":" + Int(profile.Mods.Count) + ",\"on\":" + Int(profile.Mods.Count(mod => mod.IsOn)) + ",\"settings\":" + Int(profile.Settings.Count) + "}") +
+        ",\"check\":" + (profiles.Check is { } check ? "{\"name\":" + Str(check.Profile.Name) + ",\"pasted\":" + Bool(check.IsPasted) + ",\"withSettings\":" + Bool(check.Profile.CarriesSettings) + ",\"mods\":" + Int(check.Profile.Mods.Count) + ",\"steps\":" + List(check.Steps, StepJson) + "}" : "null") +
+        ",\"problem\":" + Text(profiles.Problem) +
+        ",\"note\":" + Text(profiles.Note) +
+        "}";
+
+    private static string StepJson(ProfileStep step) => step switch
+    {
+        ProfileStep.TurnOn on => "{\"kind\":\"on\",\"guid\":" + Str(on.Guid) + ",\"name\":" + Str(on.Name) + "}",
+        ProfileStep.TurnOff off => "{\"kind\":\"off\",\"guid\":" + Str(off.Guid) + ",\"name\":" + Str(off.Name) + "}",
+        ProfileStep.Install install => "{\"kind\":\"install\",\"guid\":" + Str(install.Guid) + ",\"name\":" + Str(install.Name) + ",\"install\":" + InstallJson(install.State) + "}",
+        ProfileStep.Missing missing => "{\"kind\":\"missing\",\"guid\":" + Str(missing.Guid) + ",\"name\":" + Str(missing.Name) + ",\"nexus\":" + (missing.NexusId is { } id ? Int(id) : "null") + "}",
+        ProfileStep.Set set => "{\"kind\":\"set\",\"guid\":" + Str(set.Id.Guid) + ",\"name\":" + Str(set.ModName) + ",\"label\":" + Str(set.Label) + ",\"from\":" + Str(set.From) + ",\"to\":" + Str(set.To) + "}",
+        ProfileStep.SettingsWait wait => "{\"kind\":\"wait\",\"guid\":" + Str(wait.Guid) + ",\"name\":" + Str(wait.Name) + ",\"count\":" + Int(wait.Count) + "}",
+        ProfileStep.OtherVersion other => "{\"kind\":\"version\",\"guid\":" + Str(other.Guid) + ",\"name\":" + Str(other.Name) + ",\"installed\":" + Str(other.Installed) + ",\"wanted\":" + Str(other.InProfile) + "}",
+        ProfileStep.StaysOn stays => "{\"kind\":\"stays\",\"guid\":" + Str(stays.Guid) + ",\"name\":" + Str(stays.Name) + "}",
+        _ => throw new ArgumentOutOfRangeException(nameof(step), step, null),
+    };
 
     private static string TrashJson(TrashEntry item) =>
         "{\"id\":" + Str(item.Id) + ",\"name\":" + Str(item.Name) + ",\"version\":" + Str(item.Version) + ",\"when\":" + Str(item.When) + ",\"settings\":" + Bool(item.HasSettings) + ",\"thisSession\":" + Bool(item.IsThisSession) + "}";

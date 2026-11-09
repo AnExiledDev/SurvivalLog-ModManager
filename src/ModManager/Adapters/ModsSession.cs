@@ -70,7 +70,15 @@ internal sealed class ModsSession
     private const string SaveBackupsGuid = "com.dev.survivallog.savebackups";
     private readonly SaveBackupAsk _backupAsk = new();
 
-    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, GameFitChecks fits, UpdateInstaller installer, LogWatch watch, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
+    private readonly SavedFile _profileFile;
+    private IReadOnlyList<Profile>? _profiles;
+
+    /// <summary>The profile the PROFILES page shows what it would change, and whether it was pasted in rather than saved.</summary>
+    private (Profile Profile, bool IsPasted)? _profileShown;
+    private BilingualText? _profileProblem;
+    private BilingualText? _profileNote;
+
+    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, GameFitChecks fits, UpdateInstaller installer, LogWatch watch, SavedFile profileFile, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
@@ -87,6 +95,7 @@ internal sealed class ModsSession
         _isShowingUpdateToast = isShowingUpdateToast;
         _log = log;
         _items = items;
+        _profileFile = profileFile;
     }
 
     public void Update(float now, int frame)
@@ -251,6 +260,34 @@ internal sealed class ModsSession
                 break;
             case PageCommand.OpenNexusPage nexusPage:
                 Open(NexusApi.PageUrl(nexusPage.NexusId));
+                break;
+            case PageCommand.ProfileSave save:
+                SaveProfile(Profile.Of(save.Name, _catalog.Mods()));
+                break;
+            case PageCommand.ProfileDelete delete:
+                DeleteProfile(delete.Name);
+                break;
+            case PageCommand.ProfileCopy copy:
+                CopyProfile(copy.Name);
+                break;
+            case PageCommand.ProfileShow show:
+                ShowProfile(SavedProfile(show.Name), false, null);
+                break;
+            case PageCommand.ProfilePaste paste:
+                var (pasted, problem) = ShareCode.Read(paste.Text);
+                ShowProfile(pasted, true, problem);
+                break;
+            case PageCommand.ProfileUse:
+                UseProfile();
+                break;
+            case PageCommand.ProfileKeep:
+                if (_profileShown is { IsPasted: true } kept) SaveProfile(kept.Profile);
+                break;
+            case PageCommand.ProfileClose:
+                _profileShown = null;
+                _profileProblem = null;
+                _profileNote = null;
+                RefreshOpen();
                 break;
             case PageCommand.Unknown unknown:
                 _log("unknown message from the Mods page: " + unknown.Text);
@@ -463,6 +500,125 @@ internal sealed class ModsSession
         Open(NexusApi.PostsUrl(nexusId));
     }
 
+    private IReadOnlyList<Profile> Profiles() => _profiles ??= ProfileShelf.Read(_profileFile.Read());
+
+    private Profile? SavedProfile(string name) => Profiles().FirstOrDefault(profile => string.Equals(profile.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    private void SaveProfile(Profile profile)
+    {
+        var isNew = SavedProfile(profile.Name) == null;
+
+        if (isNew && Profiles().Count >= ProfileShelf.MaxProfiles)
+        {
+            _profileNote = ProfileNotes.Full;
+            RefreshOpen();
+
+            return;
+        }
+
+        _profiles = ProfileShelf.Put(Profiles(), profile);
+        _profileFile.Save(ProfileShelf.Write(_profiles));
+
+        // A pasted profile once saved is shown as the saved one, so SAVE AS PROFILE does not show again.
+        if (_profileShown is { IsPasted: true } shown && shown.Profile == profile) _profileShown = (profile, false);
+
+        _profileNote = ProfileNotes.Saved(profile.Name, isNew);
+        _log("saved the profile " + profile.Name + ": " + profile.Mods.Count + " mods, " + profile.Settings.Count + " settings");
+        RefreshOpen();
+    }
+
+    private void DeleteProfile(string name)
+    {
+        if (SavedProfile(name) is not { } profile) return;
+
+        _profiles = ProfileShelf.Remove(Profiles(), profile.Name);
+        _profileFile.Save(ProfileShelf.Write(_profiles));
+
+        if (_profileShown is { IsPasted: false } shown && shown.Profile.Name == profile.Name) _profileShown = null;
+
+        _profileNote = ProfileNotes.Deleted(profile.Name);
+        _log("deleted the profile " + profile.Name);
+        RefreshOpen();
+    }
+
+    private void CopyProfile(string name)
+    {
+        if (SavedProfile(name) is not { } profile) return;
+
+        try
+        {
+            GUIUtility.systemCopyBuffer = ShareCode.Write(profile);
+            _page.Run(PageScript.ProfileCopied(profile.Name, true));
+        }
+        catch (Exception ex)
+        {
+            _log("could not copy the profile " + profile.Name + ": " + ex.Message);
+            _page.Run(PageScript.ProfileCopied(profile.Name, false));
+        }
+    }
+
+    private void ShowProfile(Profile? profile, bool isPasted, BilingualText? problem)
+    {
+        _profileShown = profile == null ? null : (profile, isPasted);
+        _profileProblem = problem;
+        _profileNote = null;
+        RefreshOpen();
+    }
+
+    /// <summary>Whether BROWSE could install a mod a profile has that is not installed.</summary>
+    private bool CanInstallFresh(string guid) => _isCheckingForUpdates() && Browse.TargetOf(_updates.Index, guid) is { } target && !_catalog.IsOffThere(target.Dll);
+
+    private ProfileCheck? ShownCheck(IReadOnlyList<ModEntry> mods)
+    {
+        if (_profileShown is not { } shown) return null;
+
+        var steps = ProfilePlan.For(shown.Profile, mods, CanInstallFresh, guid => _updates.Index.NexusIdOf(guid))
+            .Select(step => step is ProfileStep.Install install ? install with { State = _updates.InstallOf(install.Guid) } : step)
+            .ToList();
+
+        return new ProfileCheck(shown.Profile, shown.IsPasted, steps);
+    }
+
+    /// <summary>
+    /// Carries out the profile shown: the switches and installs for the next start, the settings now. The plan is
+    /// worked out again first, so it fits the mods as they are, not as they were when the page drew it.
+    /// </summary>
+    private void UseProfile()
+    {
+        if (_profileShown is not { } shown) return;
+
+        var steps = ProfilePlan.For(shown.Profile, _catalog.Mods(), CanInstallFresh, guid => _updates.Index.NexusIdOf(guid));
+        var (switched, installs, set) = (0, 0, 0);
+        var failed = new List<string>();
+
+        foreach (var step in steps)
+        {
+            switch (step)
+            {
+                case ProfileStep.TurnOn on:
+                    if (_catalog.Switch(on.Guid, true).IsWarning) failed.Add(on.Name);
+                    else switched++;
+                    break;
+                case ProfileStep.TurnOff off:
+                    if (_catalog.Switch(off.Guid, false).IsWarning) failed.Add(off.Name);
+                    else switched++;
+                    break;
+                case ProfileStep.Install install when _updates.InstallOf(install.Guid) is InstallState.None or InstallState.Failed:
+                    StartFresh(install.Guid);
+                    installs++;
+                    break;
+                case ProfileStep.Set change:
+                    if (_catalog.Setting(change.Id) is not { } setting || Apply(setting, change.To) is { IsWarning: true }) failed.Add(change.ModName + ": " + change.Label);
+                    else set++;
+                    break;
+            }
+        }
+
+        _log("used the profile " + shown.Profile.Name + ": " + switched + " switches, " + installs + " installs, " + set + " settings, " + failed.Count + " failed");
+        _profileNote = ProfileNotes.Used(shown.Profile.Name, switched, installs, set, failed);
+        RefreshOpen();
+    }
+
     /// <summary>Every update not installed yet, failed ones again; the installs run side by side.</summary>
     private void InstallAll()
     {
@@ -630,6 +786,7 @@ internal sealed class ModsSession
             Health = _catalog.Health(mods),
             Browse = _isCheckingForUpdates() ? Browse.List(_updates.Nexus, _updates.Index, mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal), mods.Select(mod => mod.Known.Nexus?.ModId).OfType<int>().ToHashSet(), _updates.InstallOf, _updates.FreshOf) : Array.Empty<BrowseMod>(),
             BrowseFeed = !_isCheckingForUpdates() ? BrowseFeed.Off : _nexus.IsAsking || !_checks.IsIndexSettled ? BrowseFeed.Asking : BrowseFeed.Ready,
+            Profiles = new ProfilesView(Profiles(), ShownCheck(mods), _profileProblem, _profileNote),
         };
     }
 
