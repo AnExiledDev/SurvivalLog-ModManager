@@ -238,7 +238,7 @@ public class ModProblemsTests
         Assert.Equal(new[] { "com.b.trap" }, byMod["com.a.hub"].Single().Clashes.Single().Guids);
     }
 
-    /// <summary>The Chromium crash of 2026-11-01 as the log has it: the game's own HandleMessageEmitted threw inside the
+    /// <summary>The Chromium crash of 2026-11-01 as the log has it: the game's HandleMessageEmitted threw inside the
     /// copy many mods patch, and no mod's code was in the stack.</summary>
     [Fact]
     public void An_error_the_game_threw_inside_a_patched_method_is_the_game_error_naming_the_patchers()

@@ -8,7 +8,7 @@ namespace ModManager.Adapters;
 
 /// <summary>
 /// Reads the keyboard for a hotkey setting the player clicked. The page does not get key presses unless a text field
-/// has focus, so the game's own input is read instead, one frame at a time.
+/// has focus, so the game's input is read instead, one frame at a time.
 /// </summary>
 internal sealed class KeyCapture
 {

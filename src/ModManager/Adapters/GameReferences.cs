@@ -10,7 +10,7 @@ namespace ModManager.Adapters;
 /// <summary>
 /// Checks what a DLL uses from the game's code against BepInEx's interop folder, which BepInEx builds from the game
 /// build that is running: every game type it names, every member of one it calls or reads, and every game method a
-/// HarmonyPatch attribute names. Reads DLLs without loading them. Only what the game's own code was read for and does
+/// HarmonyPatch attribute names. Reads DLLs without loading them. Only what the game's code was read for and does
 /// not have counts as missing: a reference that cannot be followed is left out, never called missing.
 /// </summary>
 internal sealed class GameReferences : IDisposable

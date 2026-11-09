@@ -172,7 +172,7 @@ public static class ProblemOwners
             var owner = OwnerOf(problem, owners);
             var patchers = owner != null ? Array.Empty<string>() : overlaps.Where(pair => ClashesOf(problem, pair.Value).Count > 0).Select(pair => pair.Key).ToArray();
 
-            // Thrown by the game's own method, which the patched copy only called: no mod's code was running, so it is
+            // Thrown by the game's method, which the patched copy only called: no mod's code was running, so it is
             // the game's error, listed once with the mods that patch the method instead of once under each of them.
             if (owner == null && patchers.Length > 0 && IsThrownByGame(problem))
             {

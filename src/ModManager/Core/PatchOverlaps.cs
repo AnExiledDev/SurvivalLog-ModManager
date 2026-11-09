@@ -13,7 +13,7 @@ public enum PatchEffect
     /// <summary>A postfix or finalizer: it only adds code after the method.</summary>
     RunsAfter,
 
-    /// <summary>A prefix that can stop the game's own code from running (returns bool or sets __runOriginal).</summary>
+    /// <summary>A prefix that can stop the game's code from running (returns bool or sets __runOriginal).</summary>
     CanSkip,
 
     /// <summary>A transpiler or IL manipulator: it rewrites the method's code.</summary>

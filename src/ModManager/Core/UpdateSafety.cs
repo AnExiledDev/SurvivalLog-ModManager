@@ -125,7 +125,7 @@ public static class Powers
 
     private static bool IsNetwork(string type) => NetworkTypes.Contains(type) || NetworkNamespaces.Any(prefix => type.StartsWith(prefix, StringComparison.Ordinal));
 
-    /// <summary>The game's own copies of .NET types are named Il2CppSystem.* and Il2CppMicrosoft.*, and do the same things.</summary>
+    /// <summary>The game's copies of .NET types are named Il2CppSystem.* and Il2CppMicrosoft.*, and do the same things.</summary>
     private static string WithoutIl2CppPrefix(string name) =>
         name.StartsWith("Il2CppSystem.", StringComparison.Ordinal) || name.StartsWith("Il2CppMicrosoft.", StringComparison.Ordinal) ? name.Substring("Il2Cpp".Length) : name;
 }

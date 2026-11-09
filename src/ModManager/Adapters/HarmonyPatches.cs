@@ -41,7 +41,7 @@ internal static class HarmonyPatches
         return methods;
     }
 
-    /// <summary>A prefix that returns bool, or takes __runOriginal by ref, can stop the game's own code.</summary>
+    /// <summary>A prefix that returns bool, or takes __runOriginal by ref, can stop the game's code.</summary>
     private static bool CanSkip(Patch patch) =>
         patch.PatchMethod is { } prefix && (prefix.ReturnType == typeof(bool) || prefix.GetParameters().Any(parameter => parameter.Name == "__runOriginal" && parameter.ParameterType.IsByRef));
 
