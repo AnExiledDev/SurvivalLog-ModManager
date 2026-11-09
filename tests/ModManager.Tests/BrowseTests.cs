@@ -108,6 +108,35 @@ public sealed class BrowseTests
         Assert.Equal(BrowseSupport.Installable, list.Single(mod => mod.NexusId == 40).Support);
     }
 
+    [Fact]
+    public void Without_the_wikis_index_no_mod_is_called_a_manual_download()
+    {
+        var list = Browse.List(Nexus, ModIndex.Empty, new HashSet<string>(StringComparer.Ordinal), new HashSet<int>(), _ => new InstallState.None(), _ => null);
+
+        Assert.All(list, mod => Assert.Equal(BrowseSupport.Unknown, mod.Support));
+    }
+
+    [Fact]
+    public void An_installed_mod_that_names_its_nexus_page_shows_as_installed_without_the_wikis_index()
+    {
+        var info = ModInfo.None with { Links = new[] { new ModLink(LinkKind.Nexus, "https://www.nexusmods.com/survivallog/mods/77") } };
+        var installed = new ModEntry("com.me.radar", "Radar", "1.0.0", "Radar.dll", new ModState.NotLoaded(), info, new ModSwitch.Unavailable(), new UpdateState.NotChecked());
+
+        var ids = Browse.InstalledNexusIds(new[] { installed }, ModIndex.Empty);
+        var list = Browse.List(Nexus, ModIndex.Empty, new HashSet<string>(StringComparer.Ordinal) { "com.me.radar" }, ids, _ => new InstallState.None(), _ => null);
+
+        Assert.Equal(BrowseSupport.Installed, list.Single(mod => mod.NexusId == 77).Support);
+        Assert.Equal(BrowseSupport.Unknown, list.Single(mod => mod.NexusId == 12).Support);
+    }
+
+    [Fact]
+    public void An_installed_mod_gets_its_nexus_page_from_the_index_when_it_names_none()
+    {
+        var installed = new ModEntry("com.ann.map", "Map", "1.2.0", "Map.dll", new ModState.NotLoaded(), ModInfo.None, new ModSwitch.Unavailable(), new UpdateState.NotChecked());
+
+        Assert.Equal(new[] { 12 }, Browse.InstalledNexusIds(new[] { installed }, Index));
+    }
+
     // ===== Where an install comes from =====
 
     [Fact]
@@ -248,13 +277,20 @@ public sealed class BrowseTests
         engine.Evaluate("posted.filter(function (text) { return text.indexOf('|" + verb + "|') >= 0; }).join('\\n')").AsString();
 
     [Fact]
-    public void A_manual_download_is_called_out_and_ask_the_author_sends_its_nexus_page()
+    public void A_manual_download_is_called_out_folded_and_opens_to_ask_the_author_with_its_nexus_page()
     {
         var engine = OnBrowse(View(BrowseFeed.Ready, Radar));
-        var drawn = KnownFactsTests.Drawn(engine);
+        var folded = KnownFactsTests.Drawn(engine);
 
-        Assert.Contains("No Mod Manager support: manual download.", drawn);
-        Assert.Contains("ASK THE AUTHOR", drawn);
+        Assert.Contains("No Mod Manager support", folded);
+        Assert.DoesNotContain("Manual download.", folded);
+        Assert.DoesNotContain("ASK THE AUTHOR", folded);
+
+        engine.Execute("drawn.length = 0; fire('click', { target: card('bwShame', 'nexus:77') })");
+        var opened = KnownFactsTests.Drawn(engine);
+
+        Assert.Contains("Manual download. Its author has not set it up", opened);
+        Assert.Contains("ASK THE AUTHOR", opened);
 
         engine.Execute("fire('click', { target: card('bwAsk', 'nexus:77') })");
 
@@ -283,6 +319,28 @@ public sealed class BrowseTests
         engine.Execute("fire('click', { target: el('DIV', [], { act: 'undo', undo: '0' }, { '[data-act]': { dataset: { act: 'undo', undo: '0' } } }) })");
 
         Assert.EndsWith("|browseUndo|com.bob.bags", Posted(engine, "browseUndo"));
+    }
+
+    [Fact]
+    public void Without_the_wikis_index_browse_says_so_and_names_no_mod_a_manual_download()
+    {
+        var drawn = KnownFactsTests.Drawn(OnBrowse(View(BrowseFeed.Ready, Radar with { Support = BrowseSupport.Unknown })));
+
+        Assert.Contains("could not be read", drawn);
+        Assert.Contains("SUPPORT NOT KNOWN", drawn);
+        Assert.DoesNotContain("No Mod Manager support", drawn);
+    }
+
+    [Fact]
+    public void The_pages_run_browse_mods_profiles_health_trash_and_the_screen_opens_on_mods()
+    {
+        var shell = Resource("ModManager.page.js");
+        var order = new[] { "data-page=\"browse\"", "data-page=\"mods\"", "data-page=\"profiles\"", "data-page=\"health\"", "data-page=\"trash\"" }.Select(page => shell.IndexOf(page, StringComparison.Ordinal)).ToList();
+
+        Assert.DoesNotContain(-1, order);
+        Assert.Equal(order.OrderBy(at => at), order);
+        Assert.DoesNotContain("data-page=\"errors\"", shell);
+        Assert.Contains("<div class=\"hd-title on\" data-page=\"mods\">", shell);
     }
 
     [Fact]

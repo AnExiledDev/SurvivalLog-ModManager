@@ -15,6 +15,9 @@ public enum BrowseSupport
 
     /// <summary>Its author has not set it up for the Mod Manager, so it is downloaded from Nexus by hand.</summary>
     Manual,
+
+    /// <summary>The wiki's index could not be read, so whether the Mod Manager can install it is not known.</summary>
+    Unknown,
 }
 
 /// <summary>Whether BROWSE has its list.</summary>
@@ -85,6 +88,8 @@ public static class Browse
 
         foreach (var listed in index.Listed.Where(listed => listed.NexusId != null)) guidByNexus.TryAdd(listed.NexusId!.Value, listed.Guid);
 
+        // With no index there is nothing to say a mod is set up for the Mod Manager, which is not the same as it not being.
+        var hasIndex = index.Mods.Count > 0 || index.Listed.Count > 0;
         var list = new List<BrowseMod>();
         var seenGuids = new HashSet<string>(StringComparer.Ordinal);
 
@@ -96,7 +101,8 @@ public static class Browse
 
             var support = guid != null && installedGuids.Contains(guid) || installedNexusIds.Contains(mod.ModId) ? BrowseSupport.Installed
                 : guid != null && TargetOf(index, guid) != null ? BrowseSupport.Installable
-                : BrowseSupport.Manual;
+                : hasIndex ? BrowseSupport.Manual
+                : BrowseSupport.Unknown;
 
             list.Add(With(new BrowseMod(guid ?? "nexus:" + mod.ModId, mod.Name, mod.Summary, mod.Uploader, mod.Version, mod.UpdatedAt, mod.Endorsements, mod.Downloads, mod.Thumbnail, mod.ModId, guid, support), index, installedGuids, installOf, freshOf));
         }
@@ -114,6 +120,13 @@ public static class Browse
 
         return list;
     }
+
+    /// <summary>
+    /// The Nexus pages of the installed mods: the one each mod names itself, the one the index gives it, and the one its
+    /// version was matched to. Any one is enough, so an installed mod never shows as missing when the index is not there.
+    /// </summary>
+    public static IReadOnlySet<int> InstalledNexusIds(IEnumerable<ModEntry> installed, ModIndex index) =>
+        installed.SelectMany(mod => new[] { mod.Info.NexusId, index.NexusIdOf(mod.Guid), mod.Known.Nexus?.ModId }).OfType<int>().ToHashSet();
 
     private static BrowseMod With(BrowseMod mod, ModIndex index, IReadOnlySet<string> installedGuids, Func<string, InstallState> installOf, Func<string, FreshInstall?> freshOf)
     {

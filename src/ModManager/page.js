@@ -62,7 +62,7 @@
       errorsIntro: 'Warnings and errors this mod logged this session, newest first. They help the mod author find the cause: COPY MOD LIST at the bottom puts them in a bug report.',
       seenTimes: n => n === 1 ? 'once' : n + ' times', loggedBy: source => 'logged by ' + source,
       clashLine: method => 'It went through ' + method + ', which these mods also patch:',
-      otherErrors: 'BepInEx and game errors', pageErrors: 'ERRORS',
+      otherErrors: 'BepInEx and game errors',
       otherErrorsIntro: 'Warnings and errors this session that no mod could be matched to: from BepInEx, the game itself, or a mod that logged without its name. COPY MOD LIST at the bottom puts them in a bug report.',
       changelogNote: 'The published changelog. It can be ahead of the version you have.',
       changelogLoading: 'Loading the changelog.', changelogEmpty: 'The changelog is empty.',
@@ -142,6 +142,8 @@
       emptyConfirm: n => 'Delete ' + n + (n === 1 ? ' mod' : ' mods') + ' for good? This cannot be undone.',
       trashSettings: 'with its settings file', trashThisSession: 'this session',
       pageHealth: 'HEALTH', healthTitle: 'Install check', healthNone: 'Nothing wrong was found.',
+      healthAllClear: 'Nothing wrong was found: the install check is clean and nothing logged an error no mod could be matched to.',
+      healthSum: { err: n => n + (n === 1 ? ' problem' : ' problems'), warn: n => n + (n === 1 ? ' warning' : ' warnings'), info: n => n + (n === 1 ? ' note' : ' notes') },
       pageBrowse: 'BROWSE', browseTitle: 'Mods for Survival Log',
       browseIntro: 'Every mod for the game on Nexus Mods. The ones set up for the Mod Manager install from here and get their updates in the Mods list; the rest you download from Nexus by hand.',
       browseOff: 'BROWSE needs the update checks, which are off. Turn on 「Check For Updates」 in the Mod Manager\'s settings to see the mods.',
@@ -150,9 +152,11 @@
       bwAll: 'ALL', bwInstallable: 'ONE-CLICK INSTALL', bwManual: 'MANUAL DOWNLOAD', bwInstalledF: 'INSTALLED',
       bwSortEndorsed: 'MOST ENDORSED', bwSortUpdated: 'RECENTLY UPDATED', bwSortName: 'NAME',
       bwInstalled: 'INSTALLED', bwInstall: 'INSTALL', bwOpenNexus: 'OPEN ON NEXUS', bwAsk: 'ASK THE AUTHOR',
-      bwShameTitle: 'No Mod Manager support: manual download.',
-      bwShameBody: 'Its author has not set it up for the Mod Manager yet, so you download it from Nexus and unpack it by hand, and it never tells you about updates. ASK THE AUTHOR copies a short request and opens the mod\'s posts on Nexus, where you can paste it.',
+      bwShameTitle: 'No Mod Manager support',
+      bwShameBody: 'Manual download. Its author has not set it up for the Mod Manager yet, so you download it from Nexus and unpack it by hand, and it never tells you about updates. ASK THE AUTHOR copies a short request and opens the mod\'s posts on Nexus, where you can paste it.',
       bwAsked: 'The request is copied. Paste it in the mod\'s posts on Nexus.', bwAskFailed: 'Could not copy the request. The mod\'s posts are open on Nexus.',
+      bwNoIndex: 'The wiki\'s list of mods set up for the Mod Manager could not be read, so nothing here can be installed and no mod is marked as a manual download. The Mod Manager asks for it again the next time it checks for updates.',
+      bwUnknown: 'SUPPORT NOT KNOWN',
       bwInstalling: 'Installing.',
       bwDone: tag => 'Installed ' + tag + '. The game starts it from the next start.',
       bwFailed: reason => 'Could not install it: ' + reason + '.',
@@ -248,7 +252,7 @@
       errorsIntro: '本模组在这次游戏中记录的警告和错误，最新的在前。它们能帮模组作者找到原因：底部的「复制模组列表」会把它们放进问题反馈。',
       seenTimes: n => n === 1 ? '1 次' : n + ' 次', loggedBy: source => '来源：' + source,
       clashLine: method => '它经过了 ' + method + '，以下模组也修改了这段代码：',
-      otherErrors: 'BepInEx 和游戏的错误', pageErrors: '错误',
+      otherErrors: 'BepInEx 和游戏的错误',
       otherErrorsIntro: '这次游戏中无法对应到某个模组的警告和错误：来自 BepInEx、游戏本身，或没有写明名字的模组。底部的「复制模组列表」会把它们放进问题反馈。',
       changelogNote: '这是已发布的更新日志，可能比你安装的版本更新。',
       changelogLoading: '正在加载更新日志。', changelogEmpty: '更新日志是空的。',
@@ -327,7 +331,9 @@
       trashEmpty: '回收站是空的。', emptyTrash: '清空回收站', emptyYes: '永久删除',
       emptyConfirm: n => '永久删除 ' + n + ' 个模组？此操作无法撤销。',
       trashSettings: '含设置文件', trashThisSession: '这次卸载',
-      pageHealth: '安装检查', healthTitle: '安装检查', healthNone: '没有发现问题。',
+      pageHealth: '健康', healthTitle: '安装检查', healthNone: '没有发现问题。',
+      healthAllClear: '没有发现问题：安装检查正常，也没有无法对应到模组的错误。',
+      healthSum: { err: n => n + ' 个问题', warn: n => n + ' 个警告', info: n => n + ' 条提示' },
       pageBrowse: '浏览', browseTitle: 'Survival Log 的模组',
       browseIntro: 'Nexus Mods 上本游戏的所有模组。支持模组管理器的模组可以在这里安装，并在模组列表中获得更新；其他的需要从 Nexus 手动下载。',
       browseOff: '浏览需要开启更新检查，而它现在是关闭的。在模组管理器的设置中开启「Check For Updates」即可查看模组。',
@@ -336,9 +342,11 @@
       bwAll: '全部', bwInstallable: '一键安装', bwManual: '手动下载', bwInstalledF: '已安装',
       bwSortEndorsed: '最多点赞', bwSortUpdated: '最近更新', bwSortName: '名称',
       bwInstalled: '已安装', bwInstall: '安装', bwOpenNexus: '在 NEXUS 打开', bwAsk: '请作者支持',
-      bwShameTitle: '不支持模组管理器：需要手动下载。',
-      bwShameBody: '作者还没有为模组管理器做好设置，所以你得从 Nexus 下载并手动解压，而且它不会提示更新。「请作者支持」会复制一段简短的请求，并打开该模组在 Nexus 上的帖子页面，你可以把请求粘贴到那里。',
+      bwShameTitle: '不支持模组管理器',
+      bwShameBody: '需要手动下载。作者还没有为模组管理器做好设置，所以你得从 Nexus 下载并手动解压，而且它不会提示更新。「请作者支持」会复制一段简短的请求，并打开该模组在 Nexus 上的帖子页面，你可以把请求粘贴到那里。',
       bwAsked: '请求已复制。请粘贴到该模组在 Nexus 上的帖子里。', bwAskFailed: '无法复制请求。该模组在 Nexus 上的帖子页面已打开。',
+      bwNoIndex: '无法读取维基上支持模组管理器的模组列表，所以这里暂时无法安装，也不会把任何模组标为手动下载。模组管理器下次检查更新时会再次获取。',
+      bwUnknown: '是否支持未知',
       bwInstalling: '正在安装。',
       bwDone: tag => '已安装 ' + tag + '。下次启动游戏时生效。',
       bwFailed: reason => '无法安装：' + reason + '。',
@@ -431,6 +439,7 @@
     // BROWSE: what the player searched, which mods and which order, and the mod whose request was last copied.
     browseQuery: '',
     browseFilter: 'all',
+    bwShameOpen: {},
     browseSort: 'endorsed',
     asked: null,
     // PROFILES: the profile whose DELETE asks first, and the one whose code was last copied.
@@ -568,10 +577,6 @@
 #slmm .hd-tabs .hd-title { cursor: pointer; transition: color .2s; display: flex; align-items: center; gap: 10px; }
 #slmm .hd-tabs .hd-title:not(.on) { color: #555; }
 #slmm .hd-tabs .hd-title:not(.on):hover { color: #999; }
-#slmm .hd-err i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: var(--red); border-radius: 3px; padding: 2px 7px; }
-#slmm .hd-err.warn i { background: #e8813a; }
-#slmm .win.page-errors .bd { grid-template-columns: 1fr; }
-#slmm .win.page-errors .rail { display: none; }
 #slmm .win.page-trash .bd { grid-template-columns: 1fr; }
 #slmm .win.page-trash .rail { display: none; }
 #slmm .hd-trash i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: #888; border-radius: 3px; padding: 2px 7px; }
@@ -594,8 +599,12 @@
 #slmm .bw-sum { color: #999; font-size: .9rem; line-height: 1.45; margin-top: 6px; }
 #slmm .bw-tag { display: inline-block; margin-top: 8px; font-family: var(--mono); font-size: .75rem; letter-spacing: 1px; padding: 2px 7px; border: 1px solid rgba(255,255,255,0.15); color: #999; }
 #slmm .bw-tag.ok { color: #7c7; border-color: rgba(120,200,120,0.4); }
-#slmm .bw-shame { margin-top: 8px; padding: 8px 10px; border-left: 3px solid #d0503c; background: rgba(208,80,60,0.08); color: #bbb; font-size: .88rem; line-height: 1.5; }
-#slmm .bw-shame b { color: #e8735f; }
+#slmm .bw-shame { margin-top: 8px; padding: 6px 10px; border-left: 3px solid #d0503c; background: rgba(208,80,60,0.08); color: #bbb; font-size: .88rem; line-height: 1.5; }
+#slmm .bw-shame-t { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #e8735f; font-weight: 700; }
+#slmm .bw-shame-t:hover { color: #ff9a85; }
+#slmm .bw-shame-t .chev { font-family: var(--mono); font-size: .75rem; color: #a55; }
+#slmm .bw-shame-b { margin-top: 6px; }
+#slmm .bw-shame .acts { margin-top: 8px; }
 #slmm .bw-card .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 #slmm .bw-card .upd-line { margin-top: 8px; }
 #slmm .win.page-health .rail { display: none; }
@@ -616,6 +625,12 @@
 #slmm .hd-health i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: #888; border-radius: 3px; padding: 2px 7px; }
 #slmm .hd-health.err i { background: var(--red); }
 #slmm .hd-health.warn i { background: #e8813a; }
+#slmm .hl-sum { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+#slmm .hl-pip { font-family: var(--mono); font-size: .85rem; letter-spacing: 1px; padding: 4px 10px; border: 1px solid rgba(255,255,255,0.15); color: #bbb; }
+#slmm .hl-pip.err { color: #f08070; border-color: rgba(220,80,60,0.5); background: rgba(220,80,60,0.08); }
+#slmm .hl-pip.warn { color: #f0a060; border-color: rgba(232,129,58,0.5); background: rgba(232,129,58,0.08); }
+#slmm .hl-sec + .hl-sec { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+#slmm .hl-clear { margin-top: 12px; color: #7c7; font-size: .95rem; }
 #slmm .hl-item { padding: 14px 16px; margin-top: 12px; border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid #888; background: rgba(0,0,0,0.25); }
 #slmm .hl-item.err { border-left-color: var(--red); }
 #slmm .hl-item.warn { border-left-color: #e8813a; }
@@ -1108,7 +1123,7 @@
 <div class="stage"><div class="win">
   <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
   <div class="hd">
-    <div class="hd-tabs"><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-err" data-page="errors"><span data-word="pageErrors"></span><i data-count="otherErrors"></i></div><div class="hd-title hd-health" data-page="health"><span data-word="pageHealth"></span><i data-count="health"></i></div><div class="hd-title hd-trash" data-page="trash"><span data-word="pageTrash"></span><i data-count="trash"></i></div><div class="hd-title hd-browse" data-page="browse"><span data-word="pageBrowse"></span></div><div class="hd-title hd-profiles" data-page="profiles"><span data-word="pageProfiles"></span></div></div>
+    <div class="hd-tabs"><div class="hd-title hd-browse" data-page="browse"><span data-word="pageBrowse"></span></div><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-profiles" data-page="profiles"><span data-word="pageProfiles"></span></div><div class="hd-title hd-health" data-page="health"><span data-word="pageHealth"></span><i data-count="health"></i></div><div class="hd-title hd-trash" data-page="trash"><span data-word="pageTrash"></span><i data-count="trash"></i></div></div>
     <div class="hd-deco"><span>// MOD MANAGER</span><span><b data-count="loaded">0</b> <span data-word="loaded"></span></span><span><b data-count="settings">0</b> <span data-word="settings"></span></span></div>
     <div class="hd-sp"></div>
     <div class="seg"><span data-lang="en">EN</span><span data-lang="zh">中文</span></div>
@@ -1274,25 +1289,23 @@
     const others = otherErrors();
     const trashed = trash();
     const found = health();
+    const healthCount = found.length + others.length;
+    const healthWorst = healthLevel(found) === 'err' || others.some(e => e.level === 'error') ? 'err' : healthLevel(found) === 'warn' || others.length ? 'warn' : 'info';
 
-    // The TRASH and HEALTH pages stay while they show what their last button did, even with nothing left in them.
-    if (state.page === 'errors' && !others.length || state.page === 'trash' && !trashed.length && !trashNote() || state.page === 'health' && !found.length) state.page = 'mods';
+    // HEALTH holds the install check and the errors no mod could be matched to. TRASH stays while it shows what its last button did, even when empty.
+    if (state.page === 'trash' && !trashed.length && !trashNote() || state.page === 'health' && !healthCount) state.page = 'mods';
 
-    $('.win').classList.toggle('page-errors', state.page === 'errors');
     $('.win').classList.toggle('page-trash', state.page === 'trash');
     $('.win').classList.toggle('page-health', state.page === 'health');
     $('.win').classList.toggle('page-browse', state.page === 'browse');
     $('.win').classList.toggle('page-profiles', state.page === 'profiles');
     $('[data-page="trash"]').style.display = trashed.length || state.page === 'trash' ? '' : 'none';
     setCount('trash', trashed.length);
-    $('[data-page="health"]').style.display = found.length || state.page === 'health' ? '' : 'none';
-    $('[data-page="health"]').classList.toggle('err', healthLevel(found) === 'err');
-    $('[data-page="health"]').classList.toggle('warn', healthLevel(found) === 'warn');
-    setCount('health', found.length);
+    $('[data-page="health"]').style.display = healthCount || state.page === 'health' ? '' : 'none';
+    $('[data-page="health"]').classList.toggle('err', healthWorst === 'err');
+    $('[data-page="health"]').classList.toggle('warn', healthWorst === 'warn');
+    setCount('health', healthCount);
     root.querySelectorAll('[data-page]').forEach(el => el.classList.toggle('on', el.dataset.page === state.page));
-    $('[data-page="errors"]').style.display = others.length ? '' : 'none';
-    $('[data-page="errors"]').classList.toggle('warn', !others.some(e => e.level === 'error'));
-    setCount('otherErrors', others.length);
 
     root.querySelectorAll('[data-word]').forEach(el => { el.textContent = word(el.dataset.word); });
     root.querySelectorAll('[data-lang]').forEach(el => el.classList.toggle('on', el.dataset.lang === state.lang));
@@ -1380,13 +1393,6 @@
     return state.view ? state.view.otherErrors : [];
   }
 
-  // The ERRORS page beside MODS: every error no mod could be found for, in full.
-  function otherErrorsPage() {
-    const others = otherErrors();
-
-    return '<div class="errs-page"><div class="sec-t">' + esc(word('otherErrors')) + ' &middot; ' + others.length + '</div>' +
-      '<div class="cf-intro">' + esc(word('otherErrorsIntro')) + '</div>' + others.map(errorBlock).join('') + '</div>';
-  }
 
   function trash() {
     return state.view && state.view.trash ? state.view.trash : [];
@@ -1448,7 +1454,8 @@
     const bar = '<div class="bw-bar"><input class="bw-find" autocomplete="off" spellcheck="false" placeholder="' + esc(word('browseFind')) + '">' +
       '<div class="chips">' + chips(BROWSE_FILTERS, state.browseFilter, 'data-bwfilter', true) + '</div><div class="chips">' + chips(BROWSE_SORTS, state.browseSort, 'data-bwsort', false) + '</div></div>';
     const shown = shownBrowse();
-    const asking = feed === 'asking' ? '<div class="cf-intro">' + esc(word('browseAsking')) + '</div>' : '';
+    const asking = feed === 'asking' ? '<div class="cf-intro">' + esc(word('browseAsking')) + '</div>'
+      : all.some(b => b.support === 'unknown') ? notice('warn', '', word('bwNoIndex')) : '';
     const cards = shown.length ? '<div class="bw-grid">' + shown.map(browseCard).join('') + '</div>' : '<div class="empty"><div class="big">' + esc(word('browseNone')) + '</div></div>';
 
     return head + bar + asking + cards + '</div>';
@@ -1463,11 +1470,14 @@
     let acts = '';
 
     if (b.support === 'installed') status = '<div class="bw-tag ok">' + esc(word('bwInstalled')) + '</div>';
+    else if (b.support === 'unknown') status = '<div class="bw-tag">' + esc(word('bwUnknown')) + '</div>';
     else if (b.support === 'manual') {
+      // Folded to its one-line title until the player opens it, so the list stays about the mods.
+      const open = !!state.bwShameOpen[b.key];
       const asked = state.asked && state.asked.key === b.key ? '<div class="upd-line' + (state.asked.ok ? ' ok' : ' bad') + '">' + esc(word(state.asked.ok ? 'bwAsked' : 'bwAskFailed')) + '</div>' : '';
+      const body = open ? '<div class="bw-shame-b">' + esc(word('bwShameBody')) + '</div>' + (b.nexus ? '<div class="acts">' + button('bwAsk', word('bwAsk')) + '</div>' : '') : '';
 
-      status = '<div class="bw-shame"><b>' + esc(word('bwShameTitle')) + '</b> ' + esc(word('bwShameBody')) + '</div>' + asked;
-      acts = b.nexus ? button('bwAsk', word('bwAsk')) : '';
+      status = '<div class="bw-shame' + (open ? ' open' : '') + '"><div class="bw-shame-t" data-act="bwShame"><span class="chev">' + (open ? '\u25BE' : '\u25B8') + '</span>' + esc(word('bwShameTitle')) + '</div>' + body + '</div>' + asked;
     } else {
       const install = b.install;
 
@@ -1569,13 +1579,27 @@
     return found.some(f => HEALTH_LEVEL[f.kind] === 'err') ? 'err' : found.some(f => HEALTH_LEVEL[f.kind] === 'warn') ? 'warn' : 'info';
   }
 
-  // The HEALTH page beside MODS: what is wrong with how BepInEx and the mods are installed.
+  // The HEALTH page beside MODS: what is wrong with how BepInEx and the mods are installed, and every error no mod could
+  // be found for. Each part is worst first, the part with the worst finding comes first, and one line counts them all.
   function healthPage() {
-    const found = health();
-    const items = found.length ? found.map(healthItem).join('') : '<div class="empty"><div class="big">' + esc(word('healthNone')) + '</div></div>';
+    const rank = { err: 0, warn: 1, info: 2 };
+    const found = health().slice().sort((a, b) => rank[HEALTH_LEVEL[a.kind] || 'info'] - rank[HEALTH_LEVEL[b.kind] || 'info']);
+    const others = otherErrors().slice().sort((a, b) => (a.level === 'error' ? 0 : 1) - (b.level === 'error' ? 0 : 1) || b.count - a.count);
 
-    return '<div class="errs-page health-page"><div class="sec-t">' + esc(word('healthTitle')) + ' &middot; ' + found.length + '</div>' +
-      '<div class="cf-intro">' + esc(word('healthIntro')) + '</div>' + items + '</div>';
+    if (!found.length && !others.length) return '<div class="errs-page health-page"><div class="empty"><div class="big">' + esc(word('healthAllClear')) + '</div></div></div>';
+
+    const tally = { err: 0, warn: 0, info: 0 };
+
+    found.forEach(f => { tally[HEALTH_LEVEL[f.kind] || 'info']++; });
+    others.forEach(e => { tally[e.level === 'error' ? 'err' : 'warn']++; });
+
+    const summary = '<div class="hl-sum">' + ['err', 'warn', 'info'].filter(level => tally[level]).map(level => '<span class="hl-pip ' + level + '">' + esc(word('healthSum')[level](tally[level])) + '</span>').join('') + '</div>';
+    const install = '<div class="hl-sec"><div class="sec-t">' + esc(word('healthTitle')) + ' &middot; ' + found.length + '</div><div class="cf-intro">' + esc(word('healthIntro')) + '</div>' +
+      (found.length ? found.map(healthItem).join('') : '<div class="hl-clear">' + esc(word('healthNone')) + '</div>') + '</div>';
+    const logged = others.length ? '<div class="hl-sec"><div class="sec-t">' + esc(word('otherErrors')) + ' &middot; ' + others.length + '</div><div class="cf-intro">' + esc(word('otherErrorsIntro')) + '</div>' + others.map(errorBlock).join('') + '</div>' : '';
+    const installFirst = found.length && (healthLevel(found) === 'err' || !others.some(e => e.level === 'error'));
+
+    return '<div class="errs-page health-page">' + summary + (installFirst || !others.length ? install + logged : logged + install) + '</div>';
   }
 
   function healthItem(f) {
@@ -1668,9 +1692,9 @@
   }
 
   function renderPane() {
-    if (state.page === 'errors' || state.page === 'trash' || state.page === 'health' || state.page === 'browse' || state.page === 'profiles') {
+    if (state.page === 'trash' || state.page === 'health' || state.page === 'browse' || state.page === 'profiles') {
       showOwnTab(null, null);
-      morph(pane, state.page === 'errors' ? otherErrorsPage() : state.page === 'trash' ? trashPage() : state.page === 'health' ? healthPage() : state.page === 'browse' ? browsePage() : profilesPage());
+      morph(pane, state.page === 'trash' ? trashPage() : state.page === 'health' ? healthPage() : state.page === 'browse' ? browsePage() : profilesPage());
 
       return;
     }
@@ -3316,7 +3340,12 @@
     else if (actName === 'bwUndo' && browseOf(act)) send('browseUndo', [browseOf(act).guid]);
     else if (actName === 'bwNexus' && browseOf(act)) send('nexusPage', [String(browseOf(act).nexus)]);
     else if (actName === 'bwNeedNexus') send('nexusPage', [act.dataset.nexus]);
-    else if (actName === 'bwAsk' && browseOf(act)) {
+    else if (actName === 'bwShame' && browseOf(act)) {
+      const key = browseOf(act).key;
+
+      state.bwShameOpen[key] = !state.bwShameOpen[key];
+      render();
+    } else if (actName === 'bwAsk' && browseOf(act)) {
       state.asked = { key: browseOf(act).key, ok: null };
       send('askAuthor', [String(browseOf(act).nexus)]);
     }

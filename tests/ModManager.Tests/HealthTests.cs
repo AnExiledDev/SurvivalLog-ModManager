@@ -258,6 +258,38 @@ public class HealthTests
         Assert.Contains("<div>com.bob.gone.cfg</div>", page);
     }
 
+    [Fact]
+    public void Errors_no_mod_could_be_matched_to_are_on_the_health_page_counted_with_the_findings()
+    {
+        var crash = new Problem(ProblemLevel.Error, "Unity", "game crash", Array.Empty<string>(), Array.Empty<string>(), 2, 1);
+        var hint = crash with { Level = ProblemLevel.Warning, Message = "texture missing" };
+        var view = View(new[] { Loaded("g") }, new HealthFinding.NestedFolder("plugins/Radar/BepInEx")) with
+        {
+            OtherErrors = new[] { new ModProblem(hint, Array.Empty<ClashHint>()), new ModProblem(crash, Array.Empty<ClashHint>()) },
+        };
+
+        var page = OpenHealth(Page(view));
+
+        Assert.Contains("Install check &middot; 1", page);
+        Assert.Contains("BepInEx and game errors &middot; 2", page);
+        Assert.Contains("1 problem", page);
+        Assert.Contains("2 warnings", page);
+        Assert.True(page.IndexOf("game crash", StringComparison.Ordinal) < page.IndexOf("texture missing", StringComparison.Ordinal), "an error comes before a warning");
+        Assert.True(page.IndexOf("BepInEx and game errors", StringComparison.Ordinal) < page.IndexOf("Install check", StringComparison.Ordinal), "the part with the worst finding comes first");
+    }
+
+    [Fact]
+    public void With_only_errors_the_health_page_still_opens_and_says_the_install_check_is_clean()
+    {
+        var crash = new Problem(ProblemLevel.Error, "Unity", "game crash", Array.Empty<string>(), Array.Empty<string>(), 1, 1);
+        var view = View(new[] { Loaded("g") }) with { OtherErrors = new[] { new ModProblem(crash, Array.Empty<ClashHint>()) } };
+
+        var page = OpenHealth(Page(view));
+
+        Assert.Contains("game crash", page);
+        Assert.Contains("Nothing wrong was found.", page);
+    }
+
     private static ModEntry Loaded(string guid) =>
         new(guid, guid, "1.0", guid + ".dll", new ModState.Loaded(Array.Empty<Setting>()), ModInfo.None, new ModSwitch.Allowed(true, Array.Empty<string>()), new UpdateState.NotChecked());
 

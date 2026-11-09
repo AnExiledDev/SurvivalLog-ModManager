@@ -80,6 +80,9 @@ public sealed record ModInfo
     /// <summary>"owner/repository" when the mod names one on GitHub.</summary>
     public string? GitHubRepository => Link(LinkKind.GitHub)?.Url is { } url ? url.Substring(ModInfoReader.GitHubBase.Length) : null;
 
+    /// <summary>The mod's Nexus Mods page number, when it names one.</summary>
+    public int? NexusId => Link(LinkKind.Nexus)?.Url is { } url && int.TryParse(url.Substring(url.LastIndexOf('/') + 1), out var id) ? id : null;
+
     /// <summary>The repository whose releases are checked for updates, unless the mod opted out.</summary>
     public string? UpdateRepository => ChecksForUpdates ? GitHubRepository : null;
 }

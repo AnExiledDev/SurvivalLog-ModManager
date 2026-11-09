@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.20.1
+
+- Fixed: BROWSE no longer marks mods as having no Mod Manager support when it could not get the wiki's list of supported mods. It says the list could not be read instead, and an installed mod that names its Nexus page always shows as INSTALLED.
+- On BROWSE, the "No Mod Manager support" note is folded to one line. Click it for the full note and ASK THE AUTHOR.
+- The pages at the top are now BROWSE, MODS, PROFILES, HEALTH. The screen still opens on MODS.
+- The ERRORS page is part of HEALTH now: one page with the install check and the errors no mod could be matched to, worst first, under a line that counts problems and warnings.
+- Made for Survival Log 1.1.20719.
+
 ## 0.20.0
 
 - New PROFILES page beside BROWSE. SAVE THIS SETUP keeps which mods are on and off and every setting you changed, so you can go back to it later.

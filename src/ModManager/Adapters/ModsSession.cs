@@ -784,7 +784,7 @@ internal sealed class ModsSession
             ErrorsNotKept = errorsNotKept,
             Trash = _catalog.Trash(),
             Health = _catalog.Health(mods),
-            Browse = _isCheckingForUpdates() ? Browse.List(_updates.Nexus, _updates.Index, mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal), mods.Select(mod => mod.Known.Nexus?.ModId).OfType<int>().ToHashSet(), _updates.InstallOf, _updates.FreshOf) : Array.Empty<BrowseMod>(),
+            Browse = _isCheckingForUpdates() ? Browse.List(_updates.Nexus, _updates.Index, mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal), Browse.InstalledNexusIds(mods, _updates.Index), _updates.InstallOf, _updates.FreshOf) : Array.Empty<BrowseMod>(),
             BrowseFeed = !_isCheckingForUpdates() ? BrowseFeed.Off : _nexus.IsAsking || !_checks.IsIndexSettled ? BrowseFeed.Asking : BrowseFeed.Ready,
             Profiles = new ProfilesView(Profiles(), ShownCheck(mods), _profileProblem, _profileNote),
         };
