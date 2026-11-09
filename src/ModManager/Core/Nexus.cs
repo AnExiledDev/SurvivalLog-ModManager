@@ -9,7 +9,18 @@ using System.Text.RegularExpressions;
 namespace ModManager.Core;
 
 /// <summary>One of the game's mods on Nexus Mods, as the public list shows it.</summary>
-public sealed record NexusMod(int ModId, string Name, string Version, string UpdatedAt, string Uploader);
+public sealed record NexusMod(int ModId, string Name, string Version, string UpdatedAt, string Uploader)
+{
+    /// <summary>The short text under the mod's name on Nexus, as its author wrote it.</summary>
+    public string Summary { get; init; } = "";
+
+    /// <summary>The mod's small picture on Nexus's own image host, or null.</summary>
+    public string? Thumbnail { get; init; }
+
+    public int Endorsements { get; init; }
+
+    public int Downloads { get; init; }
+}
 
 /// <summary>One file of a mod on Nexus Mods: its version, its place on the page (MAIN, OPTIONAL, OLD_VERSION, ARCHIVED) and its manifest.</summary>
 public sealed record NexusFile(int FileId, string Version, string Category, string Uri);
@@ -96,6 +107,7 @@ public sealed class NexusCache
             json.WriteStartObject();
             json.WriteNumber("schema", Schema);
             json.WriteString("checked", CheckedAt?.ToString("O") ?? "");
+            json.WriteBoolean("browse", true);
             json.WriteStartArray("mods");
 
             foreach (var mod in Mods)
@@ -106,6 +118,10 @@ public sealed class NexusCache
                 json.WriteString("version", mod.Version);
                 json.WriteString("updated", mod.UpdatedAt);
                 json.WriteString("uploader", mod.Uploader);
+                json.WriteString("summary", mod.Summary);
+                json.WriteString("thumbnail", mod.Thumbnail ?? "");
+                json.WriteNumber("endorsements", mod.Endorsements);
+                json.WriteNumber("downloads", mod.Downloads);
                 json.WriteEndObject();
             }
 
@@ -161,10 +177,20 @@ public sealed class NexusCache
 
             if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("schema", out var schema) || schema.ValueKind != JsonValueKind.Number || !schema.TryGetInt32(out var number) || number != Schema) return null;
 
-            DateTimeOffset? checkedAt = DateTimeOffset.TryParse(Json.StringOf(root, "checked"), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var at) ? at : null;
+            // A copy saved before the list carried what BROWSE shows counts as never checked, so the list is read again
+            // at once; its files and manifests are kept.
+            DateTimeOffset? checkedAt = root.TryGetProperty("browse", out _) && DateTimeOffset.TryParse(Json.StringOf(root, "checked"), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var at) ? at : null;
 
             var mods = Json.ArrayOf(root, "mods").Take(MaxMods)
-                .Select(item => Json.IntOf(item, "id") is { } id ? new NexusMod(id, Json.StringOf(item, "name") ?? "", Json.StringOf(item, "version") ?? "", Json.StringOf(item, "updated") ?? "", Json.StringOf(item, "uploader") ?? "") : null)
+                .Select(item => Json.IntOf(item, "id") is { } id
+                    ? new NexusMod(id, Json.StringOf(item, "name") ?? "", Json.StringOf(item, "version") ?? "", Json.StringOf(item, "updated") ?? "", Json.StringOf(item, "uploader") ?? "")
+                    {
+                        Summary = NexusApi.CutSummary(Json.StringOf(item, "summary") ?? ""),
+                        Thumbnail = NexusApi.PictureOf(Json.StringOf(item, "thumbnail")),
+                        Endorsements = Math.Max(0, Json.IntOf(item, "endorsements") ?? 0),
+                        Downloads = Math.Max(0, Json.IntOf(item, "downloads") ?? 0),
+                    }
+                    : null)
                 .OfType<NexusMod>().ToList();
 
             var files = new Dictionary<int, NexusFiles>();
@@ -239,6 +265,20 @@ public static class NexusApi
     /// <summary>Once a day at most; a clock that went back counts as due, so a wrong date cannot stop the checks for good.</summary>
     public static bool IsDue(DateTimeOffset? checkedAt, DateTimeOffset now) => checkedAt is not { } at || now - at >= Every || at > now;
 
+    public const string PictureHost = "staticdelivery.nexusmods.com";
+
+    private static readonly char[] UnsafeInAddress = { '"', '\'', '<', '>', ' ', '\\', '(', ')' };
+
+    /// <summary>The mod's Posts tab, where a player can write to its author.</summary>
+    public static string PostsUrl(int modId) => PageUrl(modId) + "?tab=posts";
+
+    /// <summary>A picture only from Nexus's own image host, over https; any other address is not shown.</summary>
+    public static string? PictureOf(string? url) =>
+        url != null && url.Length <= 300 && url.IndexOfAny(UnsafeInAddress) < 0 && Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps && uri.IsDefaultPort && uri.UserInfo.Length == 0 && uri.Host == PictureHost ? url : null;
+
+    /// <summary>A summary as long as Nexus allows, and no longer.</summary>
+    public static string CutSummary(string text) => text.Length <= 400 ? text : text.Substring(0, 400);
+
     public static string PageUrl(int modId) => "https://www.nexusmods.com/" + GameDomain + "/mods/" + modId.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     public static bool IsManifestUri(string uri) => ManifestPath.IsMatch(uri);
@@ -248,7 +288,7 @@ public static class NexusApi
     public static Uri ManifestUri(string uri) => new(ManifestRoot + uri);
 
     public static string ModsRequest(int offset) => Request(
-        "{ mods(filter: { gameDomainName: { value: \"" + GameDomain + "\", op: EQUALS } }, count: " + PageSize + ", offset: " + offset + ") { totalCount nodes { modId name version updatedAt uploader { name } } } }");
+        "{ mods(filter: { gameDomainName: { value: \"" + GameDomain + "\", op: EQUALS } }, count: " + PageSize + ", offset: " + offset + ") { totalCount nodes { modId name version updatedAt summary thumbnailUrl endorsements downloads uploader { name } } } }");
 
     /// <summary>One request for several mods' files, each under its own name.</summary>
     public static string FilesRequest(IEnumerable<int> modIds) => Request(
@@ -281,6 +321,12 @@ public static class NexusApi
         var list = Json.ArrayOf(mods, "nodes")
             .Select(node => Json.IntOf(node, "modId") is { } id and > 0
                 ? new NexusMod(id, Cut(Json.StringOf(node, "name") ?? ""), Cut(Json.StringOf(node, "version") ?? ""), Cut(Json.StringOf(node, "updatedAt") ?? ""), node.TryGetProperty("uploader", out var uploader) && uploader.ValueKind == JsonValueKind.Object ? Cut(Json.StringOf(uploader, "name") ?? "") : "")
+                {
+                    Summary = CutSummary(Json.StringOf(node, "summary") ?? ""),
+                    Thumbnail = PictureOf(Json.StringOf(node, "thumbnailUrl")),
+                    Endorsements = Math.Max(0, Json.IntOf(node, "endorsements") ?? 0),
+                    Downloads = Math.Max(0, Json.IntOf(node, "downloads") ?? 0),
+                }
                 : null)
             .OfType<NexusMod>().ToList();
 

@@ -17,6 +17,14 @@ public sealed record IndexRelease(string Version, IReadOnlyList<string> Games, s
 /// <param name="GitHub">The repository its releases come from, as "owner/name".</param>
 public sealed record IndexMod(string Guid, string Name, string? Slug, int? NexusId, string? GitHub, IReadOnlyList<IndexRelease> Releases);
 
+/// <summary>
+/// A mod the wiki keeps no copy of, whose author publishes it on GitHub the way the Mod Manager installs from: a release
+/// zip holding its DLL. BROWSE installs it from there.
+/// </summary>
+/// <param name="GitHub">The repository, as "owner/name".</param>
+/// <param name="Dll">The mod's DLL file name.</param>
+public sealed record IndexListed(string Guid, string Name, int? NexusId, string GitHub, string Dll);
+
 /// <summary>Two mods known not to work together.</summary>
 public sealed record IndexConflict(string A, string B, BilingualText Why);
 
@@ -58,6 +66,11 @@ public sealed class ModIndex
 
     /// <summary>The Nexus page number of mods that are not on the wiki, by GUID.</summary>
     public IReadOnlyDictionary<string, int> NexusIds { get; }
+
+    /// <summary>Mods of other authors that install from their own GitHub releases.</summary>
+    public IReadOnlyList<IndexListed> Listed { get; init; } = Array.Empty<IndexListed>();
+
+    public IndexListed? ListedOf(string guid) => Listed.FirstOrDefault(listed => listed.Guid == guid);
 
     public IndexMod? ModOf(string guid) => _byGuid.TryGetValue(guid, out var mod) ? mod : null;
 
@@ -117,9 +130,10 @@ public sealed class ModIndex
             .ToList();
 
     /// <summary>The mod's Nexus page number: the wiki's own mods carry it, and others are listed by GUID.</summary>
-    public int? NexusIdOf(string guid) => ModOf(guid)?.NexusId ?? (NexusIds.TryGetValue(guid, out var id) ? id : null);
+    public int? NexusIdOf(string guid) => ModOf(guid)?.NexusId ?? (NexusIds.TryGetValue(guid, out var id) ? id : ListedOf(guid)?.NexusId);
 
-    private static IndexRelease? Newest(IndexMod mod) =>
+    /// <summary>The mod's newest release, or null when the wiki keeps none.</summary>
+    public static IndexRelease? Newest(IndexMod mod) =>
         mod.Releases
             .Select(release => (Release: release, Version: ReleaseVersion.Parse(release.Version)))
             .Where(pair => pair.Version != null)
@@ -167,8 +181,9 @@ public static class ModIndexReader
             var conflicts = Conflicts(root, ignored);
             var broken = Broken(root, ignored);
             var nexusIds = NexusIds(root, ignored);
+            var listed = Listed(root, ignored, mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal));
 
-            return (new ModIndexRead(new ModIndex(StringOf(root, "generated") ?? "", mods, conflicts, broken, nexusIds), ignored), null);
+            return (new ModIndexRead(new ModIndex(StringOf(root, "generated") ?? "", mods, conflicts, broken, nexusIds) { Listed = listed }, ignored), null);
         }
         catch (JsonException ex)
         {
@@ -312,6 +327,40 @@ public static class ModIndexReader
         }
 
         return ids;
+    }
+
+    private static readonly Regex DllName = new("^[A-Za-z0-9_][A-Za-z0-9_.-]{0,100}\\.dll$", RegexOptions.CultureInvariant);
+
+    /// <summary>Mods of other authors, each once; one the wiki keeps copies of is installed from those instead.</summary>
+    private static List<IndexListed> Listed(JsonElement root, List<string> ignored, IReadOnlySet<string> mirrored)
+    {
+        var listed = new List<IndexListed>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var item in ArrayOf(root, "listed").Take(MaxListed))
+        {
+            var guid = item.ValueKind == JsonValueKind.Object ? StringOf(item, "guid") : null;
+            var github = guid == null ? null : StringOf(item, "github");
+            var dll = guid == null ? null : StringOf(item, "dll");
+
+            if (guid == null || guid.Length > 200 || github == null || !IsRepository(github) || dll == null || !DllName.IsMatch(dll) || dll.Contains(".."))
+            {
+                ignored.Add("a listed mod that does not name its GUID, its GitHub repository and its DLL");
+
+                continue;
+            }
+
+            if (mirrored.Contains(guid) || !seen.Add(guid))
+            {
+                ignored.Add("a second entry for " + guid);
+
+                continue;
+            }
+
+            listed.Add(new IndexListed(guid, Cut(StringOf(item, "name") ?? guid), PositiveInt(item, "nexus"), github, dll));
+        }
+
+        return listed;
     }
 
     /// <summary>The English reason, and the Chinese one when there is one (else the English again).</summary>

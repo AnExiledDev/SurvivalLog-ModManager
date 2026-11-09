@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.19.0
+
+- New BROWSE page beside MODS: every mod for Survival Log on Nexus Mods, with search, filters and sorting.
+- Mods whose authors set them up for the Mod Manager install with one INSTALL click, along with the mods they need that install the same way. UNDO in the bar at the bottom takes a new mod out again before the next start.
+- Every other mod is marked as a manual download. ASK THE AUTHOR copies a short request for Mod Manager support, in English and Chinese, and opens the mod's posts on Nexus for you to paste it.
+- Made for Survival Log 1.1.20719.
+
 ## 0.18.2
 
 - With Save Backups 0.5.0 or newer installed, your saves are backed up before updates are installed: the run you are playing, or every save on the title screen. Installs close together ask for one backup.

@@ -186,6 +186,12 @@ internal sealed class PluginCatalog
 
     public IReadOnlyList<string> Problems() => IL2CPPChainloader.Instance.DependencyErrors.ToList();
 
+    /// <summary>Where BROWSE installs a mod: straight in the plugins folder.</summary>
+    public string PluginsFolder => _folders.Plugins;
+
+    /// <summary>True when a turned-off DLL of this name waits at the top of an off folder, so a fresh copy would meet it when turned on.</summary>
+    public bool IsOffThere(string dllName) => _folders.OffFolders.Any(folder => File.Exists(Path.Combine(folder, dllName)));
+
     public ModEntry? Mod(string guid) => Mods().FirstOrDefault(mod => mod.Guid == guid);
 
     public ModLink? Link(string guid, LinkKind kind) => Mod(guid)?.Info.Link(kind);

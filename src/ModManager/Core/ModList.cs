@@ -184,6 +184,11 @@ public sealed record ModsView(IReadOnlyList<ModEntry> Mods, IReadOnlyList<string
 
     /// <summary>What is wrong with how BepInEx and the mods are installed, the worst first.</summary>
     public IReadOnlyList<HealthFinding> Health { get; init; } = Array.Empty<HealthFinding>();
+
+    /// <summary>The mods for the game on Nexus and the wiki, for BROWSE.</summary>
+    public IReadOnlyList<BrowseMod> Browse { get; init; } = Array.Empty<BrowseMod>();
+
+    public BrowseFeed BrowseFeed { get; init; } = BrowseFeed.Off;
 }
 
 /// <summary>

@@ -25,6 +25,7 @@ Open it with the Mods button in the Esc menu or on the title screen, or set a ke
 - **Uninstall**: UNINSTALL on a mod's page moves its DLL, and its settings file if you tick the box, into `BepInEx\mod-manager\trash`. Before it does, it says whether the mod can get your save ready to load without it (its Uninstall Prep setting, with a button to turn it on), and which other mods stop with it. The mod keeps running until you quit. The TRASH page beside MODS lists every uninstalled mod with RESTORE, which puts it back where it was, and EMPTY TRASH, which deletes them for good (except the ones uninstalled this session, which the game is still running).
 - **Changes waiting for a restart**: a bar at the bottom of the screen lists every mod turned on or off, uninstalled, updated or rolled back this session, and every changed setting that applies only after a restart. UNDO takes one back where it can, and QUIT GAME asks first, then quits the way closing the game's window does, so the game saves your run.
 - **Health check**: the HEALTH page beside MODS shows up when something is wrong with how mods are installed: one mod in two DLLs, the same DLL installed twice, a folder unpacked one level too deep inside `BepInEx\plugins`, a BepInEx build other than `6.0.0-be.788`, a mod that needs a newer Exiled's Toolkit than the one installed, and settings files in `BepInEx\config` that no installed mod uses.
+- **Browse**: the BROWSE page beside MODS lists every mod for Survival Log on Nexus Mods, with its picture, author, endorsements and downloads, a search box, filters and sorting. A mod whose author set it up for the Mod Manager has an INSTALL button: it goes straight into `BepInEx\plugins` for the next game start, along with any mods it needs that install the same way, and UNDO in the bar at the bottom takes it out again. A mod from the wiki's list installs from the wiki's checked copy; one installed from its author's GitHub that can do something like connect to the internet says so first and waits for INSTALL ANYWAY. Every other mod is marked as a manual download, with OPEN ON NEXUS and ASK THE AUTHOR, which copies a short request for Mod Manager support (in English and Chinese) and opens the mod's posts on Nexus for you to paste it. Nothing is ever posted for you.
 - **What a mod needs**: a mod's page lists the mods it needs, the ones it works with when present, and the ones it does not work with, each marked on, off, not installed or wrong version, with the version range it asks for. It also lists the mods that need it or can use it, so you can see what turning it off affects. When something it needs is off, a TURN ON WHAT IT NEEDS button turns those on for the next start, along with whatever they need in turn, and names any that are not installed.
 - **Game version check**: a mod can name the game version it was made for, and its author can later list more game versions it works on (see "Game versions it works on"). When the game is none of them, the mod gets a grey VERSION mark and a note on its page that it may still work. Once it logs errors this session, the mark turns red and the page says it may need an update.
 - **Game code check**: each mod's DLL is checked against the game's code that BepInEx built, in the background: the game classes it names, the methods and fields it uses, and the methods its Harmony patches change. A mod that uses something this game version no longer has gets an OUTDATED mark, and its page lists what is missing. The answers are kept in `BepInEx\mod-manager\game-code-checks.json` and checked again when the game updates.
@@ -46,7 +47,7 @@ Open it with the Mods button in the Esc menu or on the title screen, or set a ke
 - **Many sections**: a mod with too many sections for one row of tabs lists them down the left side of its settings.
 - **Tabs from other mods**: a mod can add its own tab to its page, with a page of its own (New Loop Plus adds TALENTS, an editor for its loop rewards). Esc first closes whatever that page has open, then the screen.
 
-The Mod Manager adds nothing to your save and does not edit game files. It writes the .cfg files of the mods whose settings you change, moves the DLLs of mods you turn on or off, and replaces the files of mods you update. Its only network use is the check at each start (GitHub for the latest release of each mod that names a repository, the wiki's list of mods, and Nexus Mods at most once a day), the download when you click INSTALL UPDATE, and a mod's changelog when you open its CHANGELOG tab. None of it needs an account or a key, and none of it sends your files, settings or saves. `CheckForUpdates` turns the checks off.
+The Mod Manager adds nothing to your save and does not edit game files. It writes the .cfg files of the mods whose settings you change, moves the DLLs of mods you turn on or off, and replaces the files of mods you update. Its only network use is the check at each start (GitHub for the latest release of each mod that names a repository, the wiki's list of mods, and Nexus Mods at most once a day), the download when you click INSTALL UPDATE or INSTALL, and a mod's changelog when you open its CHANGELOG tab. None of it needs an account or a key, and none of it sends your files, settings or saves. `CheckForUpdates` turns the checks off.
 
 ## Known issues and limits
 
@@ -57,6 +58,7 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 - Update checks only cover mods that name a GitHub repository. INSTALL UPDATE needs the release to carry a .zip that holds the mod's DLL; otherwise use GET UPDATE and install it yourself.
 - Nexus Mods versions are only shown for mods whose DLL is the one uploaded to Nexus, in a file Nexus lists the contents of. Nexus is asked at most once a day and up to 60 file lists are read a day, those of the Nexus mods named most like yours first, so with many mods from Nexus some show their version a day or two later.
 - The game code check only sees what a mod names in its DLL. A mod that looks up game code by its name while it runs is not checked for it.
+- BROWSE needs `CheckForUpdates` on, since it uses the same lists. It shows only the mods Nexus lists for Survival Log, plus the ones on the wiki's list. INSTALL never replaces a file that is already there, and UNDO works until you quit; after that, uninstall the mod from its page.
 - The HEALTH page cannot say that Exiled's Toolkit is missing, since the Mods screen does not open without it. It does say when a mod needs a newer Toolkit than the one installed.
 - An uninstalled mod keeps running until you quit the game, and EMPTY TRASH leaves it in the trash until the next session.
 - An installed update is used from the next game start. While it downloads, and from then until the next start, the mod cannot be turned on or off here.
@@ -90,7 +92,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.20719 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.18.2 started`. If it is missing, check that Exiled's Toolkit 0.19.0 or newer is installed: BepInEx does not load Mod Manager without it.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.19.0 started`. If it is missing, check that Exiled's Toolkit 0.19.0 or newer is installed: BepInEx does not load Mod Manager without it.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
@@ -325,6 +327,9 @@ When the game updates and your mod still works, say so without a new release: pu
 - When a game update comes out, add the new game version to the line for each version of your mod that still works on it.
 
 ### Updates
+
+The steps to get your mod updates and a one-click INSTALL on BROWSE, with a project file and a release workflow to copy, are in the [Survival Log mod kit](https://github.com/AnExiledDev/SurvivalLog-ModKit).
+
 
 With `ModManager.GitHub` set (or a GitHub `RepositoryUrl`), the screen checks the repository's latest GitHub release at each game start:
 

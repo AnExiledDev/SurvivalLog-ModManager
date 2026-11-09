@@ -142,6 +142,25 @@
       emptyConfirm: n => 'Delete ' + n + (n === 1 ? ' mod' : ' mods') + ' for good? This cannot be undone.',
       trashSettings: 'with its settings file', trashThisSession: 'this session',
       pageHealth: 'HEALTH', healthTitle: 'Install check', healthNone: 'Nothing wrong was found.',
+      pageBrowse: 'BROWSE', browseTitle: 'Mods for Survival Log',
+      browseIntro: 'Every mod for the game on Nexus Mods. The ones set up for the Mod Manager install from here and get their updates in the Mods list; the rest you download from Nexus by hand.',
+      browseOff: 'BROWSE needs the update checks, which are off. Turn on 「Check For Updates」 in the Mod Manager\'s settings to see the mods.',
+      browseAsking: 'Asking Nexus Mods and the wiki for the list of mods.',
+      browseNone: 'No mod matches.', browseFind: 'Search mods',
+      bwAll: 'ALL', bwInstallable: 'ONE-CLICK INSTALL', bwManual: 'MANUAL DOWNLOAD', bwInstalledF: 'INSTALLED',
+      bwSortEndorsed: 'MOST ENDORSED', bwSortUpdated: 'RECENTLY UPDATED', bwSortName: 'NAME',
+      bwInstalled: 'INSTALLED', bwInstall: 'INSTALL', bwOpenNexus: 'OPEN ON NEXUS', bwAsk: 'ASK THE AUTHOR',
+      bwShameTitle: 'No Mod Manager support: manual download.',
+      bwShameBody: 'Its author has not set it up for the Mod Manager yet, so you download it from Nexus and unpack it by hand, and it never tells you about updates. ASK THE AUTHOR copies a short request and opens the mod\'s posts on Nexus, where you can paste it.',
+      bwAsked: 'The request is copied. Paste it in the mod\'s posts on Nexus.', bwAskFailed: 'Could not copy the request. The mod\'s posts are open on Nexus.',
+      bwInstalling: 'Installing.',
+      bwDone: tag => 'Installed ' + tag + '. The game starts it from the next start.',
+      bwFailed: reason => 'Could not install it: ' + reason + '.',
+      bwRefused: reason => 'The Mod Manager will not install it: ' + reason + '.',
+      bwApproval: (tag, powers) => 'Version ' + tag + ' comes from its author\'s GitHub, and its code can ' + andList(powers) + '. Mods can have good reasons for this. Install it only if you trust where it comes from.',
+      bwNeeds: names => 'It also needs ' + andList(names) + ', which you download by hand.',
+      bwEndorsed: n => n + ' endorsements', bwDownloads: n => n + ' downloads',
+      pendNew: 'Installed, starts from the next start',
       healthIntro: 'Problems with how BepInEx and the mods are installed, found by looking at the game folder each time this screen opens.',
       hBepInEx: v => 'BepInEx ' + v + ' is installed',
       hBepInExBody: v => 'These mods are made and tested on BepInEx ' + v + ' for IL2CPP games. Another build can keep mods from starting or cause errors. If mods misbehave, install that build.',
@@ -293,6 +312,25 @@
       emptyConfirm: n => '永久删除 ' + n + ' 个模组？此操作无法撤销。',
       trashSettings: '含设置文件', trashThisSession: '这次卸载',
       pageHealth: '安装检查', healthTitle: '安装检查', healthNone: '没有发现问题。',
+      pageBrowse: '浏览', browseTitle: 'Survival Log 的模组',
+      browseIntro: 'Nexus Mods 上本游戏的所有模组。支持模组管理器的模组可以在这里安装，并在模组列表中获得更新；其他的需要从 Nexus 手动下载。',
+      browseOff: '浏览需要开启更新检查，而它现在是关闭的。在模组管理器的设置中开启「Check For Updates」即可查看模组。',
+      browseAsking: '正在向 Nexus Mods 和维基获取模组列表。',
+      browseNone: '没有匹配的模组。', browseFind: '搜索模组',
+      bwAll: '全部', bwInstallable: '一键安装', bwManual: '手动下载', bwInstalledF: '已安装',
+      bwSortEndorsed: '最多点赞', bwSortUpdated: '最近更新', bwSortName: '名称',
+      bwInstalled: '已安装', bwInstall: '安装', bwOpenNexus: '在 NEXUS 打开', bwAsk: '请作者支持',
+      bwShameTitle: '不支持模组管理器：需要手动下载。',
+      bwShameBody: '作者还没有为模组管理器做好设置，所以你得从 Nexus 下载并手动解压，而且它不会提示更新。「请作者支持」会复制一段简短的请求，并打开该模组在 Nexus 上的帖子页面，你可以把请求粘贴到那里。',
+      bwAsked: '请求已复制。请粘贴到该模组在 Nexus 上的帖子里。', bwAskFailed: '无法复制请求。该模组在 Nexus 上的帖子页面已打开。',
+      bwInstalling: '正在安装。',
+      bwDone: tag => '已安装 ' + tag + '。下次启动游戏时生效。',
+      bwFailed: reason => '无法安装：' + reason + '。',
+      bwRefused: reason => '模组管理器不会安装它：' + reason + '。',
+      bwApproval: (tag, powers) => '版本 ' + tag + ' 来自作者的 GitHub，它的代码可以' + powers.join('、') + '。模组这样做可能有正当理由。只有在信任它的来源时才安装。',
+      bwNeeds: names => '它还需要' + names.join('、') + '，需要手动下载。',
+      bwEndorsed: n => n + ' 个点赞', bwDownloads: n => n + ' 次下载',
+      pendNew: '已安装，下次启动时生效',
       healthIntro: '每次打开这个界面时都会查看游戏文件夹，列出 BepInEx 和模组在安装上的问题。',
       hBepInEx: v => '安装的是 BepInEx ' + v,
       hBepInExBody: v => '这些模组是在适用于 IL2CPP 游戏的 BepInEx ' + v + ' 上制作和测试的。其他版本可能让模组无法启动或出错。如果模组出现问题，请安装这个版本。',
@@ -357,7 +395,12 @@
     confirmQuit: false,
     pendItems: [],
     // Set while a trash action is on its way, so its note shows on the TRASH page.
-    noteFor: ''
+    noteFor: '',
+    // BROWSE: what the player searched, which mods and which order, and the mod whose request was last copied.
+    browseQuery: '',
+    browseFilter: 'all',
+    browseSort: 'endorsed',
+    asked: null
   };
 
   const LINK_WORDS = { nexus: 'linkNexus', github: 'linkGithub', website: 'linkWebsite', issues: 'linkIssues', changelog: 'linkChangelog' };
@@ -499,6 +542,27 @@
 #slmm .hd-trash i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: #888; border-radius: 3px; padding: 2px 7px; }
 #slmm .trash-page .notice { margin: 16px 0 0; }
 #slmm .win.page-health .bd { grid-template-columns: 1fr; }
+#slmm .win.page-browse .bd { grid-template-columns: 1fr; }
+#slmm .win.page-browse .rail { display: none; }
+#slmm .bw-bar { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; margin: 16px 0 18px; }
+#slmm .bw-find { width: 280px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); color: #ddd; padding: 7px 10px; font-size: .95rem; outline: none; }
+#slmm .bw-find:focus { border-color: var(--amber); }
+#slmm .bw-bar .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+#slmm .bw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; }
+#slmm .bw-card { display: grid; grid-template-columns: 140px 1fr; gap: 14px; padding: 12px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.02); }
+#slmm .bw-card.manual { border-color: rgba(220,80,60,0.35); }
+#slmm .bw-th { width: 140px; height: 79px; background: #222 center / cover no-repeat; }
+#slmm .bw-th.none { background: repeating-linear-gradient(45deg, #1c1c1f, #1c1c1f 8px, #202024 8px, #202024 16px); }
+#slmm .bw-body { min-width: 0; }
+#slmm .bw-body .msub { margin-top: 2px; white-space: normal; }
+#slmm .bw-needs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+#slmm .bw-sum { color: #999; font-size: .9rem; line-height: 1.45; margin-top: 6px; }
+#slmm .bw-tag { display: inline-block; margin-top: 8px; font-family: var(--mono); font-size: .75rem; letter-spacing: 1px; padding: 2px 7px; border: 1px solid rgba(255,255,255,0.15); color: #999; }
+#slmm .bw-tag.ok { color: #7c7; border-color: rgba(120,200,120,0.4); }
+#slmm .bw-shame { margin-top: 8px; padding: 8px 10px; border-left: 3px solid #d0503c; background: rgba(208,80,60,0.08); color: #bbb; font-size: .88rem; line-height: 1.5; }
+#slmm .bw-shame b { color: #e8735f; }
+#slmm .bw-card .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#slmm .bw-card .upd-line { margin-top: 8px; }
 #slmm .win.page-health .rail { display: none; }
 #slmm .hd-health i { font-style: normal; font-family: var(--mono); font-size: .85rem; letter-spacing: 0; color: #111; background: #888; border-radius: 3px; padding: 2px 7px; }
 #slmm .hd-health.err i { background: var(--red); }
@@ -995,7 +1059,7 @@
 <div class="stage"><div class="win">
   <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
   <div class="hd">
-    <div class="hd-tabs"><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-err" data-page="errors"><span data-word="pageErrors"></span><i data-count="otherErrors"></i></div><div class="hd-title hd-health" data-page="health"><span data-word="pageHealth"></span><i data-count="health"></i></div><div class="hd-title hd-trash" data-page="trash"><span data-word="pageTrash"></span><i data-count="trash"></i></div></div>
+    <div class="hd-tabs"><div class="hd-title on" data-page="mods">MODS</div><div class="hd-title hd-err" data-page="errors"><span data-word="pageErrors"></span><i data-count="otherErrors"></i></div><div class="hd-title hd-health" data-page="health"><span data-word="pageHealth"></span><i data-count="health"></i></div><div class="hd-title hd-trash" data-page="trash"><span data-word="pageTrash"></span><i data-count="trash"></i></div><div class="hd-title hd-browse" data-page="browse"><span data-word="pageBrowse"></span></div></div>
     <div class="hd-deco"><span>// MOD MANAGER</span><span><b data-count="loaded">0</b> <span data-word="loaded"></span></span><span><b data-count="settings">0</b> <span data-word="settings"></span></span></div>
     <div class="hd-sp"></div>
     <div class="seg"><span data-lang="en">EN</span><span data-lang="zh">中文</span></div>
@@ -1167,6 +1231,7 @@
     $('.win').classList.toggle('page-errors', state.page === 'errors');
     $('.win').classList.toggle('page-trash', state.page === 'trash');
     $('.win').classList.toggle('page-health', state.page === 'health');
+    $('.win').classList.toggle('page-browse', state.page === 'browse');
     $('[data-page="trash"]').style.display = trashed.length || state.page === 'trash' ? '' : 'none';
     setCount('trash', trashed.length);
     $('[data-page="health"]').style.display = found.length || state.page === 'health' ? '' : 'none';
@@ -1296,6 +1361,93 @@
       '<div class="cf-intro">' + esc(word('trashIntro')) + '</div>' + shownNote + button + confirm + rows + '</div>';
   }
 
+  function browse() {
+    return state.view && state.view.browse ? state.view.browse : [];
+  }
+
+  const BROWSE_FILTERS = { all: 'bwAll', installable: 'bwInstallable', manual: 'bwManual', installed: 'bwInstalledF' };
+  const BROWSE_SORTS = { endorsed: 'bwSortEndorsed', updated: 'bwSortUpdated', name: 'bwSortName' };
+
+  function shownBrowse() {
+    const q = state.browseQuery.toLowerCase();
+    const sorts = {
+      endorsed: (a, b) => b.endorsements - a.endorsements || a.name.localeCompare(b.name),
+      updated: (a, b) => (b.updated || '').localeCompare(a.updated || '') || a.name.localeCompare(b.name),
+      name: (a, b) => a.name.localeCompare(b.name)
+    };
+
+    return browse()
+      .filter(b => state.browseFilter === 'all' || b.support === state.browseFilter)
+      .filter(b => !q || [b.name, b.author, b.summary, b.guid || ''].some(text => text.toLowerCase().indexOf(q) >= 0))
+      .sort(sorts[state.browseSort] || sorts.endorsed);
+  }
+
+  // The BROWSE page beside MODS: every mod for the game, installed from here when its author set it up for the Mod Manager.
+  function browsePage() {
+    const feed = state.view ? state.view.browseFeed : 'off';
+    const all = browse();
+    const head = '<div class="errs-page browse-page"><div class="sec-t">' + esc(word('browseTitle')) + ' &middot; ' + all.length + '</div><div class="cf-intro">' + esc(word('browseIntro')) + '</div>';
+
+    if (feed === 'off') return head + notice('warn', '', word('browseOff')) + '</div>';
+
+    if (!all.length) return head + '<div class="empty"><div class="big">' + esc(word(feed === 'asking' ? 'browseAsking' : 'browseNone')) + '</div></div></div>';
+
+    const count = kind => all.filter(b => kind === 'all' || b.support === kind).length;
+    const chips = (table, current, attribute, withCount) => Object.keys(table).map(key => '<div class="chip' + (key === current ? ' on' : '') + '" ' + attribute + '="' + key + '"><span>' + esc(word(table[key])) + '</span>' + (withCount ? ' <i>' + count(key) + '</i>' : '') + '</div>').join('');
+    const bar = '<div class="bw-bar"><input class="bw-find" autocomplete="off" spellcheck="false" placeholder="' + esc(word('browseFind')) + '">' +
+      '<div class="chips">' + chips(BROWSE_FILTERS, state.browseFilter, 'data-bwfilter', true) + '</div><div class="chips">' + chips(BROWSE_SORTS, state.browseSort, 'data-bwsort', false) + '</div></div>';
+    const shown = shownBrowse();
+    const asking = feed === 'asking' ? '<div class="cf-intro">' + esc(word('browseAsking')) + '</div>' : '';
+    const cards = shown.length ? '<div class="bw-grid">' + shown.map(browseCard).join('') + '</div>' : '<div class="empty"><div class="big">' + esc(word('browseNone')) + '</div></div>';
+
+    return head + bar + asking + cards + '</div>';
+  }
+
+  function browseCard(b) {
+    const button = (act, text, cls) => '<div class="key-btn' + (cls ? ' ' + cls : '') + '" data-act="' + act + '">' + esc(text) + '</div>';
+    const facts = [b.author ? word('by') + ' ' + b.author : '', b.version ? 'v' + b.version : '', b.nexus ? word('bwEndorsed')(b.endorsements) : '', b.nexus ? word('bwDownloads')(b.downloads) : ''].filter(Boolean).join(' \u00b7 ');
+    const thumb = b.thumbnail ? '<div class="bw-th" style="background-image:url(&quot;' + esc(b.thumbnail) + '&quot;)"></div>' : '<div class="bw-th none"></div>';
+    const nexus = b.nexus ? button('bwNexus', word('bwOpenNexus') + ' \u2197') : '';
+    let status = '';
+    let acts = '';
+
+    if (b.support === 'installed') status = '<div class="bw-tag ok">' + esc(word('bwInstalled')) + '</div>';
+    else if (b.support === 'manual') {
+      const asked = state.asked && state.asked.key === b.key ? '<div class="upd-line' + (state.asked.ok ? ' ok' : ' bad') + '">' + esc(word(state.asked.ok ? 'bwAsked' : 'bwAskFailed')) + '</div>' : '';
+
+      status = '<div class="bw-shame"><b>' + esc(word('bwShameTitle')) + '</b> ' + esc(word('bwShameBody')) + '</div>' + asked;
+      acts = b.nexus ? button('bwAsk', word('bwAsk')) : '';
+    } else {
+      const install = b.install;
+
+      switch (install.kind) {
+        case 'installing': status = '<div class="upd-line">' + esc(word('bwInstalling')) + '</div>'; break;
+        case 'installed': status = '<div class="upd-line ok">' + esc(word('bwDone')(tagText(install.tag))) + '</div>'; break;
+        case 'failed': status = '<div class="upd-line bad">' + esc(word('bwFailed')(install.reason)) + '</div>'; break;
+        case 'refused': status = '<div class="upd-line bad">' + esc(word('bwRefused')(install.reason)) + '</div>'; break;
+        case 'needsApproval': status = '<div class="upd-line bad">' + esc(word('bwApproval')(tagText(install.tag), install.powers.map(power => word('powers')[power] || power))) + '</div>'; break;
+      }
+
+      if (b.needs.length) status += '<div class="upd-line bad">' + esc(word('bwNeeds')(b.needs.map(n => n.name))) + '</div>' + (b.needs.some(n => n.nexus) ? '<div class="bw-needs">' + b.needs.filter(n => n.nexus).map(n => '<div class="key-btn" data-act="bwNeedNexus" data-nexus="' + n.nexus + '">' + esc(n.name) + ' \u2197</div>').join('') + '</div>' : '');
+
+      acts = install.kind === 'none' ? button('bwInstall', word('bwInstall'), 'go')
+        : install.kind === 'failed' ? button('bwInstall', word('tryAgain'))
+        : install.kind === 'needsApproval' ? button('bwApprove', word('installAnyway'))
+        : install.kind === 'installed' && b.fresh ? button('bwUndo', word('undo'))
+        : '';
+    }
+
+    return '<div class="bw-card ' + esc(b.support) + '" data-bw="' + esc(b.key) + '">' + thumb + '<div class="bw-body"><div class="mname">' + esc(b.name) + '</div>' +
+      (facts ? '<div class="msub">' + esc(facts) + '</div>' : '') + (b.summary ? '<div class="bw-sum">' + esc(b.summary) + '</div>' : '') + status +
+      '<div class="acts">' + acts + nexus + '</div></div></div>';
+  }
+
+  function browseOf(el) {
+    const card = el.closest('[data-bw]');
+
+    return card ? browse().find(b => b.key === card.dataset.bw) || null : null;
+  }
+
   function health() {
     return state.view && state.view.health ? state.view.health : [];
   }
@@ -1406,9 +1558,9 @@
   }
 
   function renderPane() {
-    if (state.page === 'errors' || state.page === 'trash' || state.page === 'health') {
+    if (state.page === 'errors' || state.page === 'trash' || state.page === 'health' || state.page === 'browse') {
       showOwnTab(null, null);
-      morph(pane, state.page === 'errors' ? otherErrorsPage() : state.page === 'trash' ? trashPage() : healthPage());
+      morph(pane, state.page === 'errors' ? otherErrorsPage() : state.page === 'trash' ? trashPage() : state.page === 'health' ? healthPage() : browsePage());
 
       return;
     }
@@ -2859,6 +3011,10 @@
       }
     }
 
+    for (const b of browse()) {
+      if (b.fresh && b.install.kind === 'installed') add({ name: b.name, nameZh: b.name }, word('pendNew'), () => send('browseUndo', [b.guid]));
+    }
+
     return items;
   }
 
@@ -2960,6 +3116,17 @@
       return;
     }
 
+    const bwFilter = target.closest('[data-bwfilter]');
+
+    if (bwFilter || target.closest('[data-bwsort]')) {
+      if (bwFilter) state.browseFilter = bwFilter.dataset.bwfilter;
+      else state.browseSort = target.closest('[data-bwsort]').dataset.bwsort;
+
+      render();
+
+      return;
+    }
+
     const page = target.closest('[data-page]');
 
     if (page) {
@@ -3034,6 +3201,15 @@
     else if (actName === 'rollback') send('rollback', [state.selected]);
     else if (actName === 'needs') send('needs', [state.selected]);
     else if (actName === 'copyList') send('copyList');
+    else if (actName === 'bwInstall' && browseOf(act)) send('browseInstall', [browseOf(act).guid]);
+    else if (actName === 'bwApprove' && browseOf(act)) send('browseApprove', [browseOf(act).guid]);
+    else if (actName === 'bwUndo' && browseOf(act)) send('browseUndo', [browseOf(act).guid]);
+    else if (actName === 'bwNexus' && browseOf(act)) send('nexusPage', [String(browseOf(act).nexus)]);
+    else if (actName === 'bwNeedNexus') send('nexusPage', [act.dataset.nexus]);
+    else if (actName === 'bwAsk' && browseOf(act)) {
+      state.asked = { key: browseOf(act).key, ok: null };
+      send('askAuthor', [String(browseOf(act).nexus)]);
+    }
     else if (actName === 'resetMod') resetMod();
     else if (actName === 'uninstall' || actName === 'uninstallNo') {
       state.confirmUninstall = actName === 'uninstall' ? state.selected : null;
@@ -3238,6 +3414,13 @@
 
     if (target === searchBox) {
       state.query = searchBox.value.trim();
+      render();
+
+      return;
+    }
+
+    if (target.classList.contains('bw-find')) {
+      state.browseQuery = target.value.trim();
       render();
 
       return;
@@ -3621,6 +3804,12 @@
     renderCopyButton();
   }
 
+  function asked(isCopied) {
+    if (state.asked) state.asked.ok = !!isCopied;
+
+    render();
+  }
+
   // ===== Start =====
 
   document.head.appendChild(style);
@@ -3644,6 +3833,6 @@
   });
   window.addEventListener('resize', fit);
 
-  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, escape: escape, tabsChanged: tabsChanged, icons: icons, banners: banners, items: items, entries: entries, copied: copied };
+  window.__modmanager = { open: open, update: update, replace: replace, close: hide, bindEnded: bindEnded, escape: escape, tabsChanged: tabsChanged, icons: icons, banners: banners, items: items, entries: entries, copied: copied, asked: asked };
   sendReady();
 })();

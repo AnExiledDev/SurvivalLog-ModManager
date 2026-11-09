@@ -382,6 +382,20 @@ public sealed class UpdateBook
 
     public void Record(string guid, InstallState install) => _installs[guid] = install;
 
+    private readonly Dictionary<string, FreshInstall> _fresh = new(StringComparer.Ordinal);
+
+    /// <summary>A mod BROWSE installed this session; null once UNDO took it out again.</summary>
+    public void RecordFresh(string guid, FreshInstall? fresh)
+    {
+        if (fresh == null) _fresh.Remove(guid);
+        else _fresh[guid] = fresh;
+    }
+
+    public FreshInstall? FreshOf(string guid) => _fresh.TryGetValue(guid, out var fresh) ? fresh : null;
+
+    /// <summary>Every mod BROWSE installed this session, by GUID.</summary>
+    public IReadOnlyCollection<string> FreshGuids => _fresh.Keys;
+
     /// <summary>Only a rollback that was tried is recorded; one that can be done is worked out from the backups.</summary>
     public void Record(string guid, RollbackState rollback) => _rollbacks[guid] = rollback;
 

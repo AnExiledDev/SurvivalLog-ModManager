@@ -96,6 +96,21 @@ public abstract record PageCommand
     /// <summary>Delete for good every mod in the trash that was not uninstalled this session.</summary>
     public sealed record EmptyTrash : PageCommand;
 
+    /// <summary>Install a mod that is not installed yet, from BROWSE.</summary>
+    public sealed record BrowseInstall(string Guid) : PageCommand;
+
+    /// <summary>Install the mod from BROWSE the player was warned about.</summary>
+    public sealed record BrowseApprove(string Guid) : PageCommand;
+
+    /// <summary>Delete the files BROWSE installed this session for the mod.</summary>
+    public sealed record BrowseUndo(string Guid) : PageCommand;
+
+    /// <summary>Copy the request for Mod Manager support and open the mod's posts on Nexus, for the player to send it.</summary>
+    public sealed record AskAuthor(int NexusId) : PageCommand;
+
+    /// <summary>Open a Nexus Mods page by its number, for a mod BROWSE shows.</summary>
+    public sealed record OpenNexusPage(int NexusId) : PageCommand;
+
     public sealed record Unknown(string Text) : PageCommand;
 
     public static PageCommand Parse(string message)
@@ -140,8 +155,16 @@ public abstract record PageCommand
         ("uninstall", 3) when parts[2] is "0" or "1" => new Uninstall(parts[1], parts[2] == "1"),
         ("restore", 2) => new Restore(parts[1]),
         ("emptyTrash", 1) => new EmptyTrash(),
+        ("browseInstall", 2) => new BrowseInstall(parts[1]),
+        ("browseApprove", 2) => new BrowseApprove(parts[1]),
+        ("browseUndo", 2) => new BrowseUndo(parts[1]),
+        ("askAuthor", 2) when NexusIdOf(parts[1]) is { } id => new AskAuthor(id),
+        ("nexusPage", 2) when NexusIdOf(parts[1]) is { } id => new OpenNexusPage(id),
         _ => null,
     };
+
+    private static int? NexusIdOf(string text) =>
+        int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var id) && id > 0 ? id : null;
 
     /// <summary>The page's name for each kind of link, shared by both directions so they cannot drift apart.</summary>
     public static string LinkName(LinkKind kind) => kind switch

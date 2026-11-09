@@ -14,7 +14,8 @@ namespace ModManager.Adapters;
 /// <summary>
 /// Asks the public API of Nexus Mods, once a day at most and without an account or key, for the game's mods, the files
 /// of the ones that are not on the wiki, and the files' manifests, so an installed mod from Nexus shows its newest
-/// version there. Asks nothing when every installed mod is on the wiki. One request at a time, in the background; the
+/// version there, and the list BROWSE shows. When every installed mod is on the wiki, only the list is asked for (two
+/// requests). One request at a time, in the background; the
 /// answers are saved, so the next start within the day asks nothing.
 /// </summary>
 internal sealed class NexusLookups
@@ -46,6 +47,9 @@ internal sealed class NexusLookups
     /// <summary>Not asked yet this session, and not asking now.</summary>
     public bool IsWaiting => !_hasRun && _stop == null;
 
+    /// <summary>Nexus is being asked now.</summary>
+    public bool IsAsking => _stop != null;
+
     /// <summary>Main thread: the answers saved at an earlier start, shown until (or unless) fresh ones come.</summary>
     public void LoadSaved()
     {
@@ -62,13 +66,6 @@ internal sealed class NexusLookups
     public void Start(IReadOnlySet<int> ours, IReadOnlyList<int?> foreign, IReadOnlyList<string> wanted)
     {
         var saved = _book.Nexus;
-
-        if (foreign.Count == 0)
-        {
-            _hasRun = true;
-
-            return;
-        }
 
         if (!NexusApi.IsDue(saved.CheckedAt, DateTimeOffset.UtcNow))
         {
@@ -116,6 +113,7 @@ internal sealed class NexusLookups
                 return;
             }
 
+            // With every installed mod on the wiki there are no candidates, so only the list is read (for BROWSE).
             var candidates = NexusPlan.Candidates(mods, ours, foreign);
             var fresh = new Dictionary<int, NexusFiles>();
             var updated = mods.GroupBy(mod => mod.ModId).ToDictionary(group => group.Key, group => group.First().UpdatedAt);

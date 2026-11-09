@@ -215,7 +215,29 @@ public static class RepositoryPin
     /// </summary>
     public static string KeyOf(string? declared, LatestRelease.Found release) => declared ?? release.Owner + "/" + release.Repository;
 
-    public static Uri RepositoryUri(LatestRelease.Found release) => new("https://api.github.com/repos/" + release.Owner + "/" + release.Repository);
+    public static Uri RepositoryUri(LatestRelease.Found release) => RepositoryUri(release.Owner + "/" + release.Repository);
+
+    /// <param name="repository">"owner/name".</param>
+    public static Uri RepositoryUri(string repository) => new("https://api.github.com/repos/" + repository);
+
+    /// <summary>The newest release in the pinned repository, whatever it is called now.</summary>
+    public static Uri LatestUri(long repositoryId) =>
+        new("https://api.github.com/repositories/" + repositoryId.ToString(CultureInfo.InvariantCulture) + "/releases/latest");
+
+    /// <summary>The tag of the release in GitHub's answer, or null when there is none.</summary>
+    public static string? TagFrom(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+
+            return document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("tag_name", out var tag) && tag.ValueKind == JsonValueKind.String && tag.GetString() is { Length: > 0 and <= 100 } text ? text : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>The release with this tag in the pinned repository, whatever it is called now.</summary>
     public static Uri ReleaseUri(long repositoryId, string tag) =>

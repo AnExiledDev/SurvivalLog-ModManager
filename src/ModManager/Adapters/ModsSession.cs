@@ -113,6 +113,8 @@ internal sealed class ModsSession
 
         if (hasChecked) TellUpdatesOnce();
 
+        if (hasInstalled) InstallFreshNeeds();
+
         if (_nexus.IsWaiting && _checks.IsIndexSettled && _isCheckingForUpdates()) AskNexus();
 
         if ((hasChecked || hasInstalled || hasAskedNexus || hasCheckedCode) && _isOpen) _page.Run(PageScript.Refresh(Shown()));
@@ -231,6 +233,24 @@ internal sealed class ModsSession
                 break;
             case PageCommand.CopyList:
                 CopyList();
+                break;
+            case PageCommand.BrowseInstall browseInstall:
+                StartFresh(browseInstall.Guid);
+                RefreshOpen();
+                break;
+            case PageCommand.BrowseApprove browseApprove:
+                AskForBackup();
+                _installer.ApproveNew(browseApprove.Guid, _catalog.PluginsFolder);
+                RefreshOpen();
+                break;
+            case PageCommand.BrowseUndo browseUndo:
+                ShowAfter(_installer.UndoNew(browseUndo.Guid) is { } undoProblem ? new ModNote(browseUndo.Guid, true, new BilingualText("Could not take it out: " + undoProblem + ".", "无法移除：" + undoProblem + "。")) : null);
+                break;
+            case PageCommand.AskAuthor ask:
+                AskTheAuthor(ask.NexusId);
+                break;
+            case PageCommand.OpenNexusPage nexusPage:
+                Open(NexusApi.PageUrl(nexusPage.NexusId));
                 break;
             case PageCommand.Unknown unknown:
                 _log("unknown message from the Mods page: " + unknown.Text);
@@ -385,6 +405,62 @@ internal sealed class ModsSession
         {
             _log("Save Backups could not back up before updates: " + ex.Message);
         }
+    }
+
+    /// <summary>Installs a mod BROWSE shows that is not installed, from the wiki's copy or its author's GitHub releases.</summary>
+    private void StartFresh(string guid)
+    {
+        // The wiki's index and the Nexus list are only asked for while update checks are on.
+        if (!_isCheckingForUpdates() || _catalog.Mod(guid) != null || Browse.TargetOf(_updates.Index, guid) is not { } target) return;
+
+        if (_catalog.IsOffThere(target.Dll))
+        {
+            _updates.Record(guid, new InstallState.Refused("a turned-off " + target.Dll + " is in the folder for turned-off mods"));
+
+            return;
+        }
+
+        AskForBackup();
+        _installer.StartNew(target, _catalog.PluginsFolder);
+    }
+
+    /// <summary>
+    /// After an install from BROWSE, installs the mods it needs that can be installed from here and were not tried yet.
+    /// The ones that cannot show on its card, with their Nexus page.
+    /// </summary>
+    private void InstallFreshNeeds()
+    {
+        var installed = _catalog.Mods().Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var guid in _updates.FreshGuids.ToList())
+        {
+            if (_updates.FreshOf(guid) is not { } fresh || _updates.InstallOf(guid) is not InstallState.Installed) continue;
+
+            foreach (var need in Browse.MissingNeeds(fresh.Needs, installed, _updates.Index, _updates.InstallOf).Where(need => _updates.InstallOf(need) is InstallState.None && Browse.TargetOf(_updates.Index, need) != null))
+            {
+                _log("installing " + need + ", which " + guid + " needs");
+                StartFresh(need);
+            }
+        }
+    }
+
+    /// <summary>Puts the request for Mod Manager support on the clipboard and opens the mod's posts on Nexus, where the player pastes it.</summary>
+    private void AskTheAuthor(int nexusId)
+    {
+        if (_updates.Nexus.ModById(nexusId) is not { } mod) return;
+
+        try
+        {
+            GUIUtility.systemCopyBuffer = Core.AskAuthor.Message(mod.Name);
+            _page.Run(PageScript.Asked(true));
+        }
+        catch (Exception ex)
+        {
+            _log("could not copy the request for " + mod.Name + ": " + ex.Message);
+            _page.Run(PageScript.Asked(false));
+        }
+
+        Open(NexusApi.PostsUrl(nexusId));
     }
 
     /// <summary>Every update not installed yet, failed ones again; the installs run side by side.</summary>
@@ -552,6 +628,8 @@ internal sealed class ModsSession
             ErrorsNotKept = errorsNotKept,
             Trash = _catalog.Trash(),
             Health = _catalog.Health(mods),
+            Browse = _isCheckingForUpdates() ? Browse.List(_updates.Nexus, _updates.Index, mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal), mods.Select(mod => mod.Known.Nexus?.ModId).OfType<int>().ToHashSet(), _updates.InstallOf, _updates.FreshOf) : Array.Empty<BrowseMod>(),
+            BrowseFeed = !_isCheckingForUpdates() ? BrowseFeed.Off : _nexus.IsAsking || !_checks.IsIndexSettled ? BrowseFeed.Asking : BrowseFeed.Ready,
         };
     }
 

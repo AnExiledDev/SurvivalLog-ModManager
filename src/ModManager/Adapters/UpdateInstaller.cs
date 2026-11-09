@@ -71,6 +71,250 @@ internal sealed class UpdateInstaller
         Run(mod, download.Tag, () => Task.FromResult(Place(mod, download, dllPath, isSharedFolder, isApproved: true)));
     }
 
+    /// <summary>Mods BROWSE was asked to install that wait for the player, by GUID, with the bytes already checked.</summary>
+    private readonly ConcurrentDictionary<string, (FreshTarget Target, Downloaded Download)> _freshWaiting = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Main thread. Installs a mod that is not installed yet into the plugins folder, used from the next game start.
+    /// Does nothing while it installs, after it was installed or refused, or when a file it would write is there already.
+    /// </summary>
+    public void StartNew(FreshTarget target, string pluginsFolder)
+    {
+        if (_book.InstallOf(target.Guid) is InstallState.Installing or InstallState.Installed or InstallState.Refused) return;
+
+        _freshWaiting.TryRemove(target.Guid, out _);
+        _log("installing " + target.Guid + (target.WikiCopy != null ? " from the wiki's copy " + target.WikiCopy.File : " from its GitHub releases, " + target.GitHub));
+        RunNew(target, async () =>
+        {
+            var (download, stopped) = target.WikiCopy is { } copy ? await FromWiki(copy).ConfigureAwait(false) : await FetchNewest(target).ConfigureAwait(false);
+
+            return download == null ? (stopped ?? new InstallState.Failed("nothing to install"), null) : PlaceNew(target, download, pluginsFolder, isApproved: false);
+        });
+    }
+
+    /// <summary>Main thread. Installs the mod the player was shown, from the bytes already checked.</summary>
+    public void ApproveNew(string guid, string pluginsFolder)
+    {
+        if (_book.InstallOf(guid) is not InstallState.NeedsApproval || !_freshWaiting.TryRemove(guid, out var waiting)) return;
+
+        _log("installing " + guid + " " + waiting.Download.Tag + " as the player approved it");
+        RunNew(waiting.Target, () => Task.FromResult(PlaceNew(waiting.Target, waiting.Download, pluginsFolder, isApproved: true)));
+    }
+
+    /// <summary>
+    /// Main thread: deletes the files BROWSE wrote for the mod this session. The game has not loaded them, so they can
+    /// go. Returns why some could not be deleted, or null when it is gone or there was nothing to take out.
+    /// </summary>
+    public string? UndoNew(string guid)
+    {
+        if (_book.InstallOf(guid) is InstallState.Installing || _book.FreshOf(guid) is not { } fresh) return null;
+
+        var left = new List<string>();
+        var problems = new List<string>();
+
+        foreach (var file in fresh.Files)
+        {
+            try
+            {
+                if (File.Exists(file)) File.Delete(file);
+            }
+            catch (Exception ex)
+            {
+                left.Add(file);
+                problems.Add(Path.GetFileName(file) + " (" + ex.Message + ")");
+            }
+        }
+
+        if (left.Count > 0)
+        {
+            _book.RecordFresh(guid, fresh with { Files = left });
+            _log("could not take out " + guid + ": could not delete " + string.Join(", ", problems));
+
+            return "could not delete " + string.Join(", ", problems);
+        }
+
+        _book.RecordFresh(guid, null);
+        _book.Record(guid, new InstallState.None());
+        _log("took out " + guid + ", installed this session, as the player asked");
+
+        return null;
+    }
+
+    private void RunNew(FreshTarget target, Func<Task<(InstallState State, FreshInstall? Fresh)>> install)
+    {
+        _book.Record(target.Guid, new InstallState.Installing());
+
+        _ = Task.Run(async () =>
+        {
+            (InstallState State, FreshInstall? Fresh) result;
+
+            try
+            {
+                result = await install().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                result = (new InstallState.Failed(ex.Message), null);
+            }
+
+            _finished.Enqueue(() =>
+            {
+                _book.Record(target.Guid, result.State);
+
+                if (result.Fresh != null) _book.RecordFresh(target.Guid, result.Fresh);
+
+                _log(result.State switch
+                {
+                    InstallState.Failed failed => "could not install " + target.Guid + ": " + failed.Reason,
+                    InstallState.Refused refused => "refused to install " + target.Guid + ": " + refused.Reason,
+                    InstallState.NeedsApproval approval => target.Guid + " waits for the player, as its code can: " + string.Join(", ", approval.NewPowers),
+                    InstallState.Installed installed => "installed " + target.Guid + " " + installed.Tag + "; it is used from the next start" + (result.Fresh?.Needs.Count > 0 ? "; it needs " + string.Join(", ", result.Fresh.Needs) : ""),
+                    _ => target.Guid + ": " + result.State,
+                });
+            });
+        });
+    }
+
+    /// <summary>The wiki's copy of the mod's newest release, which must match the index's hash.</summary>
+    private async Task<(Downloaded? Download, InstallState? Stopped)> FromWiki(IndexRelease release)
+    {
+        var (body, problem) = await Download(MirrorAddress.FileUri(release.File)).ConfigureAwait(false);
+
+        problem ??= Sha256Text.Mismatch(body, release);
+
+        return problem == null ? (new Downloaded("v" + release.Version, body), null) : (null, new InstallState.Failed("the wiki's copy " + release.File + " could not be used: " + problem));
+    }
+
+    /// <summary>The newest release of a listed mod, from its repository, pinned at this first install like any update's.</summary>
+    private async Task<(Downloaded? Download, InstallState? Stopped)> FetchNewest(FreshTarget target)
+    {
+        var repository = target.GitHub ?? "";
+        var pin = _pins.Read(repository);
+
+        if (pin is RepositoryPins.Saved.Unusable unusable) return (null, new InstallState.Refused(RepositoryPin.Unusable(unusable.Path, unusable.Problem)));
+
+        long repositoryId;
+
+        if (pin is RepositoryPins.Saved.Pinned pinned)
+        {
+            repositoryId = pinned.Id;
+        }
+        else
+        {
+            var about = await Get(RepositoryPin.RepositoryUri(repository)).ConfigureAwait(false);
+
+            if (about.Problem != null) return (null, new InstallState.Failed(about.Problem));
+
+            if (RepositoryPin.IdFrom(System.Text.Encoding.UTF8.GetString(about.Body)) is not { } id) return (null, new InstallState.Failed("GitHub did not say which repository " + repository + " is"));
+
+            repositoryId = id;
+
+            if (!_pins.Save(repository, repositoryId)) return (null, new InstallState.Failed("could not save which GitHub repository " + repository + " is"));
+        }
+
+        var answer = await Get(RepositoryPin.LatestUri(repositoryId)).ConfigureAwait(false);
+
+        if (answer.Status == 404) return (null, new InstallState.Failed(repository + " has no release on GitHub yet"));
+
+        if (answer.Problem != null) return (null, new InstallState.Failed(answer.Problem));
+
+        var json = System.Text.Encoding.UTF8.GetString(answer.Body);
+
+        if (RepositoryPin.TagFrom(json) is not { } tag) return (null, new InstallState.Failed("GitHub's newest release of " + repository + " has no tag"));
+
+        var (asset, assetProblem) = ReleaseAssets.Choose(json, target.Dll);
+
+        if (asset == null) return (null, new InstallState.Failed(assetProblem ?? "no file to install"));
+
+        var download = await Download(asset.Url).ConfigureAwait(false);
+
+        return download.Problem != null ? (null, new InstallState.Failed(download.Problem)) : (new Downloaded(tag, download.Body), null);
+    }
+
+    /// <summary>
+    /// Writes only the files named after the mod's DLL straight into the plugins folder, as with any mod there, and
+    /// never over a file that is there: anything already written is deleted again when one write fails.
+    /// </summary>
+    private (InstallState State, FreshInstall? Fresh) PlaceNew(FreshTarget target, Downloaded download, string pluginsFolder, bool isApproved)
+    {
+        using var zip = new ZipArchive(new MemoryStream(download.Zip), ZipArchiveMode.Read);
+        var items = zip.Entries.Select(entry => new ZipItem(entry.FullName, entry.Length)).ToList();
+        var (files, placeProblem) = ZipPlan.Place(items, target.Dll, pluginsFolder, isSharedFolder: true);
+
+        if (files == null) return (new InstallState.Refused(placeProblem ?? "nothing to install"), null);
+
+        var modDll = Path.GetFullPath(Path.Combine(pluginsFolder, target.Dll));
+        var dllFile = files.FirstOrDefault(file => string.Equals(file.Target, modDll, StringComparison.OrdinalIgnoreCase));
+
+        if (dllFile == null) return (new InstallState.Refused("the zip does not hold " + target.Dll), null);
+
+        if (files.FirstOrDefault(file => File.Exists(file.Target)) is { } taken) return (new InstallState.Failed("a file is already at " + taken.Target), null);
+
+        var entryOf = files.ToDictionary(file => file.Target, file => zip.Entries.First(entry => entry.FullName == file.EntryName));
+        var dll = Unpack(entryOf[dllFile.Target]);
+
+        if (target.WikiCopy?.DllSha256 is { } sha && !string.Equals(Sha256Text.Of(dll), sha, StringComparison.OrdinalIgnoreCase)) return (new InstallState.Refused("its DLL is not the one the wiki's index names"), null);
+
+        if (!isApproved)
+        {
+            switch (Browse.Judge(target.Guid, DllScanner.Bytes(dll), target.WikiCopy != null))
+            {
+                case UpdateVerdict.Rejected rejected:
+                    return (new InstallState.Refused(rejected.Reason), null);
+                case UpdateVerdict.NeedsApproval approval:
+                    _freshWaiting[target.Guid] = (target, download);
+
+                    return (new InstallState.NeedsApproval(download.Tag, approval.NewPowers), null);
+            }
+        }
+
+        var written = new List<string>();
+
+        try
+        {
+            foreach (var file in files)
+            {
+                var temporary = file.Target + ".mmnew";
+
+                entryOf[file.Target].ExtractToFile(temporary, true);
+
+                try
+                {
+                    File.Move(temporary, file.Target);
+                }
+                finally
+                {
+                    if (File.Exists(temporary)) File.Delete(temporary);
+                }
+
+                written.Add(file.Target);
+            }
+        }
+        catch (Exception ex)
+        {
+            foreach (var path in written) TryRun(() => File.Delete(path));
+
+            return (new InstallState.Failed("could not write its files: " + ex.Message), null);
+        }
+
+        return (new InstallState.Installed(download.Tag), new FreshInstall(written, NeedsOf(dll)));
+    }
+
+    /// <summary>The GUIDs the mod's plugins name as hard dependencies; none when the DLL cannot be read for them.</summary>
+    private static IReadOnlyList<string> NeedsOf(byte[] dll)
+    {
+        try
+        {
+            using var assembly = Mono.Cecil.AssemblyDefinition.ReadAssembly(new MemoryStream(dll));
+
+            return PluginFileReader.Read(assembly).SelectMany(plugin => plugin.Relations).Where(relation => relation.Kind == RelationKind.Needs).Select(relation => relation.Guid).Distinct(StringComparer.Ordinal).ToList();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
     /// <summary>Main thread: records every install that finished since the last call. True when anything changed.</summary>
     public bool TakeFinished()
     {

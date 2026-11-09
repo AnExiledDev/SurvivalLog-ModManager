@@ -60,6 +60,9 @@ public static class PageScript
     /// <summary>Says whether the mod list reached the clipboard.</summary>
     public static string Copied(bool isCopied) => Call("copied", Bool(isCopied));
 
+    /// <summary>Says whether the request to a mod's author is on the clipboard, as its Nexus posts open.</summary>
+    public static string Asked(bool isCopied) => Call("asked", Bool(isCopied));
+
     public static string Update(ModEntry mod, SettingNote? note) => Call("update", ModJson(mod) + "," + (note == null ? "null" : NoteJson(note)));
 
     /// <summary>Redraws everything while the screen stays open, after a change that touches more than one mod.</summary>
@@ -88,6 +91,8 @@ public static class PageScript
         json.Append(",\"otherErrors\":").Append(List(view.OtherErrors, ErrorJson));
         json.Append(",\"trash\":").Append(List(view.Trash, TrashJson));
         json.Append(",\"health\":").Append(List(view.Health, HealthJson));
+        json.Append(",\"browseFeed\":").Append(Str(view.BrowseFeed.ToString().ToLowerInvariant()));
+        json.Append(",\"browse\":").Append(List(view.Browse, BrowseJson));
 
         return json.Append('}').ToString();
     }
@@ -141,6 +146,24 @@ public static class PageScript
         HealthFinding.UnusedSettings unused => "{\"kind\":\"unusedCfg\",\"files\":" + List(unused.Files, Str) + "}",
         _ => "{\"kind\":\"unknown\"}",
     };
+
+    private static string BrowseJson(BrowseMod mod) =>
+        "{\"key\":" + Str(mod.Key) +
+        ",\"guid\":" + (mod.Guid == null ? "null" : Str(mod.Guid)) +
+        ",\"name\":" + Str(mod.Name) +
+        ",\"summary\":" + Str(mod.Summary) +
+        ",\"author\":" + Str(mod.Author) +
+        ",\"version\":" + Str(mod.Version) +
+        ",\"updated\":" + Str(mod.UpdatedAt) +
+        ",\"endorsements\":" + Int(mod.Endorsements) +
+        ",\"downloads\":" + Int(mod.Downloads) +
+        ",\"thumbnail\":" + (mod.Thumbnail == null ? "null" : Str(mod.Thumbnail)) +
+        ",\"nexus\":" + (mod.NexusId is { } id ? Int(id) : "null") +
+        ",\"support\":" + Str(mod.Support.ToString().ToLowerInvariant()) +
+        ",\"install\":" + InstallJson(mod.Install) +
+        ",\"fresh\":" + Bool(mod.IsFresh) +
+        ",\"needs\":" + List(mod.Needs, need => "{\"name\":" + Str(need.Name) + ",\"nexus\":" + (need.NexusId is { } needId ? Int(needId) : "null") + "}") +
+        "}";
 
     private static string TrashJson(TrashEntry item) =>
         "{\"id\":" + Str(item.Id) + ",\"name\":" + Str(item.Name) + ",\"version\":" + Str(item.Version) + ",\"when\":" + Str(item.When) + ",\"settings\":" + Bool(item.HasSettings) + ",\"thisSession\":" + Bool(item.IsThisSession) + "}";
