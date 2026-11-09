@@ -150,7 +150,7 @@
       browseAsking: 'Asking Nexus Mods and the wiki for the list of mods.',
       browseNone: 'No mod matches.', browseFind: 'Search mods',
       bwAll: 'ALL', bwInstallable: 'ONE-CLICK INSTALL', bwManual: 'MANUAL DOWNLOAD', bwInstalledF: 'INSTALLED',
-      bwSortEndorsed: 'MOST ENDORSED', bwSortUpdated: 'RECENTLY UPDATED', bwSortName: 'NAME',
+      bwSortEndorsed: 'MOST ENDORSED', bwSortDownloads: 'MOST DOWNLOADED', bwSortUpdated: 'RECENTLY UPDATED', bwSortName: 'NAME',
       bwInstalled: 'INSTALLED', bwInstall: 'INSTALL', bwOpenNexus: 'OPEN ON NEXUS', bwAsk: 'ASK THE AUTHOR',
       bwShameTitle: 'No Mod Manager support',
       bwShameBody: 'Manual download. Its author has not set it up for the Mod Manager yet, so you download it from Nexus and unpack it by hand, and it never tells you about updates. ASK THE AUTHOR copies a short request and opens the mod\'s posts on Nexus, where you can paste it.',
@@ -340,7 +340,7 @@
       browseAsking: '正在向 Nexus Mods 和维基获取模组列表。',
       browseNone: '没有匹配的模组。', browseFind: '搜索模组',
       bwAll: '全部', bwInstallable: '一键安装', bwManual: '手动下载', bwInstalledF: '已安装',
-      bwSortEndorsed: '最多点赞', bwSortUpdated: '最近更新', bwSortName: '名称',
+      bwSortEndorsed: '最多点赞', bwSortDownloads: '最多下载', bwSortUpdated: '最近更新', bwSortName: '名称',
       bwInstalled: '已安装', bwInstall: '安装', bwOpenNexus: '在 NEXUS 打开', bwAsk: '请作者支持',
       bwShameTitle: '不支持模组管理器',
       bwShameBody: '需要手动下载。作者还没有为模组管理器做好设置，所以你得从 Nexus 下载并手动解压，而且它不会提示更新。「请作者支持」会复制一段简短的请求，并打开该模组在 Nexus 上的帖子页面，你可以把请求粘贴到那里。',
@@ -1423,12 +1423,13 @@
   }
 
   const BROWSE_FILTERS = { all: 'bwAll', installable: 'bwInstallable', manual: 'bwManual', installed: 'bwInstalledF' };
-  const BROWSE_SORTS = { endorsed: 'bwSortEndorsed', updated: 'bwSortUpdated', name: 'bwSortName' };
+  const BROWSE_SORTS = { endorsed: 'bwSortEndorsed', downloads: 'bwSortDownloads', updated: 'bwSortUpdated', name: 'bwSortName' };
 
   function shownBrowse() {
     const q = state.browseQuery.toLowerCase();
     const sorts = {
       endorsed: (a, b) => b.endorsements - a.endorsements || a.name.localeCompare(b.name),
+      downloads: (a, b) => b.downloads - a.downloads || a.name.localeCompare(b.name),
       updated: (a, b) => (b.updated || '').localeCompare(a.updated || '') || a.name.localeCompare(b.name),
       name: (a, b) => a.name.localeCompare(b.name)
     };

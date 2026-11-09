@@ -277,6 +277,24 @@ public sealed class BrowseTests
         engine.Evaluate("posted.filter(function (text) { return text.indexOf('|" + verb + "|') >= 0; }).join('\\n')").AsString();
 
     [Fact]
+    public void Most_downloaded_puts_the_mod_with_the_most_downloads_first_whatever_its_endorsements()
+    {
+        // Lamp has the fewest endorsements and the most downloads, so the two sorts disagree about it.
+        var lamp = new BrowseMod("nexus:12", "Lamp", "Light.", "Ann", "1.0.0", "2026-11-01", 1, 500, null, 12, null, BrowseSupport.Manual);
+        var engine = OnBrowse(View(BrowseFeed.Ready, Radar, Bags, lamp));
+
+        var byEndorsements = KnownFactsTests.Drawn(engine);
+        Assert.Contains("MOST DOWNLOADED", byEndorsements);
+        Assert.True(byEndorsements.IndexOf("Bags") < byEndorsements.IndexOf("Lamp"));
+
+        engine.Execute("drawn.length = 0; fire('click', { target: el('DIV', [], {}, { '[data-bwsort]': { dataset: { bwsort: 'downloads' } } }) })");
+        var byDownloads = KnownFactsTests.Drawn(engine);
+
+        Assert.True(byDownloads.IndexOf("Lamp") < byDownloads.IndexOf("Bags"));
+        Assert.True(byDownloads.IndexOf("Bags") < byDownloads.IndexOf("Radar"));
+    }
+
+    [Fact]
     public void A_manual_download_is_called_out_folded_and_opens_to_ask_the_author_with_its_nexus_page()
     {
         var engine = OnBrowse(View(BrowseFeed.Ready, Radar));

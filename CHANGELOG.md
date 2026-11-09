@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.20.2
+
+- BROWSE can sort by MOST DOWNLOADED.
+- Made for Survival Log 1.1.20719.
+
 ## 0.20.1
 
 - Fixed: BROWSE no longer marks mods as having no Mod Manager support when it could not get the wiki's list of supported mods. It says the list could not be read instead, and an installed mod that names its Nexus page always shows as INSTALLED.
