@@ -69,7 +69,18 @@ internal sealed class TrashCan
         // The record first, so a folder that holds a mod's files always says where they go back to.
         Directory.CreateDirectory(folder);
         File.WriteAllText(Path.Combine(folder, TrashItem.FileName), item.ToJson());
-        Move(files.Select(file => (file.From, StoredPath(item, file))).ToList(), () => DeleteQuietly(folder));
+        try
+        {
+            Move(files.Select(file => (file.From, StoredPath(item, file))).ToList(), () => DeleteQuietly(folder));
+        }
+        catch (TrashPartial partial)
+        {
+            // The DLL moves first, so it is in the trash and the settings file is still at home. Kept from EMPTY TRASH
+            // like any mod uninstalled this session.
+            _thisSession.Add(id);
+
+            throw new TrashPartial(partial.Message, partial.InnerException, item);
+        }
 
         _thisSession.Add(id);
         _items = null;
@@ -104,7 +115,17 @@ internal sealed class TrashCan
             stored.Add(file);
         }
 
-        Move(stored.Select(file => (StoredPath(item, file), file.From)).ToList(), () => { });
+        try
+        {
+            Move(stored.Select(file => (StoredPath(item, file), file.From)).ToList(), () => { });
+        }
+        catch (TrashPartial)
+        {
+            // Some files are back and some are not: EMPTY TRASH must not delete the rest.
+            _thisSession.Add(item.Id);
+
+            throw;
+        }
 
         // Only once none of the mod's files is left in it, so a folder still holding one is never deleted.
         if (item.Files.All(file => !File.Exists(StoredPath(item, file)))) DeleteQuietly(Path.Combine(_root, item.Id));
@@ -213,7 +234,7 @@ internal sealed class TrashCan
                 done.Add((from, to));
             }
         }
-        catch (Exception)
+        catch (Exception failure)
         {
             var isAllBack = true;
 
@@ -231,8 +252,14 @@ internal sealed class TrashCan
                 }
             }
 
-            if (isAllBack) cleanUp();
-            else _items = null;
+            if (!isAllBack)
+            {
+                _items = null;
+
+                throw new TrashPartial(failure.Message, failure);
+            }
+
+            cleanUp();
 
             throw;
         }
@@ -278,4 +305,13 @@ internal sealed class TrashTaken : IOException
     public TrashTaken(string path) : base("a file is already at " + path) => Path = path;
 
     public string Path { get; }
+}
+
+/// <summary>A move failed and not every file could go back, so some are in the trash and some are not.</summary>
+internal sealed class TrashPartial : IOException
+{
+    /// <param name="item">The item an uninstall made, when it is the uninstall that stopped halfway.</param>
+    public TrashPartial(string message, Exception? inner, TrashItem? item = null) : base(message, inner) => Item = item;
+
+    public TrashItem? Item { get; }
 }

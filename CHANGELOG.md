@@ -1,12 +1,18 @@
 # Changelog
 
+## 0.20.7
+
+- Fixed: when an uninstall moved the DLL to the trash but could not move the settings file or put the DLL back, it said nothing had changed, and EMPTY TRASH could delete that DLL. It now says the DLL is in the trash and the settings file stayed, and EMPTY TRASH keeps it until the next start. A restore that only gets some files back says so too.
+- PROFILES no longer says "nothing was changed" when it only could not read your saved profiles.
+- Made for Survival Log 1.1.20719.
+
 ## 0.20.6
 
 - Fixed: when a restore from the trash failed halfway and a file could not be moved back either, the files still in the trash could be deleted. They now stay in the trash, and RESTORE works again once the file is free.
 - Fixed: an uninstall that failed the same way left a mod in the trash that could never be restored. It can be restored now.
 - Fixed: if profiles.txt could not be read for a moment (another program had it open), saving or deleting a profile could replace every saved profile. PROFILES now says it could not read them and changes nothing. Lines in profiles.txt that don't read as a profile are kept when you save.
 - PROFILES now says so when a profile could not be saved, or is too big to save.
-- EMPTY TRASH leaves a folder alone when it holds files but its record can't be read.
+- EMPTY TRASH no longer deletes a trash folder that still holds a mod's files when it can't tell which mod they belong to.
 - Made for Survival Log 1.1.20719.
 
 ## 0.20.5

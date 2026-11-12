@@ -251,6 +251,15 @@ internal sealed class PluginCatalog
         {
             item = _trash.Put(guid, mod.DisplayName, mod.Version, current, isMovingSettings ? settingsPath : null);
         }
+        catch (TrashPartial partial) when (partial.Item is TrashItem halfDone)
+        {
+            // The DLL is in the trash and the settings file stayed home, so its saving is left on.
+            _trashed[startPath] = halfDone.Id;
+            _moves[startPath] = _trash.StoredPath(halfDone, halfDone.Dll);
+            _log("uninstalled " + guid + " from the next start, but its settings file stayed in the config folder: " + partial.Message);
+
+            return new ModNote(guid, true, TrashNotes.UninstallPartial(allowed.AlsoStops));
+        }
         catch (Exception ex)
         {
             _log("could not move " + guid + " to the trash: " + ex.Message);
@@ -289,6 +298,12 @@ internal sealed class PluginCatalog
         catch (TrashTaken taken)
         {
             return new ModNote(item.Guid, true, TrashNotes.RestoreTaken(taken.Path));
+        }
+        catch (TrashPartial partial)
+        {
+            _log("restored part of " + item.Id + " from the trash: " + partial.Message);
+
+            return new ModNote(item.Guid, true, TrashNotes.RestorePartial(partial.Message));
         }
         catch (Exception ex)
         {

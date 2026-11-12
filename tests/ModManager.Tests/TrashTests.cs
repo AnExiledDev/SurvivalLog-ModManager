@@ -265,6 +265,51 @@ public sealed class TrashTests : IDisposable
     }
 
     [Fact]
+    public void Emptying_the_trash_after_an_uninstall_stopped_halfway_keeps_the_dll()
+    {
+        var dll = Write(Plugins, "Map.dll", "map dll");
+        var cfg = Write(Config, "com.ann.map.cfg", "[General]\n");
+        var stuck = new TrashCan(Root, new[] { Plugins, Off, Config }, _logged.Add, FailingMove(from => from.EndsWith("com.ann.map.cfg", StringComparison.Ordinal) || from.StartsWith(Root, StringComparison.Ordinal)));
+
+        var partial = Assert.Throws<TrashPartial>(() => stuck.Put("com.ann.map", "Map", "1.2.0", dll, cfg));
+        var item = Assert.IsType<TrashItem>(partial.Item);
+        var (deleted, kept, _) = stuck.Empty();
+
+        Assert.Equal(0, deleted);
+        Assert.Equal(1, kept);
+        Assert.Equal("map dll", File.ReadAllText(stuck.StoredPath(item, item.Dll)));
+    }
+
+    [Fact]
+    public void Emptying_the_trash_after_a_restore_stopped_halfway_keeps_the_files_still_in_it()
+    {
+        var dll = Write(Plugins, "Map.dll", "map dll");
+        var cfg = Write(Config, "com.ann.map.cfg", "[General]\nZoom = 2\n");
+        var item = NewSession().Put("com.ann.map", "Map", "1.2.0", dll, cfg);
+        var stuck = new TrashCan(Root, new[] { Plugins, Off, Config }, _logged.Add, FailingMove(from => from.EndsWith("com.ann.map.cfg", StringComparison.Ordinal) || from == Path.Combine(Plugins, "Map.dll")));
+
+        Assert.Throws<TrashPartial>(() => stuck.Restore(item));
+
+        stuck.Empty();
+
+        Assert.Equal("[General]\nZoom = 2\n", File.ReadAllText(stuck.StoredPath(item, item.Files[1])));
+        Assert.Equal("map dll", File.ReadAllText(dll));
+    }
+
+    [Fact]
+    public void A_move_that_stopped_halfway_never_says_nothing_changed()
+    {
+        var uninstalled = TrashNotes.UninstallPartial(Array.Empty<string>());
+        var restored = TrashNotes.RestorePartial("locked");
+
+        Assert.Contains("its DLL is in the trash", uninstalled.English);
+        Assert.Contains("stayed in the config folder", uninstalled.English);
+        Assert.Contains("will not start either: Radar.", TrashNotes.UninstallPartial(new[] { "Radar" }).English);
+        Assert.Contains("still in the trash", restored.English);
+        Assert.DoesNotContain("nothing changed", uninstalled.English + restored.English);
+    }
+
+    [Fact]
     public void A_saved_file_that_cannot_be_read_is_told_apart_from_one_that_is_not_there()
     {
         var path = Write(_game, "profiles.txt", "SLMM1-saved\n");

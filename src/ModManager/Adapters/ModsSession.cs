@@ -823,7 +823,7 @@ internal sealed class ModsSession
             Health = _catalog.Health(mods),
             Browse = _isCheckingForUpdates() ? Browse.List(_updates.Nexus, _updates.Index, mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal), Browse.InstalledNexusIds(mods, _updates.Index), _updates.InstallOf, _updates.FreshOf, _isUsingWikiCopies()) : Array.Empty<BrowseMod>(),
             BrowseFeed = !_isCheckingForUpdates() ? BrowseFeed.Off : _nexus.IsAsking || !_checks.IsIndexSettled ? BrowseFeed.Asking : BrowseFeed.Ready,
-            Profiles = IsProfilesRead() ? new ProfilesView(Profiles(), ShownCheck(mods), _profileProblem, _profileNote) : new ProfilesView(Array.Empty<Profile>(), ShownCheck(mods), _profileProblem, ProfileNotes.NotRead),
+            Profiles = IsProfilesRead() ? new ProfilesView(Profiles(), ShownCheck(mods), _profileProblem, _profileNote) : new ProfilesView(Array.Empty<Profile>(), ShownCheck(mods), _profileProblem, ProfileNotes.Unreadable),
         };
     }
 

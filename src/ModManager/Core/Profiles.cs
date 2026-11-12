@@ -287,6 +287,10 @@ public static class ProfileNotes
 
     public static BilingualText Deleted(string name) => new("Deleted the profile \"" + name + "\".", "已删除配置方案「" + name + "」。");
 
+    /// <summary>Shown on PROFILES while the saved profiles can't be read.</summary>
+    public static readonly BilingualText Unreadable = new("Could not read your saved profiles. Close any program that has profiles.txt open and try again.", "无法读取已保存的配置方案。请关闭打开了 profiles.txt 的程序后重试。");
+
+    /// <summary>A save or delete refused because the saved profiles can't be read.</summary>
     public static readonly BilingualText NotRead = new("Could not read the saved profiles, so nothing was changed. Close any program that has profiles.txt open and try again.", "无法读取已保存的配置方案，因此没有做任何更改。请关闭打开了 profiles.txt 的程序后重试。");
 
     public static readonly BilingualText NotSaved = new("Could not save the profiles. The log says why.", "无法保存配置方案，原因见日志。");

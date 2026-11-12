@@ -144,6 +144,17 @@ public static class TrashNotes
         var english = "Uninstalled from the next start: its DLL is in the trash" + (movedSettings ? ", and so is its settings file." : hasSettingsFile ? ". Its settings file is kept." : ".") + " RESTORE puts it back.";
         var chinese = "下次启动时卸载：它的 DLL 已移到回收站" + (movedSettings ? "，它的设置文件也是。" : hasSettingsFile ? "。它的设置文件会保留。" : "。") + "「恢复」可以把它放回去。";
 
+        return WithAlsoStops(english, chinese, alsoStops);
+    }
+
+    /// <summary>The DLL went to the trash, but the settings file could not move and could not be put back either.</summary>
+    public static BilingualText UninstallPartial(IReadOnlyList<string> alsoStops) => WithAlsoStops(
+        "Uninstalled from the next start: its DLL is in the trash, but its settings file could not be moved, so it stayed in the config folder. RESTORE puts the DLL back.",
+        "下次启动时卸载：它的 DLL 已移到回收站，但它的设置文件无法移动，所以留在了配置文件夹里。「恢复」可以把 DLL 放回去。",
+        alsoStops);
+
+    private static BilingualText WithAlsoStops(string english, string chinese, IReadOnlyList<string> alsoStops)
+    {
         if (alsoStops.Count == 0) return new BilingualText(english, chinese);
 
         var names = string.Join(", ", alsoStops);
@@ -175,6 +186,9 @@ public static class TrashNotes
 
     public static BilingualText RestoreFailed(string reason) =>
         new("Could not restore it, so nothing changed: " + reason, "无法恢复它，所以没有任何变化：" + reason);
+
+    public static BilingualText RestorePartial(string reason) =>
+        new("Only some of its files came back, and the rest are still in the trash. Try RESTORE again once no program has them open: " + reason, "只有部分文件放回了，其余的还在回收站里。等没有程序打开它们时再点「恢复」：" + reason);
 
     /// <param name="kept">Uninstalled this session, so still running and left in the trash.</param>
     /// <param name="failed">Could not be deleted.</param>
