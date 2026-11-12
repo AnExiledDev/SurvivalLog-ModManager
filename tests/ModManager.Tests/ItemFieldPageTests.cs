@@ -153,7 +153,7 @@ public class ItemFieldPageTests
         // 9 pipes back (90) for a recipe worth 62.
         var field = Field(Draw(Materials("20004:5,20104:3"), Returns("20004:9")), "Returns");
 
-        Assert.Contains("Worth more than what it takes to make (90 against 62)", field);
+        Assert.Contains("Taking it down gives back more than it costs to make (90 against 62)", field);
     }
 
     [Fact]
@@ -382,7 +382,7 @@ public class ItemFieldPageTests
 
         var empty = Field(DrawWith(new[] { PageScript.Entries(PageScript.EntriesId(beds.Id), ListEntries.Parse("")) }, beds), "BedModes");
 
-        Assert.Contains("The mod has not listed what this can hold yet.", empty);
+        Assert.Contains("The mod has not listed the choices for this yet.", empty);
     }
 
     private static Engine OpenWithEntries(string[] before, params Setting[] settings)

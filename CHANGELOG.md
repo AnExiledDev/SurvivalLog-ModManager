@@ -1,9 +1,14 @@
 # Changelog
 
+## 0.20.8
+
+- Clearer wording on the Mods screen and in the settings.
+- Made for Survival Log 1.1.20719.
+
 ## 0.20.7
 
 - Fixed: when an uninstall moved the DLL to the trash but could not move the settings file or put the DLL back, it said nothing had changed, and EMPTY TRASH could delete that DLL. It now says the DLL is in the trash and the settings file stayed, and EMPTY TRASH keeps it until the next start. A restore that only gets some files back says so too.
-- PROFILES no longer says "nothing was changed" when it only could not read your saved profiles.
+- PROFILES no longer says "nothing was changed" when the only problem was that it could not read your saved profiles.
 - Made for Survival Log 1.1.20719.
 
 ## 0.20.6
@@ -98,7 +103,7 @@
 - A mod's own list (such as Vital Signs' food, beds and buffs) now shows as a list instead of cards: one row per entry with its picture, its name and what it does. Each row has buttons to move it up or down and to take it out.
 - A choice, such as a bed's Sleep or Nap, is a row of buttons on the entry, so you pick it in one click.
 - ADD opens a window that lists everything the mod offers as rows, filed under the mod's groups, with an Add button on each row. The window stays open, so you can add several in a row, and a click on ADDED takes one out again.
-- A list the mod fills in when it is left blank no longer shows everything it stands for, only the mod's line about it.
+- A list the mod fills in when it is left blank now shows only the mod's line about it, instead of every item it stands for.
 - Enter in the search box of the item window now adds the item shown, instead of doing nothing.
 - Made for Survival Log 1.1.20719.
 
@@ -129,7 +134,7 @@
 - A crafting recipe setting shows the item it makes, with the recipe's total pieces, weight and value.
 - A setting for what dismantling gives back shows the items you get while it is left blank, and SET BY HAND turns that into a list you can edit. It warns you when it would give back more than the recipe is worth.
 - When a mod cannot use a list (for example, the game already has a recipe with exactly those materials), the reason shows under the list.
-- The plain text of a list sits below its cards; click it to type or paste a list.
+- The plain text of a list sits below its cards. Click it to type or paste a list.
 - Mod authors: new tags `ModManager.MaxKinds`, `ModManager.MaxCount`, `ModManager.AutoWhenBlank`, `ModManager.Makes` and `ModManager.ReturnsOf`, and an optional `ModManagerAnswers` class. See "For mod authors" in the README.
 - Made for Survival Log 1.1.20151.
 
@@ -152,7 +157,7 @@
 
 ## 0.11.1
 
-- The key that opens the Mods screen is now unbound by default; use the Mods button in the Esc menu or on the title screen, or set a key in the settings.
+- The Mods screen now has no key by default. Use the Mods button in the Esc menu or on the title screen, or set a key in the settings.
 - The open key no longer fires while you type in a text box in any mod's window.
 - Exiled's Toolkit 0.12.0 or newer is now required.
 - Made for Survival Log 1.1.20151.
@@ -164,7 +169,7 @@
 
 ## 0.10.0
 
-- List settings can show their choices in Chinese. A mod names each choice with the new `ModManager.ChoiceZh` tag; the value saved stays the same.
+- List settings can show their choices in Chinese. A mod names each choice with the new `ModManager.ChoiceZh` tag, and the saved value stays the same.
 - Made for Survival Log 1.1.19611.
 
 ## 0.9.0
@@ -200,7 +205,7 @@
 
 - Updates are checked before they are installed:
   - The new DLL must be the same mod (the same BepInPlugin GUID) as the one installed. A zip that holds a program file (.exe, .bat, .ps1 and the like), or a file name Windows would change, is refused.
-  - A mod's updates must keep coming from the GitHub repository its first install came from. A repository that was deleted and made again under the same name by someone else is not installed from; use GET UPDATE to install by hand if you trust it.
+  - A mod's updates must keep coming from the GitHub repository its first install came from. A repository that someone else deleted and made again under the same name is refused. Use GET UPDATE to install it by hand if you trust it.
   - An update that starts doing something harmful code needs and a game mod does not (starting other programs, loading other code, using the Windows registry) is refused. A mod that already did it when installed keeps updating.
   - When an update can do something else the installed version could not (connect to the internet, call native code, open links or files in other programs, or add another DLL), its page says what, and it is installed only when you click INSTALL ANYWAY. INSTALL ALL UPDATES skips these.
   - A refused update says why on its page and is not offered again until the next start. GET UPDATE still lets you install it by hand.
@@ -218,7 +223,7 @@
 - ROLL BACK TO (version): after an update, put the files it replaced back for the next start.
 - A mod's page shows the release notes of every release since your version, not only the latest.
 - A mod's page has a CONFLICTS tab listing the other mods that change the same game code, which parts, and what each mod does there. Each is marked LIKELY TO CLASH (both rewrite the game code), MAY CLASH (one can skip or rewrite it) or PROBABLY HARMLESS, riskiest first.
-- Errors and warnings logged this session are listed under the mod they came from: an ERRORS tab on the mod's page (with the message, the stack, and how many times it happened), an ERROR or WARNING mark in the list, and an "Errors" filter. When an error went through game code that another mod also changes, the tab names that mod, which is evidence of a real clash. Errors that belong to no mod (BepInEx, the game itself) have their own ERRORS page beside MODS at the top. COPY MOD LIST includes them all.
+- Errors and warnings logged this session are listed under the mod they came from: an ERRORS tab on the mod's page (with the message, the stack, and how many times it happened), an ERROR or WARNING mark in the list, and an "Errors" filter. When an error went through game code that another mod also changes, the tab names that mod, since that points to a real clash. Errors that belong to no mod (BepInEx, the game itself) have their own ERRORS page beside MODS at the top. COPY MOD LIST includes them all.
 - A mod that links its changelog gets a CHANGELOG tab next to CONFLICTS, which shows the changelog on the mod's page.
 - A mod's page shows the version range of each mod it needs, and marks an installed version outside that range as wrong version.
 - A mod's page lists the mods that need it (NEEDED BY) and the ones that can use it (USED BY (OPTIONAL)). A mod that needs it turns red while it is off.
@@ -242,7 +247,7 @@
 ## 0.4.0
 
 - Install updates: INSTALL UPDATE downloads the release's zip from GitHub and puts the new files in place for the next start. The old files are kept in `BepInEx\mod-manager\backups`, and a failed install puts them back.
-- One message at the start says how many mods have updates; click it to see them. Turn it off with `Updates.ShowToast`.
+- One message at the start says how many mods have updates. Click it to see them. Turn it off with `Updates.ShowToast`.
 - Settings show whether a change needs a restart: NEEDS RESTART, MAY NEED RESTART, or no mark for settings the mod applies at once. Mods built on Exiled's Toolkit 0.4.0 can apply settings live.
 - A mod's page lists the mods it needs, works with and does not work with. TURN ON WHAT IT NEEDS turns on the ones it needs for the next start.
 - Mods can give a name and description in English and Chinese, an icon, a category, a link for reporting problems, and the game version they were made for. A mod made for another game version is marked VERSION.
@@ -258,7 +263,7 @@
 ## 0.2.0
 
 - Turn mods on or off from a switch on each mod's page. The DLL moves to `BepInEx\disabled-plugins` (or back) and the change applies at the next start. Turned-off mods are listed under "Off". Turning a mod off names the mods that need it.
-- Mods can show a description, their author, and Nexus Mods, GitHub and website links. Mod authors set these with assembly metadata; see "For mod authors" in the README.
+- Mods can show a description, their author, and Nexus Mods, GitHub and website links. Mod authors set these with assembly metadata (see "For mod authors" in the README).
 
 ## 0.1.0
 

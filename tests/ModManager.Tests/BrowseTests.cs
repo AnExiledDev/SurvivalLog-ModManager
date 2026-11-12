@@ -386,7 +386,7 @@ public sealed class BrowseTests
         var torch = new BrowseMod("com.cat.torch", "Torch", "Light.", "Cat", "2.0.0", "2026-11-01", 3, 30, null, 77, "com.cat.torch", BrowseSupport.WikiOnly);
         var drawn = KnownFactsTests.Drawn(OnBrowse(View(BrowseFeed.Ready, torch)));
 
-        Assert.Contains("Turn on &quot;Wiki Downloads&quot; in the Mod Manager", drawn);
+        Assert.Contains("Turn on &quot;Wiki downloads&quot; in the Mod Manager", drawn);
         Assert.Contains("OPEN ON NEXUS", drawn);
         Assert.DoesNotContain("data-act=\"bwInstall\"", drawn);
         Assert.DoesNotContain("No Mod Manager support", drawn);
@@ -424,7 +424,7 @@ public sealed class BrowseTests
     {
         var engine = OnBrowse(View(BrowseFeed.Ready, Bags with { Install = new InstallState.Installed("v1.0.0"), IsFresh = true }));
 
-        Assert.Contains("Installed, starts from the next start", KnownFactsTests.Drawn(engine));
+        Assert.Contains("Installed, starts at the next game start", KnownFactsTests.Drawn(engine));
 
         engine.Execute("fire('click', { target: el('DIV', [], { act: 'undo', undo: '0' }, { '[data-act]': { dataset: { act: 'undo', undo: '0' } } }) })");
 
@@ -458,7 +458,7 @@ public sealed class BrowseTests
     {
         var drawn = KnownFactsTests.Drawn(OnBrowse(View(BrowseFeed.Off)));
 
-        Assert.Contains("「Check For Updates」", drawn);
+        Assert.Contains("Turn on &quot;Check for updates&quot;", drawn);
     }
 
     [Fact]

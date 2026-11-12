@@ -190,7 +190,7 @@ public static class AskAuthor
     /// <summary>English, then Chinese, in one message, as the author may read either.</summary>
     public static string Message(string modName) =>
         "Hi! Could you add Mod Manager support to " + modName + "? Then players can install it and get its updates from the in-game Mods screen, without a manual download. " +
-        "It takes a few lines in the project file and a release zip on GitHub; the steps are here: " + KitUrl + " (Mod Manager: " + ModManagerUrl + "). Thank you for the mod!\n\n" +
+        "It takes a few lines in the project file and a release zip on GitHub. The steps are here: " + KitUrl + " (Mod Manager: " + ModManagerUrl + "). Thank you for the mod!\n\n" +
         "你好！能否为「" + modName + "」加入 Mod Manager 支持？这样玩家就能在游戏内的模组界面里安装和更新它，不用手动下载。" +
-        "只需要在项目文件里加几行，并在 GitHub 上发布一个 zip；步骤见：" + KitUrl + "（Mod Manager：" + ModManagerUrl + "）。感谢制作这个模组！";
+        "只需要在项目文件里加几行，并在 GitHub 上发布一个 zip。步骤见：" + KitUrl + "（Mod Manager：" + ModManagerUrl + "）。感谢制作这个模组！";
 }

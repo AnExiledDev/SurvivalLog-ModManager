@@ -19,12 +19,12 @@ Mod Manager adds a Mods screen to Survival Log. It lists every BepInEx mod you h
 [*][b]Copy mod list[/b]: one button copies every mod with its version and state, and this session's errors, ready to paste into a bug report.[/*]
 [*][b]Turn mods on or off[/b]: a switch on each mod's page, applied at the next start. It warns about mods that need the one you turn off, and turns on what a mod needs with one button.[/*]
 [*][b]Uninstall[/b]: UNINSTALL moves a mod, and its settings file if you want, to a trash folder. It first tells you whether the mod can get your save ready to load without it, and which mods stop with it. The TRASH page lets you RESTORE a mod, or EMPTY TRASH to delete them for good.[/*]
-[*][b]Changes waiting for a restart[/b]: a bar at the bottom lists every change that applies at the next start, with UNDO for each and QUIT GAME to quit and use them. The game saves your run as it does when you close its window.[/*]
+[*][b]Changes waiting for a restart[/b]: a bar at the bottom lists every change that applies at the next start, with UNDO for each, and QUIT GAME to quit so they take effect. The game saves your run as it does when you close its window.[/*]
 [*][b]Health check[/b]: a HEALTH page shows what is wrong with how your mods are installed: the same mod or DLL twice, a folder unpacked one level too deep, a BepInEx build these mods are not made for, a mod that needs a newer Exiled's Toolkit, and settings files left from mods you removed.[/*]
 [*][b]Browse[/b]: a BROWSE page lists every mod for the game on Nexus, with search, filters and sorting. Mods whose authors set them up for the Mod Manager install with one click, along with the mods they need, and UNDO takes them out again. The rest are marked as manual downloads, with an ASK THE AUTHOR button that copies a short request for Mod Manager support and opens the mod's posts on Nexus for you to paste it.[/*]
-[*][b]Profiles[/b]: save a setup (which mods are on and every setting you changed) and go back to it any time. COPY CODE gives a short code to share; paste one, or a mod list, and the PROFILES page shows everything it would change before it changes anything, installs what it can from BROWSE, and links the rest on Nexus.[/*]
+[*][b]Profiles[/b]: save a setup (which mods are on and every setting you changed) and go back to it any time. COPY CODE gives a short code to share. Paste one, or a mod list, and the PROFILES page shows everything it would change before it changes anything. It installs what it can from BROWSE and links the rest on Nexus.[/*]
 [*][b]Dependencies[/b]: each mod's page lists what it needs (with the version it asks for), what it can use, what it does not work with, and which mods need or use it. A missing, off or wrong-version mod is marked red.[/*]
-[*][b]Update checks and installs[/b]: at each start it asks GitHub and the Survival Log Wiki which mods have a newer release and shows one message saying how many. INSTALL UPDATE downloads the new version and puts it in place for the next start, keeping the old files. Turn on WikiDownloads and my mods download from the wiki first, so they update even where GitHub is slow or blocked. INSTALL ALL UPDATES does every mod at once and marks any update it stopped, the page shows the notes of every release since yours, and ROLL BACK puts the old version back if the new one gives you trouble. Each update is checked first: it must be the same mod, from the same GitHub repository as before or the exact file the wiki lists, with no program files. An update that newly starts programs, loads other code or uses the registry is refused, and one that can do something else the old version could not (like connect to the internet) asks you before it installs, unless it is the exact file the wiki lists.[/*]
+[*][b]Update checks and installs[/b]: at each start it asks GitHub and the Survival Log Wiki which mods have a newer release and shows one message saying how many. INSTALL UPDATE downloads the new version and puts it in place for the next start, keeping the old files. Turn on WikiDownloads and mods on the wiki's list download from the wiki first, so they update even where GitHub is slow or blocked. INSTALL ALL UPDATES updates every mod at once and marks any update it held back. A mod's page shows the notes of every release since yours, and ROLL BACK puts the old version back if the new one gives you trouble. Each update is checked first: it must be the same mod, from the same GitHub repository as before or the exact file the wiki lists, with no program files. An update that newly starts programs, loads other code or uses the registry is refused, and one that can do something else the old version could not (like connect to the internet) asks you before it installs, unless it is the exact file the wiki lists.[/*]
 [*][b]Conflicts tab[/b]: each mod's page lists the other mods that patch the same parts of the game, marked LIKELY TO CLASH, MAY CLASH or PROBABLY HARMLESS, so you know where to look first when two mods misbehave together. Mods known not to work together are listed at the top.[/*]
 [*][b]Nexus Mods versions[/b]: mods from Nexus show when Nexus has a newer version, with a NEXUS button to the mod's page there. It asks Nexus at most once a day and needs no account.[/*]
 [*][b]Known broken versions[/b]: a mod version known not to work gets a BROKEN mark with the reason, and an update to such a version is marked HELD and never installed.[/*]
@@ -36,7 +36,7 @@ Mod Manager adds a Mods screen to Survival Log. It lists every BepInEx mod you h
 The Mod Manager adds nothing to your save and does not edit game files. It only goes online for the checks at each start (GitHub, the Survival Log Wiki, and Nexus Mods once a day), for update downloads and for changelogs. It needs no account or key, and sends none of your files, settings or saves.
 
 [size=5]For mod authors[/size]
-Your mod shows up with no work at all. To give it a name in both languages, an icon, a banner, a category, links, item pickers, live settings, update installs and more, add a few lines of metadata to your .csproj; nothing needs a reference to the Mod Manager. The [url=https://github.com/AnExiledDev/SurvivalLog-ModManager#for-mod-authors]full guide is in the README[/url].
+Your mod shows up with no work at all. To give it a name in both languages, an icon, a banner, a category, links, item pickers, live settings, update installs and more, add a few lines of metadata to your .csproj. Your mod does not need a reference to the Mod Manager. The [url=https://github.com/AnExiledDev/SurvivalLog-ModManager#for-mod-authors]full guide is in the README[/url].
 
 Works in English and Chinese.
 
@@ -46,7 +46,7 @@ Works in English and Chinese.
 [*]Many mods read a setting only when the game starts. Such changes are saved at once and used after the next start.[/*]
 [*]The Mod Manager and Exiled's Toolkit cannot be turned off from the screen. Delete their DLLs to remove them.[/*]
 [*]While a mod's update downloads, and after an install or rollback until the next start, its switch is locked.[/*]
-[*]Update checks only cover mods that name a GitHub repository, and INSTALL UPDATE needs the release to carry a .zip with the mod's DLL. Otherwise GET UPDATE opens the release page.[/*]
+[*]Update checks cover mods that name a GitHub repository and mods on the Survival Log Wiki. INSTALL UPDATE needs the release to carry a .zip with the mod's DLL. Otherwise GET UPDATE opens the release page.[/*]
 [*]GitHub allows 60 requests an hour without an account. Past that, release notes and installs say to try again later.[/*]
 [*]A Nexus version is only shown when the mod's DLL is the one uploaded to Nexus. With many mods from Nexus, some show their version a day or two later.[/*]
 [*]An uninstalled mod keeps running until you quit the game.[/*]
@@ -72,11 +72,11 @@ Works in English and Chinese.
 Delete [font=Courier New]ModManager.dll[/font] from the [font=Courier New]BepInEx\plugins[/font] folder. Settings you changed with it stay in the other mods' .cfg files.
 
 [size=5]Configuration[/size]
-The Mod Manager's own settings (the key that opens it, update checks, downloads from the wiki, the update message) can be changed on the Mods screen, or in [font=Courier New]BepInEx\config\com.dev.survivallog.modmanager.cfg[/font] while the game is closed (see [url=https://github.com/AnExiledDev/SurvivalLog-ModManager/blob/main/CONFIG.md]CONFIG.md[/url]; the cfg file explains each setting in English and Chinese).
+The Mod Manager's own settings (the key that opens it, update checks, downloads from the wiki, the update message) can be changed on the Mods screen, or in [font=Courier New]BepInEx\config\com.dev.survivallog.modmanager.cfg[/font] while the game is closed (see [url=https://github.com/AnExiledDev/SurvivalLog-ModManager/blob/main/CONFIG.md]CONFIG.md[/url]). The cfg file explains each setting in English and Chinese.
 
 [size=5]Feedback[/size]
 Found a bug or have an idea? Come say hi on the [url=https://discord.gg/trTsyxUFqg]Core Directive Discord[/url], or leave a comment here. For bugs, please include [font=Courier New]BepInEx\LogOutput.log[/font] and [font=Courier New]BepInEx\mod-manager.log[/font].
-To reach me directly, message [b]exiled.dev[/b] on Discord; you can find me in the [url=https://discord.gg/MZGg4gQAUe]official Survival Log Discord[/url]. I'm also on X as [url=https://x.com/AnExiledDev]@AnExiledDev[/url].
+To reach me directly, message [b]exiled.dev[/b] on Discord. You can find me in the [url=https://discord.gg/MZGg4gQAUe]official Survival Log Discord[/url]. I'm also on X as [url=https://x.com/AnExiledDev]@AnExiledDev[/url].
 Check out my [url=https://sldb.core-directive.com/en/]Survival Log wiki[/url] for items, crafting, maps and more.
 
 [size=5]Source and license[/size]
@@ -100,12 +100,12 @@ Mod Manager 为 Survival Log 加入一个模组界面。它列出你安装的每
 [*][b]复制模组列表[/b]：一个按钮即可复制所有模组及其版本和状态，以及这次游戏的错误，方便粘贴到问题反馈中。[/*]
 [*][b]开启或关闭模组[/b]：每个模组页面上都有开关，下次启动时生效。关闭模组时会提醒哪些模组需要它；一个按钮就能开启某个模组需要的模组。[/*]
 [*][b]卸载[/b]：「卸载」会把模组移到回收站，也可以连同它的设置文件一起移走。卸载前会告诉你这个模组能否先让存档在没有它时也能读取，以及哪些模组会随之停止。在「回收站」页面可以「恢复」模组，或用「清空回收站」永久删除。[/*]
-[*][b]等待重启的改动[/b]：底部的栏会列出所有要在下次启动时生效的改动，每项都可以「撤销」，「退出游戏」则直接退出以使用这些改动。游戏会像关闭窗口时一样保存你的进度。[/*]
+[*][b]等待重启的改动[/b]：底部的栏会列出所有要在下次启动时生效的改动，每项都可以「撤销」，「退出游戏」会直接退出，让这些改动生效。游戏会像关闭窗口时一样保存你的进度。[/*]
 [*][b]安装检查[/b]：「安装检查」页会列出模组安装上的问题：同一个模组或 DLL 装了两次、解压时多套了一层文件夹、不是这些模组所用的 BepInEx 版本、需要更新版 Exiled's Toolkit 的模组，以及已删除模组留下的设置文件。[/*]
 [*][b]浏览[/b]：「浏览」页列出 Nexus 上本游戏的所有模组，可搜索、筛选和排序。作者为模组管理器做好设置的模组一键即可安装，所需的模组也会一起装上，「撤销」可以再移除。其他模组标为需要手动下载，并有「请作者支持」按钮：它会复制一段请求模组管理器支持的简短留言，并打开该模组在 Nexus 上的帖子页面，由你粘贴发送。[/*]
 [*][b]配置方案[/b]：保存一套配置（哪些模组开启，以及你改过的每项设置），随时换回去。「复制代码」会生成一段可分享的短代码；粘贴代码或模组列表后，「配置方案」页会先列出它将改变的所有内容，再进行更改，能从「浏览」安装的模组会自动安装，其余的给出 Nexus 链接。[/*]
 [*][b]依赖[/b]：每个模组页面会列出它需要的模组（及要求的版本）、可配合的模组、不兼容的模组，以及需要或使用它的模组。缺失、已关闭或版本不符的模组会标红。[/*]
-[*][b]检查并安装更新[/b]：每次启动时向 GitHub 和 Survival Log 维基查询哪些模组有新版本，并用一条消息告诉你有几个。「安装更新」会下载新版本，下次启动时生效，旧文件会保留。开启 WikiDownloads 后，我的模组会先从维基下载，所以在 GitHub 很慢或打不开的地方也能更新。「安装全部更新」可一次更新所有模组，并标出它没有安装的更新，页面会显示你的版本之后每次发布的更新说明；如果新版本有问题，「退回」可以换回旧版本。每次更新都会先检查：必须是同一个模组、来自与之前相同的 GitHub 仓库或正是维基列出的文件、不含程序文件。新版本如果开始启动其他程序、加载其他代码或使用注册表，会被拒绝；如果能做到旧版本做不到的其他事（比如连接互联网），安装前会先询问你，除非它正是维基列出的文件。[/*]
+[*][b]检查并安装更新[/b]：每次启动时向 GitHub 和 Survival Log 维基查询哪些模组有新版本，并用一条消息告诉你有几个。「安装更新」会下载新版本，下次启动时生效，旧文件会保留。开启 WikiDownloads 后，维基列出的模组会先从维基下载，所以在 GitHub 很慢或打不开的地方也能更新。「安装全部更新」可一次更新所有模组，并标出它没有安装的更新。模组页面会显示你的版本之后每次发布的更新说明，如果新版本有问题，「退回」可以换回旧版本。每次更新都会先检查：必须是同一个模组、来自与之前相同的 GitHub 仓库或正是维基列出的文件、不含程序文件。新版本如果开始启动其他程序、加载其他代码或使用注册表，会被拒绝；如果能做到旧版本做不到的其他事（比如连接互联网），安装前会先询问你，除非它正是维基列出的文件。[/*]
 [*][b]「冲突」页[/b]：每个模组的页面会列出修改了游戏相同部分的其他模组，并标出「很可能冲突」「可能冲突」或「大概无害」，两个模组一起出问题时可以先从这里查起。已知不能一起使用的模组会列在最上面。[/*]
 [*][b]Nexus Mods 版本[/b]：来自 Nexus 的模组在 Nexus 上有新版本时会标出来，并有「NEXUS」按钮打开它在那里的页面。每天最多查询 Nexus 一次，不需要账号。[/*]
 [*][b]已知故障的版本[/b]：已知无法正常工作的模组版本会标为「已知故障」并写明原因；更新到这种版本会标为「已暂缓」，永远不会安装。[/*]
@@ -125,7 +125,7 @@ Mod Manager 不会向存档添加任何内容，也不会修改游戏文件。�
 [*]很多模组只在游戏启动时读取设置。这类修改会立即保存，但要下次启动后才生效。[/*]
 [*]Mod Manager 和 Exiled's Toolkit 无法在界面中关闭。如需移除，请删除它们的 DLL。[/*]
 [*]模组更新下载期间，以及安装或回滚之后直到下次启动前，它的开关会被锁定。[/*]
-[*]只有标明了 GitHub 仓库的模组才会检查更新；「安装更新」需要发布版本附带包含该模组 DLL 的 .zip 文件，否则「获取更新」会打开发布页面。[/*]
+[*]标明了 GitHub 仓库的模组和 Survival Log 维基列出的模组会检查更新。「安装更新」需要发布版本附带包含该模组 DLL 的 .zip 文件，否则「获取更新」会打开发布页面。[/*]
 [*]不登录时 GitHub 每小时只允许 60 次请求。超出后，更新说明和安装会提示稍后再试。[/*]
 [*]只有模组的 DLL 与上传到 Nexus 的相同时，才会显示 Nexus 版本。来自 Nexus 的模组很多时，有些会晚一两天才显示版本。[/*]
 [*]卸载的模组在你退出游戏之前会继续运行。[/*]

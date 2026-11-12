@@ -216,7 +216,7 @@ public sealed class GameFitTests : IDisposable
         var drawn = KnownFactsTests.Drawn(KnownFactsTests.Open(Mod("g") with { Fit = Outdated }));
 
         Assert.Contains(">OUTDATED</span>", drawn);
-        Assert.Contains("<b>May not work with this game version.</b> 2 of the 10 parts of the game code it uses are not in this game version", drawn);
+        Assert.Contains("<b>May not work with this game version.</b> This game version is missing 2 of the 10 parts of the game code the mod uses.", drawn);
         Assert.Contains("Game.Door::Shut<br>Game.Window", drawn);
     }
 

@@ -18,7 +18,7 @@ namespace ModManager;
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "com.dev.survivallog.modmanager";
-    public const string Version = "0.20.7";
+    public const string Version = "0.20.8";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
     private const string ToolkitVersion = ">=0.19.0";
@@ -34,8 +34,8 @@ public sealed class Plugin : BasePlugin
         ModUiSize.Bind(Config, "ModManager");
 
         var openKey = Config.Bind("Menu", "OpenKey", Enum.Parse<KeyCode>(Hotkey.DefaultKey),
-            "The key that opens and closes the Mods screen. Unbound by default: the Mods button in the Esc menu and on the title screen opens it. Set a key here to open it from the keyboard too. The key does nothing while you type in a text box.\n" +
-            "打开和关闭「模组」界面的按键。默认不绑定：点击 Esc 菜单和标题画面中的「模组」按钮即可打开。在此设置按键后也可以用键盘打开。在输入框里打字时该按键不起作用。");
+            "The key that opens and closes the Mods screen. No key is set by default, since the Mods button in the Esc menu and on the title screen opens it. Set a key here to open it from the keyboard too. The key does nothing while you type in a text box.\n" +
+            "打开和关闭「模组」界面的按键。默认不绑定，因为点击 Esc 菜单和标题画面中的「模组」按钮即可打开。在此设置按键后也可以用键盘打开。在输入框里打字时该按键不起作用。");
         var checkForUpdates = Config.Bind("Updates", "CheckForUpdates", true,
             "Each time the game starts, look for mod updates and for what is known about your mods. GitHub is asked about mods that name a GitHub repository, the Survival Log Wiki (sldb.core-directive.com) for its list of mods and known problems, and Nexus Mods, at most once a day, for the newest version of each of the game's mods there. No account or key is needed, and none of your files, settings or saves are sent. Default: on.\n" +
             "每次启动游戏时，检查模组更新以及已知的模组信息。会向 GitHub 查询标明了 GitHub 仓库的模组，向 Survival Log 维基（sldb.core-directive.com）获取模组列表和已知问题，并且每天最多一次向 Nexus Mods 查询本游戏各模组的最新版本。不需要账号或密钥，也不会发送你的任何文件、设置或存档。默认开启。");

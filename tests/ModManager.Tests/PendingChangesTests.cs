@@ -165,7 +165,7 @@ public sealed class PendingChangesTests
         var engine = Page(View(Loaded("g") with { Switch = new ModSwitch.Held(false), Rollback = new RollbackState.Done("1.0") }));
         var drawn = KnownFactsTests.Drawn(engine);
 
-        Assert.Contains("turns off, its files change at the next start; restart first", drawn);
+        Assert.Contains("turns off, its files change at the next start, so restart first", drawn);
         Assert.DoesNotContain("data-undo=\"0\"", drawn);
     }
 

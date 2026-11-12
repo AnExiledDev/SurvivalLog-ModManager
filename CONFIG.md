@@ -6,7 +6,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| `OpenKey` | `None` | The key that opens and closes the Mods screen. Unbound by default: the Mods button in the Esc menu and on the title screen opens it. Set a key here to open it from the keyboard too. The key does nothing while you type in a text box. |
+| `OpenKey` | `None` | The key that opens and closes the Mods screen. No key is set by default, since the Mods button in the Esc menu and on the title screen opens it. Set a key here to open it from the keyboard too. The key does nothing while you type in a text box. |
 
 While the Mods screen is open, the game's hotkeys are paused, and Esc closes the screen. While you type in a box on the screen, keys go to the box instead.
 
