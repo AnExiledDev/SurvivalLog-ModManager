@@ -107,9 +107,18 @@ public sealed class ModIndex
     /// The wiki's copy of an update: only for the same mod, from the same repository, at the same version, and only
     /// while downloads from the wiki are on.
     /// </summary>
-    public IndexRelease? MirrorFor(string guid, string? repository, string tag, bool wikiDownloads)
+    public IndexRelease? MirrorFor(string guid, string? repository, string tag, bool wikiDownloads) => wikiDownloads ? ListedRelease(guid, repository, tag) : null;
+
+    /// <summary>
+    /// Whether a zip from GitHub is the release the wiki lists for this mod, repository and version, by size and SHA-256.
+    /// The wiki copies a release only when it is the same file as GitHub's, so a match is trusted like the wiki's copy.
+    /// </summary>
+    public bool IsWikiRelease(string guid, string? repository, string tag, byte[] zip) =>
+        ListedRelease(guid, repository, tag) is { } release && Sha256Text.Mismatch(zip, release) == null;
+
+    private IndexRelease? ListedRelease(string guid, string? repository, string tag)
     {
-        if (!wikiDownloads || ModOf(guid) is not { GitHub: { } github } mod || repository == null || !string.Equals(github, repository, StringComparison.OrdinalIgnoreCase)) return null;
+        if (ModOf(guid) is not { GitHub: { } github } mod || repository == null || !string.Equals(github, repository, StringComparison.OrdinalIgnoreCase)) return null;
 
         return ReleaseOf(mod, tag);
     }

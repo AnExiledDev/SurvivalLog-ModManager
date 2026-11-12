@@ -1427,6 +1427,11 @@
   const BROWSE_FILTERS = { all: 'bwAll', installable: 'bwInstallable', manual: 'bwManual', installed: 'bwInstalledF' };
   const BROWSE_SORTS = { endorsed: 'bwSortEndorsed', downloads: 'bwSortDownloads', updated: 'bwSortUpdated', name: 'bwSortName' };
 
+  // While wiki downloads are off, a mod only the wiki has must be downloaded by hand, so it counts as a manual download.
+  function inBrowseFilter(b, filter) {
+    return filter === 'all' || (b.support === 'wikionly' ? 'manual' : b.support) === filter;
+  }
+
   function shownBrowse() {
     const q = state.browseQuery.toLowerCase();
     const sorts = {
@@ -1437,7 +1442,7 @@
     };
 
     return browse()
-      .filter(b => state.browseFilter === 'all' || b.support === state.browseFilter)
+      .filter(b => inBrowseFilter(b, state.browseFilter))
       .filter(b => !q || [b.name, b.author, b.summary, b.guid || ''].some(text => text.toLowerCase().indexOf(q) >= 0))
       .sort(sorts[state.browseSort] || sorts.endorsed);
   }
@@ -1452,7 +1457,7 @@
 
     if (!all.length) return head + '<div class="empty"><div class="big">' + esc(word(feed === 'asking' ? 'browseAsking' : 'browseNone')) + '</div></div></div>';
 
-    const count = kind => all.filter(b => kind === 'all' || b.support === kind).length;
+    const count = kind => all.filter(b => inBrowseFilter(b, kind)).length;
     const chips = (table, current, attribute, withCount) => Object.keys(table).map(key => '<div class="chip' + (key === current ? ' on' : '') + '" ' + attribute + '="' + key + '"><span>' + esc(word(table[key])) + '</span>' + (withCount ? ' <i>' + count(key) + '</i>' : '') + '</div>').join('');
     const bar = '<div class="bw-bar"><input class="bw-find" autocomplete="off" spellcheck="false" placeholder="' + esc(word('browseFind')) + '">' +
       '<div class="chips">' + chips(BROWSE_FILTERS, state.browseFilter, 'data-bwfilter', true) + '</div><div class="chips">' + chips(BROWSE_SORTS, state.browseSort, 'data-bwsort', false) + '</div></div>';

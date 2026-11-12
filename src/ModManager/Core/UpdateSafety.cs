@@ -166,7 +166,8 @@ public static class UpdateReview
     /// <param name="newModDll">The mod's own DLL from the update.</param>
     /// <param name="installed">The installed DLLs the update writes over, the mod's own among them.</param>
     /// <param name="incoming">Every DLL the update writes, the mod's own among them.</param>
-    public static UpdateVerdict Judge(string guid, DllScan newModDll, IEnumerable<DllScan> installed, IEnumerable<IncomingDll> incoming)
+    /// <param name="isWikiRelease">The zip is a release the wiki lists, so what it newly does is not asked about. What no update may start doing is still refused.</param>
+    public static UpdateVerdict Judge(string guid, DllScan newModDll, IEnumerable<DllScan> installed, IEnumerable<IncomingDll> incoming, bool isWikiRelease)
     {
         switch (newModDll)
         {
@@ -184,7 +185,7 @@ public static class UpdateReview
 
         if (refused.Count > 0) return new UpdateVerdict.Rejected("it newly " + string.Join(" and ", refused.Select(Describe)) + ", which no update is allowed to start doing");
 
-        return added.Count == 0 ? new UpdateVerdict.Clear() : new UpdateVerdict.NeedsApproval(added);
+        return added.Count == 0 || isWikiRelease ? new UpdateVerdict.Clear() : new UpdateVerdict.NeedsApproval(added);
     }
 
     /// <summary>

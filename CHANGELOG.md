@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.4
+
+- A download from GitHub that is the exact file the wiki lists (same size and SHA-256) now installs without asking first, like the wiki's copy. Mods on the wiki's list no longer stop at INSTALL ANYWAY while `WikiDownloads` is off. This goes for updates too.
+- Fixed: on BROWSE, a mod that only the wiki has a download for now counts under MANUAL DOWNLOAD. Before, it showed only under ALL.
+- Made for Survival Log 1.1.20719.
+
 ## 0.20.3
 
 - New setting `WikiDownloads` under Updates, off by default. Turn it on to download mods and updates from the Survival Log Wiki's checked copies first. While it is off, the Mod Manager downloads only from the author's GitHub releases.

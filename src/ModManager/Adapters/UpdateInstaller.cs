@@ -17,7 +17,7 @@ namespace ModManager.Adapters;
 /// the new ones moved in beside them. Any failure puts the old files back. A rollback works the same way backwards.
 /// Before anything is written, the update must match the SHA-256 in the wiki's index or come from the repository pinned
 /// at the mod's first install, must be the same mod, and waits for the player when it can do something the installed
-/// version could not.
+/// version could not, unless it is a release the wiki lists.
 /// </summary>
 internal sealed class UpdateInstaller
 {
@@ -50,15 +50,16 @@ internal sealed class UpdateInstaller
     {
         if (_book.InstallOf(mod.Guid) is InstallState.Installing or InstallState.Installed or InstallState.Refused || _book.HasRolledBack(mod.Guid)) return;
 
-        var mirrored = _book.Index.MirrorFor(mod.Guid, mod.Info.UpdateRepository, release.Tag, _isUsingWikiCopies());
+        var index = _book.Index;
+        var mirrored = index.MirrorFor(mod.Guid, mod.Info.UpdateRepository, release.Tag, _isUsingWikiCopies());
 
         _waiting.TryRemove(mod.Guid, out _);
         _log("installing " + mod.Guid + " " + release.Tag + " over " + mod.Version + (mirrored != null ? ", from the wiki's copy " + mirrored.File : ""));
         Run(mod, release.Tag, async () =>
         {
             var (download, stopped) = mirrored != null && await FromMirror(mirrored).ConfigureAwait(false) is { } copy
-                ? (new Downloaded(release.Tag, copy), null)
-                : await Fetch(mod, release, Path.GetFileName(dllPath)).ConfigureAwait(false);
+                ? (new Downloaded(release.Tag, copy, IsWikiRelease: true), null)
+                : await Fetch(mod, release, Path.GetFileName(dllPath), index).ConfigureAwait(false);
 
             return download == null ? stopped ?? new InstallState.Failed("nothing to install") : Place(mod, download, dllPath, isSharedFolder, isApproved: false);
         });
@@ -84,11 +85,13 @@ internal sealed class UpdateInstaller
     {
         if (_book.InstallOf(target.Guid) is InstallState.Installing or InstallState.Installed or InstallState.Refused) return;
 
+        var index = _book.Index;
+
         _freshWaiting.TryRemove(target.Guid, out _);
         _log("installing " + target.Guid + (target.WikiCopy != null ? " from the wiki's copy " + target.WikiCopy.File : " from its GitHub releases, " + target.GitHub));
         RunNew(target, async () =>
         {
-            var (download, stopped) = target.WikiCopy is { } copy ? await FromWiki(copy).ConfigureAwait(false) : await FetchNewest(target).ConfigureAwait(false);
+            var (download, stopped) = target.WikiCopy is { } copy ? await FromWiki(copy).ConfigureAwait(false) : await FetchNewest(target, index).ConfigureAwait(false);
 
             return download == null ? (stopped ?? new InstallState.Failed("nothing to install"), null) : PlaceNew(target, download, pluginsFolder, isApproved: false);
         });
@@ -184,11 +187,11 @@ internal sealed class UpdateInstaller
 
         problem ??= Sha256Text.Mismatch(body, release);
 
-        return problem == null ? (new Downloaded("v" + release.Version, body), null) : (null, new InstallState.Failed("the wiki's copy " + release.File + " could not be used: " + problem));
+        return problem == null ? (new Downloaded("v" + release.Version, body, IsWikiRelease: true), null) : (null, new InstallState.Failed("the wiki's copy " + release.File + " could not be used: " + problem));
     }
 
     /// <summary>The newest release of a listed mod, from its repository, pinned at this first install like any update's.</summary>
-    private async Task<(Downloaded? Download, InstallState? Stopped)> FetchNewest(FreshTarget target)
+    private async Task<(Downloaded? Download, InstallState? Stopped)> FetchNewest(FreshTarget target, ModIndex index)
     {
         var repository = target.GitHub ?? "";
         var pin = _pins.Read(repository);
@@ -230,7 +233,7 @@ internal sealed class UpdateInstaller
 
         var download = await Download(asset.Url).ConfigureAwait(false);
 
-        return download.Problem != null ? (null, new InstallState.Failed(download.Problem)) : (new Downloaded(tag, download.Body), null);
+        return download.Problem != null ? (null, new InstallState.Failed(download.Problem)) : (FromGitHub(target.Guid, repository, tag, download.Body, index), null);
     }
 
     /// <summary>
@@ -259,7 +262,7 @@ internal sealed class UpdateInstaller
 
         if (!isApproved)
         {
-            switch (Browse.Judge(target.Guid, DllScanner.Bytes(dll), target.WikiCopy != null))
+            switch (Browse.Judge(target.Guid, DllScanner.Bytes(dll), download.IsWikiRelease))
             {
                 case UpdateVerdict.Rejected rejected:
                     return (new InstallState.Refused(rejected.Reason), null);
@@ -388,7 +391,8 @@ internal sealed class UpdateInstaller
         _ => "installed " + mod.Guid + " " + tag + "; it is used from the next start, the old files are in " + _shelf.FolderOf(mod.Guid, mod.Version),
     };
 
-    private sealed record Downloaded(string Tag, byte[] Zip);
+    /// <param name="IsWikiRelease">The zip is a release the wiki lists, from the wiki or the same file from GitHub.</param>
+    private sealed record Downloaded(string Tag, byte[] Zip, bool IsWikiRelease);
 
     /// <summary>
     /// The wiki's copy of the release, or null when it could not be had, so GitHub is asked instead. The repository
@@ -409,7 +413,7 @@ internal sealed class UpdateInstaller
     }
 
     /// <summary>The release's zip, from the repository pinned at the mod's first install (pinned now when this is it).</summary>
-    private async Task<(Downloaded? Download, InstallState? Stopped)> Fetch(ModEntry mod, LatestRelease.Found release, string dllName)
+    private async Task<(Downloaded? Download, InstallState? Stopped)> Fetch(ModEntry mod, LatestRelease.Found release, string dllName, ModIndex index)
     {
         var repository = RepositoryPin.KeyOf(mod.Info.UpdateRepository, release);
         var pin = _pins.Read(repository);
@@ -448,7 +452,17 @@ internal sealed class UpdateInstaller
 
         var download = await Download(asset.Url).ConfigureAwait(false);
 
-        return download.Problem != null ? (null, new InstallState.Failed(download.Problem)) : (new Downloaded(release.Tag, download.Body), null);
+        return download.Problem != null ? (null, new InstallState.Failed(download.Problem)) : (FromGitHub(mod.Guid, repository, release.Tag, download.Body, index), null);
+    }
+
+    /// <summary>A zip from GitHub, trusted like the wiki's copy when it is a release the wiki lists.</summary>
+    private Downloaded FromGitHub(string guid, string repository, string tag, byte[] zip, ModIndex index)
+    {
+        var isWikiRelease = index.IsWikiRelease(guid, repository, tag, zip);
+
+        if (isWikiRelease) _finished.Enqueue(() => _log(guid + " " + tag + " from GitHub matches the wiki's list, so it is not held for the player"));
+
+        return new Downloaded(tag, zip, isWikiRelease);
     }
 
     /// <param name="isApproved">The player already saw what the update gains, so it is not held again.</param>
@@ -463,7 +477,7 @@ internal sealed class UpdateInstaller
         if (files == null) return new InstallState.Refused(placeProblem ?? "nothing to install");
 
         var entryOf = files.ToDictionary(file => file.Target, file => zip.Entries.First(entry => entry.FullName == file.EntryName));
-        UpdateVerdict verdict = isApproved ? new UpdateVerdict.Clear() : Review(mod.Guid, files, entryOf, dllPath);
+        UpdateVerdict verdict = isApproved ? new UpdateVerdict.Clear() : Review(mod.Guid, files, entryOf, dllPath, download.IsWikiRelease);
 
         switch (verdict)
         {
@@ -484,7 +498,7 @@ internal sealed class UpdateInstaller
     }
 
     /// <summary>The update's DLLs against the installed ones they replace: it must be the same mod, and anything it newly does is shown first.</summary>
-    private static UpdateVerdict Review(string guid, IReadOnlyList<PlacedFile> files, IReadOnlyDictionary<string, ZipArchiveEntry> entryOf, string dllPath)
+    private static UpdateVerdict Review(string guid, IReadOnlyList<PlacedFile> files, IReadOnlyDictionary<string, ZipArchiveEntry> entryOf, string dllPath, bool isWikiRelease)
     {
         var modDll = Path.GetFullPath(dllPath);
         var dlls = files.Where(file => file.Target.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -492,7 +506,7 @@ internal sealed class UpdateInstaller
         var installed = dlls.Where(file => File.Exists(file.Target)).Select(file => DllScanner.File(file.Target)).ToList();
         var newModDll = incoming.Where(dll => string.Equals(dll.Target, modDll, StringComparison.OrdinalIgnoreCase)).Select(dll => dll.Dll.Scan).FirstOrDefault();
 
-        return newModDll == null ? new UpdateVerdict.Rejected("the zip does not hold " + Path.GetFileName(dllPath)) : UpdateReview.Judge(guid, newModDll, installed, incoming.Select(dll => dll.Dll));
+        return newModDll == null ? new UpdateVerdict.Rejected("the zip does not hold " + Path.GetFileName(dllPath)) : UpdateReview.Judge(guid, newModDll, installed, incoming.Select(dll => dll.Dll), isWikiRelease);
     }
 
     private static byte[] Unpack(ZipArchiveEntry entry)

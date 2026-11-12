@@ -161,11 +161,11 @@ public static class Browse
         new(index.ModOf(guid)?.Name ?? index.ListedOf(guid)?.Name ?? guid, index.NexusIdOf(guid));
 
     /// <summary>
-    /// The checks on a mod's DLL before it is first installed. It must be the mod the index names. The wiki's own copy
-    /// is checked against the index's hash and goes in at once; a mod from its author's GitHub is shown to the player
-    /// with everything its code can do first, unless it can do none of those things.
+    /// The checks on a mod's DLL before it is first installed. It must be the mod the index names. A release the wiki
+    /// lists, from the wiki or the same file from GitHub, goes in at once; any other mod from its author's GitHub is
+    /// shown to the player with everything its code can do first, unless it can do none of those things.
     /// </summary>
-    public static UpdateVerdict Judge(string guid, DllScan scan, bool isWikiCopy)
+    public static UpdateVerdict Judge(string guid, DllScan scan, bool isWikiRelease)
     {
         switch (scan)
         {
@@ -177,7 +177,7 @@ public static class Browse
 
         var powers = scan.Powers.Distinct().OrderBy(power => power).ToList();
 
-        return isWikiCopy || powers.Count == 0 ? new UpdateVerdict.Clear() : new UpdateVerdict.NeedsApproval(powers);
+        return isWikiRelease || powers.Count == 0 ? new UpdateVerdict.Clear() : new UpdateVerdict.NeedsApproval(powers);
     }
 }
 

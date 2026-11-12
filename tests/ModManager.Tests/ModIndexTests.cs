@@ -168,6 +168,30 @@ public class ModIndexTests
         Assert.Null(Index().MirrorFor("com.ann.map", "Ann/SurvivalLog-Map", "v1.2.0", wikiDownloads: false));
     }
 
+    private static readonly byte[] MapZip = Encoding.UTF8.GetBytes("the Map 1.2.0 release zip");
+
+    private static ModIndex IndexOfZip(byte[] zip) =>
+        new("", new[] { new IndexMod("com.ann.map", "Map", "map", 12, "Ann/SurvivalLog-Map", new[] { new IndexRelease("1.2.0", new[] { "1.1.20719" }, "Map-1.2.0.zip", zip.LongLength, Sha256Text.Of(zip), null) }) }, Array.Empty<IndexConflict>(), Array.Empty<IndexBroken>(), new Dictionary<string, int>());
+
+    [Fact]
+    public void A_github_zip_with_the_hash_the_wiki_lists_is_the_wikis_release()
+    {
+        Assert.True(IndexOfZip(MapZip).IsWikiRelease("com.ann.map", "ann/SurvivalLog-Map", "v1.2.0", MapZip));
+    }
+
+    [Fact]
+    public void A_github_zip_is_not_the_wikis_release_when_its_bytes_version_repository_or_mod_differ()
+    {
+        var index = IndexOfZip(MapZip);
+        var changed = Encoding.UTF8.GetBytes("the Map 1.2.0 release zap");
+
+        Assert.False(index.IsWikiRelease("com.ann.map", "Ann/SurvivalLog-Map", "v1.2.0", changed));
+        Assert.False(index.IsWikiRelease("com.ann.map", "Ann/SurvivalLog-Map", "v1.3.0", MapZip));
+        Assert.False(index.IsWikiRelease("com.ann.map", "Eve/SurvivalLog-Map", "v1.2.0", MapZip));
+        Assert.False(index.IsWikiRelease("com.eve.map", "Ann/SurvivalLog-Map", "v1.2.0", MapZip));
+        Assert.False(ModIndex.Empty.IsWikiRelease("com.ann.map", "Ann/SurvivalLog-Map", "v1.2.0", MapZip));
+    }
+
     [Fact]
     public void A_known_broken_build_says_why_and_other_versions_do_not()
     {

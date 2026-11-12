@@ -18,7 +18,7 @@ namespace ModManager;
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "com.dev.survivallog.modmanager";
-    public const string Version = "0.20.3";
+    public const string Version = "0.20.4";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
     private const string ToolkitVersion = ">=0.19.0";
@@ -40,8 +40,8 @@ public sealed class Plugin : BasePlugin
             "Each time the game starts, look for mod updates and for what is known about your mods. GitHub is asked about mods that name a GitHub repository, the Survival Log Wiki (sldb.core-directive.com) for its list of mods and known problems, and Nexus Mods, at most once a day, for the newest version of each of the game's mods there. No account or key is needed, and none of your files, settings or saves are sent. Default: on.\n" +
             "每次启动游戏时，检查模组更新以及已知的模组信息。会向 GitHub 查询标明了 GitHub 仓库的模组，向 Survival Log 维基（sldb.core-directive.com）获取模组列表和已知问题，并且每天最多一次向 Nexus Mods 查询本游戏各模组的最新版本。不需要账号或密钥，也不会发送你的任何文件、设置或存档。默认开启。");
         var wikiDownloads = Config.Bind("Updates", "WikiDownloads", false,
-            "Download mods and their updates from the Survival Log Wiki's copies (sldb.core-directive.com) first, instead of only from the author's GitHub releases. Each copy must match the wiki's list. When this is off, the Mod Manager downloads only from GitHub, and a mod that only the wiki has can't be installed from BROWSE. The wiki's list of mods and known problems is still read while CheckForUpdates is on. Default: off.\n" +
-            "优先从 Survival Log 维基（sldb.core-directive.com）保存的副本下载模组和更新，而不是只从作者的 GitHub 发布下载。每个副本都必须与维基的列表一致。关闭时，模组管理器只从 GitHub 下载，只有维基提供下载的模组无法在「浏览」中安装。只要「CheckForUpdates」开启，仍会读取维基的模组列表和已知问题。默认关闭。");
+            "Download mods and their updates from the Survival Log Wiki's copies (sldb.core-directive.com) first, instead of only from the author's GitHub releases. Each copy must match the wiki's list. When this is off, the Mod Manager downloads only from GitHub, and a mod that only the wiki has can't be installed from BROWSE. Either way, a download that is the exact file the wiki lists installs without asking first. The wiki's list of mods and known problems is still read while CheckForUpdates is on. Default: off.\n" +
+            "优先从 Survival Log 维基（sldb.core-directive.com）保存的副本下载模组和更新，而不是只从作者的 GitHub 发布下载。每个副本都必须与维基的列表一致。关闭时，模组管理器只从 GitHub 下载，只有维基提供下载的模组无法在「浏览」中安装。无论是否开启，与维基列出的文件完全相同的下载都会直接安装，不会先询问。只要「CheckForUpdates」开启，仍会读取维基的模组列表和已知问题。默认关闭。");
         var showToast = Config.Bind("Updates", "ShowToast", true,
             "After the update check at the start, show one message saying how many mods have updates. Click it to see them. Default: on.\n" +
             "启动时检查更新后，显示一条消息，说明有多少个模组有更新。点击即可查看。默认开启。");

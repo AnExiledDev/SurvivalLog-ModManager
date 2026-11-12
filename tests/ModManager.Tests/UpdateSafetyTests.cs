@@ -120,13 +120,30 @@ public class UpdateReviewTests
 
     private static IncomingDll Incoming(DllScan scan, bool isNew = false) => new(scan, isNew);
 
-    private static UpdateVerdict Judge(DllScan newDll, IEnumerable<DllScan> installed, params IncomingDll[] extra)
+    private static UpdateVerdict Judge(DllScan newDll, IEnumerable<DllScan> installed, params IncomingDll[] extra) => Judge(newDll, installed, isWikiRelease: false, extra);
+
+    private static UpdateVerdict Judge(DllScan newDll, IEnumerable<DllScan> installed, bool isWikiRelease, params IncomingDll[] extra)
     {
         var incoming = new List<IncomingDll> { Incoming(newDll) };
 
         incoming.AddRange(extra);
 
-        return UpdateReview.Judge(Guid, newDll, installed, incoming);
+        return UpdateReview.Judge(Guid, newDll, installed, incoming, isWikiRelease);
+    }
+
+    [Fact]
+    public void An_update_the_wiki_lists_that_gains_a_power_goes_in_without_asking()
+    {
+        var update = Dll("System.Net.Http.HttpClient", "System.Runtime.InteropServices.NativeLibrary");
+
+        Assert.IsType<UpdateVerdict.Clear>(Judge(update, new[] { Dll("System.Net.WebClient") }, isWikiRelease: true));
+        Assert.IsType<UpdateVerdict.NeedsApproval>(Judge(update, new[] { Dll("System.Net.WebClient") }, isWikiRelease: false));
+    }
+
+    [Fact]
+    public void An_update_the_wiki_lists_is_still_refused_when_it_newly_starts_programs()
+    {
+        Assert.IsType<UpdateVerdict.Rejected>(Judge(Dll("System.Diagnostics.Process"), new[] { Dll() }, isWikiRelease: true));
     }
 
     [Fact]

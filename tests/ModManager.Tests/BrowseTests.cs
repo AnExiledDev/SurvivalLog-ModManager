@@ -186,23 +186,24 @@ public sealed class BrowseTests
     [Fact]
     public void A_dll_that_is_another_mod_or_cannot_be_read_is_never_installed()
     {
-        Assert.IsType<UpdateVerdict.Rejected>(Browse.Judge("com.bob.bags", Scan("com.eve.other"), isWikiCopy: true));
-        Assert.IsType<UpdateVerdict.Rejected>(Browse.Judge("com.bob.bags", new DllScan.Unreadable("bad header"), isWikiCopy: true));
+        Assert.IsType<UpdateVerdict.Rejected>(Browse.Judge("com.bob.bags", Scan("com.eve.other"), isWikiRelease: true));
+        Assert.IsType<UpdateVerdict.Rejected>(Browse.Judge("com.bob.bags", new DllScan.Unreadable("bad header"), isWikiRelease: true));
     }
 
     [Fact]
     public void A_mod_from_its_authors_github_that_can_reach_the_internet_waits_for_the_player()
     {
-        var verdict = Browse.Judge("com.bob.bags", Scan("com.bob.bags", "System.Net.WebClient"), isWikiCopy: false);
+        var verdict = Browse.Judge("com.bob.bags", Scan("com.bob.bags", "System.Net.WebClient"), isWikiRelease: false);
 
         Assert.Equal(new[] { Power.Network }, Assert.IsType<UpdateVerdict.NeedsApproval>(verdict).NewPowers);
-        Assert.IsType<UpdateVerdict.Clear>(Browse.Judge("com.bob.bags", Scan("com.bob.bags"), isWikiCopy: false));
+        Assert.IsType<UpdateVerdict.Clear>(Browse.Judge("com.bob.bags", Scan("com.bob.bags"), isWikiRelease: false));
     }
 
     [Fact]
-    public void The_wikis_own_copy_goes_in_at_once_as_its_hash_was_checked()
+    public void A_release_the_wiki_lists_goes_in_at_once_as_its_hash_was_checked()
     {
-        Assert.IsType<UpdateVerdict.Clear>(Browse.Judge("com.ann.map", Scan("com.ann.map", "System.Net.WebClient"), isWikiCopy: true));
+        Assert.IsType<UpdateVerdict.Clear>(Browse.Judge("com.ann.map", Scan("com.ann.map", "System.Net.WebClient"), isWikiRelease: true));
+        Assert.IsType<UpdateVerdict.NeedsApproval>(Browse.Judge("com.ann.map", Scan("com.ann.map", "System.Net.WebClient"), isWikiRelease: false));
     }
 
     // ===== What an installed mod needs =====
@@ -387,6 +388,21 @@ public sealed class BrowseTests
         Assert.Contains("OPEN ON NEXUS", drawn);
         Assert.DoesNotContain("data-act=\"bwInstall\"", drawn);
         Assert.DoesNotContain("No Mod Manager support", drawn);
+    }
+
+    [Fact]
+    public void A_mod_only_the_wiki_has_counts_and_shows_under_manual_download()
+    {
+        var torch = new BrowseMod("com.cat.torch", "Torch", "Light.", "Cat", "2.0.0", "2026-11-01", 3, 30, null, 77, "com.cat.torch", BrowseSupport.WikiOnly);
+        var engine = OnBrowse(View(BrowseFeed.Ready, torch, Bags));
+
+        Assert.Contains("data-bwfilter=\"manual\"><span>MANUAL DOWNLOAD</span> <i>1</i>", KnownFactsTests.Drawn(engine));
+
+        engine.Execute("drawn.length = 0; fire('click', { target: el('DIV', [], {}, { '[data-bwfilter]': { dataset: { bwfilter: 'manual' } } }) })");
+        var manual = KnownFactsTests.Drawn(engine);
+
+        Assert.Contains("data-bw=\"com.cat.torch\"", manual);
+        Assert.DoesNotContain("data-bw=\"com.bob.bags\"", manual);
     }
 
     [Fact]
