@@ -287,6 +287,12 @@ public static class ProfileNotes
 
     public static BilingualText Deleted(string name) => new("Deleted the profile \"" + name + "\".", "已删除配置方案「" + name + "」。");
 
+    public static readonly BilingualText NotRead = new("Could not read the saved profiles, so nothing was changed. Close any program that has profiles.txt open and try again.", "无法读取已保存的配置方案，因此没有做任何更改。请关闭打开了 profiles.txt 的程序后重试。");
+
+    public static readonly BilingualText NotSaved = new("Could not save the profiles. The log says why.", "无法保存配置方案，原因见日志。");
+
+    public static readonly BilingualText TooBig = new("This setup is too big for a profile, so it was not saved.", "这套配置太大，无法存为配置方案，因此没有保存。");
+
     /// <summary>What USE did, and what it could not.</summary>
     public static BilingualText Used(string name, int switched, int installs, int settings, IReadOnlyList<string> failed)
     {
@@ -411,7 +417,21 @@ public static class ProfileShelf
             .Take(MaxProfiles)
             .ToList();
 
-    public static string Write(IEnumerable<Profile> profiles) => string.Concat(profiles.Take(MaxProfiles).Select(profile => ShareCode.Write(profile) + "\n"));
+    /// <summary>
+    /// The lines of a saved file that do not read as a profile (a code a newer version wrote, or one changed by hand).
+    /// They are written back as they were, so saving a profile never loses them.
+    /// </summary>
+    public static IReadOnlyList<string> Unread(string? text) =>
+        (text ?? "").Split('\n')
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && !(line.StartsWith(ShareCode.Prefix, StringComparison.Ordinal) && ShareCode.Read(line).Profile != null))
+            .ToList();
+
+    public static string Write(IEnumerable<Profile> profiles, IEnumerable<string>? unread = null) =>
+        string.Concat(profiles.Take(MaxProfiles).Select(profile => ShareCode.Write(profile) + "\n").Concat((unread ?? Array.Empty<string>()).Select(line => line + "\n")));
+
+    /// <summary>Whether the profile's share code reads back, so a profile too big to share is never saved.</summary>
+    public static bool FitsACode(Profile profile) => ShareCode.Read(ShareCode.Write(profile)).Profile != null;
 
     /// <summary>The shelf with the profile added, replacing one of the same name (any case).</summary>
     public static IReadOnlyList<Profile> Put(IReadOnlyList<Profile> shelf, Profile profile) =>

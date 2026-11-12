@@ -73,6 +73,7 @@ internal sealed class ModsSession
 
     private readonly SavedFile _profileFile;
     private IReadOnlyList<Profile>? _profiles;
+    private IReadOnlyList<string> _profilesUnread = Array.Empty<string>();
 
     /// <summary>The profile the PROFILES page shows what it would change, and whether it was pasted in rather than saved.</summary>
     private (Profile Profile, bool IsPasted)? _profileShown;
@@ -502,24 +503,56 @@ internal sealed class ModsSession
         Open(NexusApi.PostsUrl(nexusId));
     }
 
-    private IReadOnlyList<Profile> Profiles() => _profiles ??= ProfileShelf.Read(_profileFile.Read());
+    /// <summary>The saved profiles. A file that is there but cannot be read gives none and is tried again next time.</summary>
+    private IReadOnlyList<Profile> Profiles() => IsProfilesRead() ? _profiles! : Array.Empty<Profile>();
+
+    private bool IsProfilesRead()
+    {
+        if (_profiles != null) return true;
+        if (!_profileFile.TryRead(out var text)) return false;
+
+        _profiles = ProfileShelf.Read(text);
+        _profilesUnread = ProfileShelf.Unread(text);
+
+        return true;
+    }
+
+    /// <summary>Writes the shelf, keeping the lines that did not read. Returns the note for a failed write, or null.</summary>
+    private BilingualText? WriteProfiles(IReadOnlyList<Profile> shelf)
+    {
+        if (_profileFile.Save(ProfileShelf.Write(shelf, _profilesUnread)))
+        {
+            _profiles = shelf;
+
+            return null;
+        }
+
+        return ProfileNotes.NotSaved;
+    }
+
+    /// <summary>Shows the note and refreshes. Returns true when there was one, so the caller stops.</summary>
+    private bool StopsWith(BilingualText? note)
+    {
+        if (note == null) return false;
+
+        _profileNote = note;
+        RefreshOpen();
+
+        return true;
+    }
 
     private Profile? SavedProfile(string name) => Profiles().FirstOrDefault(profile => string.Equals(profile.Name, name, StringComparison.OrdinalIgnoreCase));
 
     private void SaveProfile(Profile profile)
     {
+        // Saving over a file that could not be read would replace every profile in it with this one.
+        if (StopsWith(IsProfilesRead() ? null : ProfileNotes.NotRead)) return;
+        if (StopsWith(ProfileShelf.FitsACode(profile) ? null : ProfileNotes.TooBig)) return;
+
         var isNew = SavedProfile(profile.Name) == null;
 
-        if (isNew && Profiles().Count >= ProfileShelf.MaxProfiles)
-        {
-            _profileNote = ProfileNotes.Full;
-            RefreshOpen();
-
-            return;
-        }
-
-        _profiles = ProfileShelf.Put(Profiles(), profile);
-        _profileFile.Save(ProfileShelf.Write(_profiles));
+        if (StopsWith(isNew && Profiles().Count >= ProfileShelf.MaxProfiles ? ProfileNotes.Full : null)) return;
+        if (StopsWith(WriteProfiles(ProfileShelf.Put(Profiles(), profile)))) return;
 
         // A pasted profile once saved is shown as the saved one, so SAVE AS PROFILE does not show again.
         if (_profileShown is { IsPasted: true } shown && shown.Profile == profile) _profileShown = (profile, false);
@@ -531,10 +564,9 @@ internal sealed class ModsSession
 
     private void DeleteProfile(string name)
     {
+        if (StopsWith(IsProfilesRead() ? null : ProfileNotes.NotRead)) return;
         if (SavedProfile(name) is not { } profile) return;
-
-        _profiles = ProfileShelf.Remove(Profiles(), profile.Name);
-        _profileFile.Save(ProfileShelf.Write(_profiles));
+        if (StopsWith(WriteProfiles(ProfileShelf.Remove(Profiles(), profile.Name)))) return;
 
         if (_profileShown is { IsPasted: false } shown && shown.Profile.Name == profile.Name) _profileShown = null;
 
@@ -791,7 +823,7 @@ internal sealed class ModsSession
             Health = _catalog.Health(mods),
             Browse = _isCheckingForUpdates() ? Browse.List(_updates.Nexus, _updates.Index, mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal), Browse.InstalledNexusIds(mods, _updates.Index), _updates.InstallOf, _updates.FreshOf, _isUsingWikiCopies()) : Array.Empty<BrowseMod>(),
             BrowseFeed = !_isCheckingForUpdates() ? BrowseFeed.Off : _nexus.IsAsking || !_checks.IsIndexSettled ? BrowseFeed.Asking : BrowseFeed.Ready,
-            Profiles = new ProfilesView(Profiles(), ShownCheck(mods), _profileProblem, _profileNote),
+            Profiles = IsProfilesRead() ? new ProfilesView(Profiles(), ShownCheck(mods), _profileProblem, _profileNote) : new ProfilesView(Array.Empty<Profile>(), ShownCheck(mods), _profileProblem, ProfileNotes.NotRead),
         };
     }
 

@@ -21,21 +21,28 @@ internal sealed class SavedFile
         _log = log;
     }
 
-    public string? Read()
+    public string? Read() => TryRead(out var text) ? text : null;
+
+    /// <summary>False when the file is there but could not be read. A missing file reads as null, and true.</summary>
+    public bool TryRead(out string? text)
     {
         try
         {
-            return File.Exists(_path) ? File.ReadAllText(_path) : null;
+            text = File.Exists(_path) ? File.ReadAllText(_path) : null;
+
+            return true;
         }
         catch (Exception ex)
         {
             _log("could not read the saved " + _what + ": " + ex.Message);
+            text = null;
 
-            return null;
+            return false;
         }
     }
 
-    public void Save(string text)
+    /// <summary>False when it could not be written; the old copy is then still there.</summary>
+    public bool Save(string text)
     {
         var temporary = _path + ".new";
 
@@ -44,10 +51,14 @@ internal sealed class SavedFile
             Directory.CreateDirectory(Path.GetDirectoryName(_path) ?? ".");
             File.WriteAllText(temporary, text);
             File.Move(temporary, _path, true);
+
+            return true;
         }
         catch (Exception ex)
         {
             _log("could not save the " + _what + ": " + ex.Message);
+
+            return false;
         }
     }
 }

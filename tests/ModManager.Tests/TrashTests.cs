@@ -179,6 +179,21 @@ public sealed class TrashTests : IDisposable
     }
 
     [Fact]
+    public void Emptying_leaves_a_folder_that_holds_files_but_no_readable_record()
+    {
+        var stray = Write(Root, Path.Combine("stray", "Thing.dll"), "?");
+        var broken = Write(Root, Path.Combine("broken", TrashItem.FileName), "{ not json");
+        var newer = Write(Root, Path.Combine("newer", "Map.dll"), "map dll");
+
+        Write(Root, Path.Combine("newer", TrashItem.FileName), "{ \"from\": \"a newer version\" }");
+        NewSession().Empty();
+
+        Assert.True(File.Exists(stray));
+        Assert.True(File.Exists(newer));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(broken)));
+    }
+
+    [Fact]
     public void A_trash_folder_without_a_readable_record_is_not_listed_and_is_logged_once()
     {
         Write(Root, Path.Combine("stray", "Thing.dll"), "?");
@@ -193,6 +208,85 @@ public sealed class TrashTests : IDisposable
         Assert.Single(trash.Items());
         Assert.Single(_logged, line => line.Contains("stray", StringComparison.Ordinal));
         Assert.Single(_logged, line => line.Contains("broken", StringComparison.Ordinal));
+    }
+
+    /// <summary>A move that fails for the files it is told to, as a locked file does.</summary>
+    private static Action<string, string> FailingMove(Func<string, bool> isLocked) => (from, to) =>
+    {
+        if (isLocked(from)) throw new IOException("locked: " + from);
+
+        File.Move(from, to);
+    };
+
+    [Fact]
+    public void A_restore_that_cannot_finish_or_go_back_keeps_the_files_still_in_the_trash()
+    {
+        var dll = Write(Plugins, "Map.dll", "map dll");
+        var cfg = Write(Config, "com.ann.map.cfg", "[General]\nZoom = 2\n");
+        var item = NewSession().Put("com.ann.map", "Map", "1.2.0", dll, cfg);
+        var stuck = new TrashCan(Root, new[] { Plugins, Off, Config }, _logged.Add, FailingMove(from => from.EndsWith("com.ann.map.cfg", StringComparison.Ordinal) || from == Path.Combine(Plugins, "Map.dll")));
+
+        Assert.ThrowsAny<IOException>(() => stuck.Restore(item));
+        Assert.Equal("[General]\nZoom = 2\n", File.ReadAllText(stuck.StoredPath(item, item.Files[1])));
+        Assert.Equal("map dll", File.ReadAllText(dll));
+        Assert.Single(stuck.Items());
+        Assert.Contains(_logged, line => line.Contains("could not move") && line.Contains("Map.dll"));
+
+        var next = NewSession();
+
+        next.Restore(Assert.Single(next.Items()));
+
+        Assert.Equal("[General]\nZoom = 2\n", File.ReadAllText(cfg));
+        Assert.Equal("map dll", File.ReadAllText(dll));
+        Assert.Empty(next.Items());
+    }
+
+    [Fact]
+    public void An_uninstall_that_cannot_finish_or_go_back_stays_listed_and_can_be_restored()
+    {
+        var dll = Write(Plugins, "Map.dll", "map dll");
+        var cfg = Write(Config, "com.ann.map.cfg", "[General]\n");
+        var stuck = new TrashCan(Root, new[] { Plugins, Off, Config }, _logged.Add, FailingMove(from => from.EndsWith("com.ann.map.cfg", StringComparison.Ordinal) || from.StartsWith(Root, StringComparison.Ordinal)));
+
+        Assert.ThrowsAny<IOException>(() => stuck.Put("com.ann.map", "Map", "1.2.0", dll, cfg));
+        Assert.False(File.Exists(dll));
+        Assert.True(File.Exists(cfg));
+
+        var next = NewSession();
+        var item = Assert.Single(next.Items());
+
+        Assert.Equal("map dll", File.ReadAllText(next.StoredPath(item, item.Dll)));
+
+        next.Restore(item);
+
+        Assert.Equal("map dll", File.ReadAllText(dll));
+        Assert.Equal("[General]\n", File.ReadAllText(cfg));
+        Assert.Empty(next.Items());
+    }
+
+    [Fact]
+    public void A_saved_file_that_cannot_be_read_is_told_apart_from_one_that_is_not_there()
+    {
+        var path = Write(_game, "profiles.txt", "SLMM1-saved\n");
+        var saved = new SavedFile(path, "profiles", _logged.Add);
+        var missing = new SavedFile(Path.Combine(_game, "none.txt"), "profiles", _logged.Add);
+
+        Assert.True(missing.TryRead(out var nothing));
+        Assert.Null(nothing);
+
+        using var locked = OperatingSystem.IsWindows() ? new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None) : null;
+
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(path, UnixFileMode.None);
+
+        try
+        {
+            Assert.False(saved.TryRead(out var text));
+            Assert.Null(text);
+        }
+        finally
+        {
+            if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
     }
 
     [Fact]

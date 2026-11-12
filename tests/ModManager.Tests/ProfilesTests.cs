@@ -302,6 +302,32 @@ public sealed class ProfilesTests
     }
 
     [Fact]
+    public void Saving_the_shelf_writes_back_the_lines_that_did_not_read()
+    {
+        var one = new Profile("Alpha", new[] { new ProfileMod("b", "B", "1.0", true) }, Array.Empty<ProfileSetting>(), true);
+        var saved = ProfileShelf.Write(new[] { one }) + "SLMM1-fromanewerversion\n\nnotes by hand\n";
+
+        var unread = ProfileShelf.Unread(saved);
+        var written = ProfileShelf.Write(ProfileShelf.Read(saved), unread);
+
+        Assert.Equal(new[] { "SLMM1-fromanewerversion", "notes by hand" }, unread);
+        Assert.Contains("SLMM1-fromanewerversion\n", written);
+        Assert.Contains("notes by hand\n", written);
+        Assert.Equal(new[] { "Alpha" }, ProfileShelf.Read(written).Select(profile => profile.Name));
+        Assert.Empty(ProfileShelf.Unread(ProfileShelf.Write(new[] { one })));
+    }
+
+    [Fact]
+    public void A_profile_whose_code_would_be_refused_is_not_saved()
+    {
+        var small = new Profile("Small", new[] { new ProfileMod("a", "A", "1.0", true) }, Array.Empty<ProfileSetting>(), true);
+        var huge = new Profile("Huge", Enumerable.Range(0, ShareCode.MaxMods + 1).Select(n => new ProfileMod("mod" + n, "Mod " + n, "1.0", true)).ToList(), Array.Empty<ProfileSetting>(), true);
+
+        Assert.True(ProfileShelf.FitsACode(small));
+        Assert.False(ProfileShelf.FitsACode(huge));
+    }
+
+    [Fact]
     public void Using_a_profile_says_what_changed_and_what_could_not()
     {
         var note = ProfileNotes.Used("Night", 2, 1, 0, new[] { "Mod a: Zoom" });

@@ -19,17 +19,20 @@ internal sealed class TrashCan
     private readonly string _root;
     private readonly IReadOnlyList<string> _homes;
     private readonly Action<string> _log;
+    private readonly Action<string, string> _move;
     private readonly HashSet<string> _thisSession = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _reported = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<TrashItem>? _items;
 
     /// <param name="root">The trash folder.</param>
     /// <param name="homes">The folders a file may be moved out of and back into: the plugins folder, the folders for turned-off plugins, and BepInEx/config.</param>
-    public TrashCan(string root, IReadOnlyList<string> homes, Action<string> log)
+    /// <param name="move">Moves a file without replacing one; tests pass one that fails.</param>
+    public TrashCan(string root, IReadOnlyList<string> homes, Action<string> log, Action<string, string>? move = null)
     {
         _root = root;
         _homes = homes;
         _log = log;
+        _move = move ?? ((from, to) => File.Move(from, to));
     }
 
     /// <summary>Newest first; an item whose record cannot be read is left out, and logged once.</summary>
@@ -76,25 +79,42 @@ internal sealed class TrashCan
 
     /// <summary>
     /// Moves every file of the item back to where it was, and removes the item. Throws <see cref="TrashTaken"/> when a
-    /// file is already there, and nothing moves.
+    /// file is already there, and nothing moves. A file that is back where it was and no longer in the trash is left
+    /// alone: an uninstall that failed and could not put everything back leaves an item like that.
     /// </summary>
     public void Restore(TrashItem item)
     {
+        var stored = new List<TrashFile>();
+
         foreach (var file in item.Files)
         {
             if (!IsHome(file.From)) throw new IOException(file.From + " is not in the plugins, turned-off plugins or config folder");
-            if (File.Exists(file.From)) throw new TrashTaken(file.From);
-            if (!File.Exists(StoredPath(item, file))) throw new IOException(file.Stored + " is no longer in the trash");
+
+            var isStored = File.Exists(StoredPath(item, file));
+
+            if (File.Exists(file.From))
+            {
+                if (isStored) throw new TrashTaken(file.From);
+
+                continue;
+            }
+
+            if (!isStored) throw new IOException(file.Stored + " is no longer in the trash");
+
+            stored.Add(file);
         }
 
-        Move(item.Files.Select(file => (StoredPath(item, file), file.From)).ToList(), () => { });
-        DeleteQuietly(Path.Combine(_root, item.Id));
+        Move(stored.Select(file => (StoredPath(item, file), file.From)).ToList(), () => { });
+
+        // Only once none of the mod's files is left in it, so a folder still holding one is never deleted.
+        if (item.Files.All(file => !File.Exists(StoredPath(item, file)))) DeleteQuietly(Path.Combine(_root, item.Id));
         _thisSession.Remove(item.Id);
         _items = null;
     }
 
     /// <summary>
-    /// Deletes every item but the ones uninstalled this session, and any folder in the trash that is not an item.
+    /// Deletes every item but the ones uninstalled this session, and any empty or half-written folder in the trash. A
+    /// folder whose record cannot be read but that holds other files is left alone: those may be a mod and its settings.
     /// Returns how many items went, how many were left as this session's, and the names of those that could not go.
     /// </summary>
     public (int Deleted, int Kept, IReadOnlyList<string> Failed) Empty()
@@ -106,6 +126,13 @@ internal sealed class TrashCan
         foreach (var folder in Folders().Where(folder => !_thisSession.Contains(Path.GetFileName(folder))))
         {
             var id = Path.GetFileName(folder);
+
+            if (!names.ContainsKey(id) && HoldsFiles(folder))
+            {
+                _log("left in the trash, since it holds files but no record that can be read: " + folder);
+
+                continue;
+            }
 
             try
             {
@@ -169,8 +196,11 @@ internal sealed class TrashCan
         }
     }
 
-    /// <summary>Moves each file in turn; when one fails, moves the ones already moved back, runs the clean-up, and rethrows.</summary>
-    private static void Move(IReadOnlyList<(string From, string To)> moves, Action cleanUp)
+    /// <summary>
+    /// Moves each file in turn; when one fails, moves the ones already moved back and rethrows. The clean-up runs only
+    /// when every file went back, so a record is never deleted while a file it lists is still away from home.
+    /// </summary>
+    private void Move(IReadOnlyList<(string From, string To)> moves, Action cleanUp)
     {
         var done = new List<(string From, string To)>();
 
@@ -179,28 +209,44 @@ internal sealed class TrashCan
             foreach (var (from, to) in moves)
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(to) ?? ".");
-                File.Move(from, to);
+                _move(from, to);
                 done.Add((from, to));
             }
         }
         catch (Exception)
         {
+            var isAllBack = true;
+
             foreach (var (from, to) in Enumerable.Reverse(done))
             {
                 try
                 {
-                    File.Move(to, from);
+                    _move(to, from);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     // Left where it is: the item's record still says where it goes back to.
-                    return;
+                    isAllBack = false;
+                    _log("could not move " + to + " back to " + from + ": " + ex.Message);
                 }
             }
 
-            cleanUp();
+            if (isAllBack) cleanUp();
+            else _items = null;
 
             throw;
+        }
+    }
+
+    private static bool HoldsFiles(string folder)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).Any(file => !string.Equals(Path.GetFileName(file), TrashItem.FileName, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception)
+        {
+            return true;
         }
     }
 
