@@ -150,7 +150,7 @@ Or in code: `[assembly: AssemblyMetadata("ModManager.NexusId", "47")]`. Only the
 | `ModManager.Category` | One of `Gameplay`, `Balance`, `QualityOfLife`, `Interface`, `Visuals`, `Audio`, `Cheats`, `Tools`. Case, spaces, `-` and `_` do not matter. The screen shows it in the player's language. |
 | `ModManager.Icon` | The name of an embedded resource in your DLL: a PNG or JPEG, up to 256 KB, square (64x64 or larger looks best). See "Icon" below. |
 | `ModManager.Library` | `true` for a mod that only exists for other mods to use. It goes in the folded "Libraries" group. Default `false`. |
-| `ModManager.GameVersion` | The game version your mod was made for, such as `1.1.18902`, or `1.1` for every 1.1 build. Up to 10, separated by commas. Leave it out and the mod is never flagged. Game versions you check later go in `game-versions.txt` (see "Game versions it works on"), so they need no new release. |
+| `ModManager.GameVersion` | The game version your mod was made for, such as `1.1.18902`, or `1.1` for every 1.1 build. Up to 10, separated by commas. Leave it out and the mod never gets the VERSION mark. Game versions you check later go in `game-versions.txt` (see "Game versions it works on"), so they need no new release. |
 | `ModManager.Settings` | `Live` when your settings take effect at once, `Restart` when they take effect at the next start. Covers every setting the tags below do not. Leave it out and changed settings say MAY NEED RESTART. |
 | `ModManager.NexusId` | The number at the end of your mod's Nexus Mods address, `nexusmods.com/survivallog/mods/<number>`. |
 | `ModManager.GitHub` | `owner/repository`. Shows a GitHub link and turns on update checks and installs (see "Updates"). |
@@ -239,7 +239,7 @@ Config.Bind("Timers", "Buffs", "", new ConfigDescription("...", null, "ModManage
 | `ModManager.ChoiceZh=...` | The Chinese name of one choice of a list setting, shown when the Mods screen is in Chinese: `ChoiceZh=Custom=自定义`. One tag per choice. The value saved stays the choice itself. |
 | `ModManager.ChoicePreview=...` | A small picture of one choice of a list setting, as HTML: `ChoicePreview=Lamplight=<div style="...">...</div>`. One tag per choice. The first `=` after the choice ends its name, so the HTML may hold `=`. The drop-down then shows each picture beside its choice's name, and the picked one in the closed box. A choice without one shows its name alone. The HTML goes in as it is, inside a box 56 pixels high that cuts off anything bigger, and your mod's stylesheets are not on the Mods screen: use inline styles and inline SVG. |
 
-Item and category names come from the game in the player's language. A control on a setting of the wrong type, a rule naming a setting that does not exist, or a loop of rules is passed over (the setting shows as usual) and `BepInEx\mod-manager.log` says why. Hidden settings keep their values and search skips them.
+Item and category names come from the game in the player's language. A control on a setting of the wrong type, a rule naming a setting that does not exist, or a loop of rules is skipped (the setting shows as usual) and `BepInEx\mod-manager.log` says why. Hidden settings keep their values and search skips them.
 
 Your mod can also answer questions about its lists, with no reference to the Mod Manager: give it a public static class named `ModManagerAnswers` (any namespace) with any of these methods. Each takes the setting's section and key, and the Mod Manager asks again every time a setting changes, so an answer can depend on your other settings.
 
