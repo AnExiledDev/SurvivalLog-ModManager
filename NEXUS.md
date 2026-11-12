@@ -1,5 +1,5 @@
 Name: Mod Manager
-Summary: An in-game Mods screen. See every installed mod, turn mods on or off, change their settings, install updates and browse the mods on Nexus without leaving the game. It also warns about mods that may not work with your game version, newer versions on Nexus and mods installed twice or in the wrong folder. Works with every BepInEx mod. Needs Exiled's Toolkit.
+Summary: An in-game Mods screen. See every installed mod, turn mods on or off, change their settings, install updates and browse Nexus mods without leaving the game. It also warns about mods that may not work with your game version, newer versions on Nexus and mods installed twice or in the wrong folder. Works with every BepInEx mod. Needs Exiled's Toolkit.
 
 Description (BBCode):
 [center][img]https://sldb.core-directive.com/media/save/1-save-safe.png[/img][/center]
@@ -15,7 +15,7 @@ Mod Manager adds a Mods screen to Survival Log. It lists every BepInEx mod you h
 [*][b]Mod lists[/b]: a mod can give a list of its own to pick from, such as buffs, beds or furniture actions. It shows as a list, one row per entry with its picture, name and what it does, and an entry can carry a choice you pick on its row or a number you step. ADD opens a searchable window of everything the mod lists, filed under the mod's groups, with an Add button on each row. Entries you have are marked, with a "You have" group of their own.[/*]
 [*][b]Settings for one world[/b]: when a mod lets each world keep its own value of a setting, the Mods screen shows, while you play, whether this world keeps its own. THIS WORLD ONLY makes a value this world's own, and USE GLOBAL sends it back to the value every other world uses.[/*]
 [*][b]Search, reset, clashes[/b]: find any setting across all mods, see which ones differ from the default and put them back, and spot hotkeys two mods share.[/*]
-[*][b]Errors tab[/b]: warnings and errors logged this session show up under the mod they came from, with an ERROR or WARNING mark in the list and an "Errors" filter. When an error went through game code another mod also changes, the tab names that mod. Errors from BepInEx or the game itself get their own ERRORS page beside MODS.[/*]
+[*][b]Errors tab[/b]: warnings and errors logged this session show up under the mod they came from, with an ERROR or WARNING mark in the list and an "Errors" filter. When an error went through game code another mod also changes, the tab names that mod. Errors from BepInEx or the game itself are listed on the HEALTH page.[/*]
 [*][b]Copy mod list[/b]: one button copies every mod with its version and state, and this session's errors, ready to paste into a bug report.[/*]
 [*][b]Turn mods on or off[/b]: a switch on each mod's page, applied at the next start. It warns about mods that need the one you turn off, and turns on what a mod needs with one button.[/*]
 [*][b]Uninstall[/b]: UNINSTALL moves a mod, and its settings file if you want, to a trash folder. It first tells you whether the mod can get your save ready to load without it, and which mods stop with it. The TRASH page lets you RESTORE a mod, or EMPTY TRASH to delete them for good.[/*]
@@ -96,7 +96,7 @@ Mod Manager 为 Survival Log 加入一个模组界面。它列出你安装的每
 [*][b]模组清单[/b]：模组可以提供自己的清单供你挑选，例如状态、床或家具行动。它以列表显示，每项一行，带图片、名称和作用；每一项还可以带一个在行上选择的选项，或一个可加减的数值。「添加」会打开一个可搜索的窗口，按模组的分组列出所有项目，每行都有添加按钮。你拥有的项目会被标出，并有自己的「你有的」分组。[/*]
 [*][b]每个世界自己的设置[/b]：模组允许每个世界保存自己的设置值时，游戏中「模组」界面会标明当前世界是否用自己的值。THIS WORLD ONLY 让这个值只属于当前世界，USE GLOBAL 让它恢复使用其他世界共用的值。[/*]
 [*][b]搜索、重置、冲突[/b]：在所有模组中搜索任意设置，查看哪些与默认值不同并一键恢复，还能发现两个模组共用的热键。[/*]
-[*][b]「错误」页[/b]：这次游戏中记录的警告和错误会显示在产生它的模组下，列表中标出「错误」或「警告」，还可以用「错误」筛选。如果错误经过了另一个模组也修改的游戏代码，会写出那个模组。来自 BepInEx 或游戏本身的错误在顶部「MODS」旁的「错误」页中。[/*]
+[*][b]「错误」页[/b]：这次游戏中记录的警告和错误会显示在产生它的模组下，列表中标出「错误」或「警告」，还可以用「错误」筛选。如果错误经过了另一个模组也修改的游戏代码，会写出那个模组。来自 BepInEx 或游戏本身的错误列在「安装检查」页上。[/*]
 [*][b]复制模组列表[/b]：一个按钮即可复制所有模组及其版本和状态，以及这次游戏的错误，方便粘贴到问题反馈中。[/*]
 [*][b]开启或关闭模组[/b]：每个模组页面上都有开关，下次启动时生效。关闭模组时会提醒哪些模组需要它；一个按钮就能开启某个模组需要的模组。[/*]
 [*][b]卸载[/b]：「卸载」会把模组移到回收站，也可以连同它的设置文件一起移走。卸载前会告诉你这个模组能否先让存档在没有它时也能读取，以及哪些模组会随之停止。在「回收站」页面可以「恢复」模组，或用「清空回收站」永久删除。[/*]
