@@ -152,7 +152,7 @@
       bwAll: 'ALL', bwInstallable: 'ONE-CLICK INSTALL', bwManual: 'MANUAL DOWNLOAD', bwInstalledF: 'INSTALLED',
       bwSortEndorsed: 'MOST ENDORSED', bwSortDownloads: 'MOST DOWNLOADED', bwSortUpdated: 'RECENTLY UPDATED', bwSortName: 'NAME',
       bwInstalled: 'INSTALLED', bwInstall: 'INSTALL', bwOpenNexus: 'OPEN ON NEXUS', bwAsk: 'ASK THE AUTHOR',
-      bwShameTitle: 'No Mod Manager support',
+      bwShameTitle: 'No Mod Manager support', bwShameMore: 'MORE', bwShameLess: 'LESS',
       bwShameBody: 'Manual download. Its author has not set it up for the Mod Manager yet, so you download it from Nexus and unpack it by hand, and it never tells you about updates. ASK THE AUTHOR copies a short request and opens the mod\'s posts on Nexus, where you can paste it.',
       bwAsked: 'The request is copied. Paste it in the mod\'s posts on Nexus.', bwAskFailed: 'Could not copy the request. The mod\'s posts are open on Nexus.',
       bwNoIndex: 'The wiki\'s list of mods set up for the Mod Manager could not be read, so nothing here can be installed and no mod is marked as a manual download. The Mod Manager asks for it again the next time it checks for updates.',
@@ -343,7 +343,7 @@
       bwAll: '全部', bwInstallable: '一键安装', bwManual: '手动下载', bwInstalledF: '已安装',
       bwSortEndorsed: '最多点赞', bwSortDownloads: '最多下载', bwSortUpdated: '最近更新', bwSortName: '名称',
       bwInstalled: '已安装', bwInstall: '安装', bwOpenNexus: '在 NEXUS 打开', bwAsk: '请作者支持',
-      bwShameTitle: '不支持模组管理器',
+      bwShameTitle: '不支持模组管理器', bwShameMore: '展开', bwShameLess: '收起',
       bwShameBody: '需要手动下载。作者还没有为模组管理器做好设置，所以你得从 Nexus 下载并手动解压，而且它不会提示更新。「请作者支持」会复制一段简短的请求，并打开该模组在 Nexus 上的帖子页面，你可以把请求粘贴到那里。',
       bwAsked: '请求已复制。请粘贴到该模组在 Nexus 上的帖子里。', bwAskFailed: '无法复制请求。该模组在 Nexus 上的帖子页面已打开。',
       bwNoIndex: '无法读取维基上支持模组管理器的模组列表，所以这里暂时无法安装，也不会把任何模组标为手动下载。模组管理器下次检查更新时会再次获取。',
@@ -604,7 +604,9 @@
 #slmm .bw-shame { margin-top: 8px; padding: 6px 10px; border-left: 3px solid #d0503c; background: rgba(208,80,60,0.08); color: #bbb; font-size: .88rem; line-height: 1.5; }
 #slmm .bw-shame-t { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #e8735f; font-weight: 700; }
 #slmm .bw-shame-t:hover { color: #ff9a85; }
-#slmm .bw-shame-t .chev { font-family: var(--mono); font-size: .75rem; color: #a55; }
+#slmm .bw-shame-t .chev { font-family: var(--mono); font-size: 1rem; color: #e8735f; }
+#slmm .bw-shame-more { margin-left: auto; padding: 1px 8px; border: 1px solid rgba(232,115,95,0.5); border-radius: 3px; font-family: var(--mono); font-size: .75rem; letter-spacing: .08em; }
+#slmm .bw-shame-t:hover .bw-shame-more { border-color: #ff9a85; background: rgba(232,115,95,0.12); }
 #slmm .bw-shame-b { margin-top: 6px; }
 #slmm .bw-shame .acts { margin-top: 8px; }
 #slmm .bw-card .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -1486,7 +1488,7 @@
       const asked = state.asked && state.asked.key === b.key ? '<div class="upd-line' + (state.asked.ok ? ' ok' : ' bad') + '">' + esc(word(state.asked.ok ? 'bwAsked' : 'bwAskFailed')) + '</div>' : '';
       const body = open ? '<div class="bw-shame-b">' + esc(word('bwShameBody')) + '</div>' + (b.nexus ? '<div class="acts">' + button('bwAsk', word('bwAsk')) + '</div>' : '') : '';
 
-      status = '<div class="bw-shame' + (open ? ' open' : '') + '"><div class="bw-shame-t" data-act="bwShame"><span class="chev">' + (open ? '\u25BE' : '\u25B8') + '</span>' + esc(word('bwShameTitle')) + '</div>' + body + '</div>' + asked;
+      status = '<div class="bw-shame' + (open ? ' open' : '') + '"><div class="bw-shame-t" data-act="bwShame"><span class="chev">' + (open ? '\u25BE' : '\u25B8') + '</span>' + esc(word('bwShameTitle')) + '<span class="bw-shame-more">' + esc(word(open ? 'bwShameLess' : 'bwShameMore')) + ' ' + (open ? '\u25B4' : '\u25BE') + '</span></div>' + body + '</div>' + asked;
     } else {
       const install = b.install;
 

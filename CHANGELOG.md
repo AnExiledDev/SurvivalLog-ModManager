@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.20.5
+
+- On BROWSE, the "No Mod Manager support" note has a MORE button on its right, so it is clear you can open it for the full note and ASK THE AUTHOR.
+- Made for Survival Log 1.1.20719.
+
 ## 0.20.4
 
 - A download from GitHub that is the exact file the wiki lists (same size and SHA-256) now installs without asking first, like the wiki's copy. Mods on the wiki's list no longer stop at INSTALL ANYWAY while `WikiDownloads` is off. This goes for updates too.

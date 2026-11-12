@@ -302,6 +302,7 @@ public sealed class BrowseTests
         var folded = KnownFactsTests.Drawn(engine);
 
         Assert.Contains("No Mod Manager support", folded);
+        Assert.Contains("bw-shame-more\">MORE", folded);
         Assert.DoesNotContain("Manual download.", folded);
         Assert.DoesNotContain("ASK THE AUTHOR", folded);
 
@@ -310,6 +311,7 @@ public sealed class BrowseTests
 
         Assert.Contains("Manual download. Its author has not set it up", opened);
         Assert.Contains("ASK THE AUTHOR", opened);
+        Assert.Contains("bw-shame-more\">LESS", opened);
 
         engine.Execute("fire('click', { target: card('bwAsk', 'nexus:77') })");
 
