@@ -154,12 +154,18 @@ public class ModIndexTests
     {
         var index = Index();
 
-        Assert.Equal("Map-1.2.0.zip", index.MirrorFor("com.ann.map", "ANN/SurvivalLog-Map", "v1.2.0")?.File);
-        Assert.Equal("Map-1.1.0.zip", index.MirrorFor("com.ann.map", "Ann/SurvivalLog-Map", "1.1.0")?.File);
-        Assert.Null(index.MirrorFor("com.ann.map", "Eve/SurvivalLog-Map", "v1.2.0"));
-        Assert.Null(index.MirrorFor("com.ann.map", null, "v1.2.0"));
-        Assert.Null(index.MirrorFor("com.ann.map", "Ann/SurvivalLog-Map", "v1.3.0"));
-        Assert.Null(index.MirrorFor("com.eve.map", "Ann/SurvivalLog-Map", "v1.2.0"));
+        Assert.Equal("Map-1.2.0.zip", index.MirrorFor("com.ann.map", "ANN/SurvivalLog-Map", "v1.2.0", wikiDownloads: true)?.File);
+        Assert.Equal("Map-1.1.0.zip", index.MirrorFor("com.ann.map", "Ann/SurvivalLog-Map", "1.1.0", wikiDownloads: true)?.File);
+        Assert.Null(index.MirrorFor("com.ann.map", "Eve/SurvivalLog-Map", "v1.2.0", wikiDownloads: true));
+        Assert.Null(index.MirrorFor("com.ann.map", null, "v1.2.0", wikiDownloads: true));
+        Assert.Null(index.MirrorFor("com.ann.map", "Ann/SurvivalLog-Map", "v1.3.0", wikiDownloads: true));
+        Assert.Null(index.MirrorFor("com.eve.map", "Ann/SurvivalLog-Map", "v1.2.0", wikiDownloads: true));
+    }
+
+    [Fact]
+    public void With_wiki_downloads_off_an_update_has_no_wiki_copy_so_it_comes_from_github()
+    {
+        Assert.Null(Index().MirrorFor("com.ann.map", "Ann/SurvivalLog-Map", "v1.2.0", wikiDownloads: false));
     }
 
     [Fact]

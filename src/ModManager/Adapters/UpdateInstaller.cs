@@ -11,8 +11,8 @@ using ModManager.Core;
 namespace ModManager.Adapters;
 
 /// <summary>
-/// Downloads a mod's update, from the wiki's copy first and its GitHub release when the wiki has none or its copy
-/// fails, and puts the files in place for the next game start. The running
+/// Downloads a mod's update, from the wiki's copy first (while WikiDownloads is on) and its GitHub release when the
+/// wiki has none or its copy fails, and puts the files in place for the next game start. The running
 /// game keeps the DLL it loaded: Windows lets a loaded DLL be moved, so the old files are moved to a backup folder and
 /// the new ones moved in beside them. Any failure puts the old files back. A rollback works the same way backwards.
 /// Before anything is written, the update must match the SHA-256 in the wiki's index or come from the repository pinned
@@ -28,14 +28,16 @@ internal sealed class UpdateInstaller
     private readonly UpdateBook _book;
     private readonly BackupShelf _shelf;
     private readonly RepositoryPins _pins;
+    private readonly Func<bool> _isUsingWikiCopies;
     private readonly Action<string> _log;
 
     /// <summary>Checked updates waiting for the player, by mod GUID. Approving installs these bytes, not a second download.</summary>
     private readonly ConcurrentDictionary<string, Downloaded> _waiting = new(StringComparer.Ordinal);
 
-    public UpdateInstaller(UpdateBook book, BackupShelf shelf, RepositoryPins pins, string userAgent, Action<string> log)
+    public UpdateInstaller(UpdateBook book, BackupShelf shelf, RepositoryPins pins, string userAgent, Func<bool> isUsingWikiCopies, Action<string> log)
     {
         _book = book;
+        _isUsingWikiCopies = isUsingWikiCopies;
         _shelf = shelf;
         _pins = pins;
         _log = log;
@@ -48,7 +50,7 @@ internal sealed class UpdateInstaller
     {
         if (_book.InstallOf(mod.Guid) is InstallState.Installing or InstallState.Installed or InstallState.Refused || _book.HasRolledBack(mod.Guid)) return;
 
-        var mirrored = _book.Index.MirrorFor(mod.Guid, mod.Info.UpdateRepository, release.Tag);
+        var mirrored = _book.Index.MirrorFor(mod.Guid, mod.Info.UpdateRepository, release.Tag, _isUsingWikiCopies());
 
         _waiting.TryRemove(mod.Guid, out _);
         _log("installing " + mod.Guid + " " + release.Tag + " over " + mod.Version + (mirrored != null ? ", from the wiki's copy " + mirrored.File : ""));
@@ -527,9 +529,13 @@ internal sealed class UpdateInstaller
         }
     }
 
-    /// <summary>Follows redirects by hand, so no hop can leave GitHub and the wiki.</summary>
+    /// <summary>Follows redirects by hand, so no hop can leave GitHub and, while WikiDownloads is on, the wiki.</summary>
     private async Task<(byte[] Body, string? Problem)> Download(Uri uri)
     {
+        var wikiDownloads = _isUsingWikiCopies();
+
+        if (!DownloadAddress.IsAllowed(uri, wikiDownloads)) return (Array.Empty<byte>(), "downloads from " + uri.Host + " are turned off");
+
         try
         {
             for (var hop = 0; hop <= DownloadAddress.MaxHops; hop++)
@@ -539,7 +545,7 @@ internal sealed class UpdateInstaller
 
                 if (status is 301 or 302 or 303 or 307 or 308)
                 {
-                    uri = DownloadAddress.Next(uri, response.Headers.Location?.OriginalString) ?? throw new InvalidOperationException("the download was sent away from GitHub and the wiki: " + response.Headers.Location);
+                    uri = DownloadAddress.Next(uri, response.Headers.Location?.OriginalString, wikiDownloads) ?? throw new InvalidOperationException("the download was sent away from GitHub" + (wikiDownloads ? " and the wiki" : "") + ": " + response.Headers.Location);
 
                     continue;
                 }

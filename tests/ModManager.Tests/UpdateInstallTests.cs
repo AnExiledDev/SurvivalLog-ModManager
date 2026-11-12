@@ -67,10 +67,30 @@ public class DownloadAddressTests
     [InlineData("https://github.com/Ann/Map/releases/download/v1/Map.zip")]
     [InlineData("https://objects.githubusercontent.com/github-production-release-asset/1")]
     [InlineData("https://GitHub.com/Ann/Map.zip")]
-    [InlineData("https://sldb.core-directive.com/downloads/mods/Map-1.0.0.zip")]
-    public void GitHub_its_file_storage_and_the_wiki_over_https_are_allowed(string url)
+    public void GitHub_and_its_file_storage_over_https_are_allowed_whether_wiki_downloads_are_on_or_off(string url)
     {
-        Assert.True(DownloadAddress.IsAllowed(new System.Uri(url)));
+        Assert.True(DownloadAddress.IsAllowed(new System.Uri(url), wikiDownloads: true));
+        Assert.True(DownloadAddress.IsAllowed(new System.Uri(url), wikiDownloads: false));
+    }
+
+    [Fact]
+    public void The_wikis_copies_are_allowed_only_while_wiki_downloads_are_on()
+    {
+        var copy = new System.Uri("https://sldb.core-directive.com/downloads/mods/Map-1.0.0.zip");
+        var github = new System.Uri("https://github.com/Ann/Map/releases/download/v1/Map.zip");
+
+        Assert.True(DownloadAddress.IsAllowed(copy, wikiDownloads: true));
+        Assert.False(DownloadAddress.IsAllowed(copy, wikiDownloads: false));
+        Assert.Equal(copy.AbsoluteUri, DownloadAddress.Next(github, copy.AbsoluteUri, wikiDownloads: true)?.AbsoluteUri);
+        Assert.Null(DownloadAddress.Next(github, copy.AbsoluteUri, wikiDownloads: false));
+    }
+
+    [Fact]
+    public void A_github_release_file_on_the_wiki_is_refused()
+    {
+        var json = "{\"tag_name\":\"v1\",\"assets\":[{\"name\":\"Map.zip\",\"size\":10,\"browser_download_url\":\"https://sldb.core-directive.com/downloads/mods/Map.zip\"}]}";
+
+        Assert.StartsWith("the release's file is not on GitHub", ReleaseAssets.Choose(json, "Map.dll").Problem);
     }
 
     [Theory]
@@ -86,7 +106,7 @@ public class DownloadAddressTests
     [InlineData("https://evil.core-directive.com/Map.zip")]
     public void Anything_else_is_refused(string url)
     {
-        Assert.False(DownloadAddress.IsAllowed(new System.Uri(url)));
+        Assert.False(DownloadAddress.IsAllowed(new System.Uri(url), wikiDownloads: true));
     }
 
     [Fact]
@@ -94,11 +114,11 @@ public class DownloadAddressTests
     {
         var request = new System.Uri("https://github.com/Ann/Map/releases/download/v1/Map.zip");
 
-        Assert.Equal("https://github.com/elsewhere.zip", DownloadAddress.Next(request, "/elsewhere.zip")?.AbsoluteUri);
-        Assert.Equal("https://objects.githubusercontent.com/x", DownloadAddress.Next(request, "https://objects.githubusercontent.com/x")?.AbsoluteUri);
-        Assert.Null(DownloadAddress.Next(request, "https://evil.example/x"));
-        Assert.Null(DownloadAddress.Next(request, null));
-        Assert.Null(DownloadAddress.Next(request, " "));
+        Assert.Equal("https://github.com/elsewhere.zip", DownloadAddress.Next(request, "/elsewhere.zip", wikiDownloads: true)?.AbsoluteUri);
+        Assert.Equal("https://objects.githubusercontent.com/x", DownloadAddress.Next(request, "https://objects.githubusercontent.com/x", wikiDownloads: true)?.AbsoluteUri);
+        Assert.Null(DownloadAddress.Next(request, "https://evil.example/x", wikiDownloads: true));
+        Assert.Null(DownloadAddress.Next(request, null, wikiDownloads: true));
+        Assert.Null(DownloadAddress.Next(request, " ", wikiDownloads: true));
     }
 }
 

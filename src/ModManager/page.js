@@ -157,6 +157,7 @@
       bwAsked: 'The request is copied. Paste it in the mod\'s posts on Nexus.', bwAskFailed: 'Could not copy the request. The mod\'s posts are open on Nexus.',
       bwNoIndex: 'The wiki\'s list of mods set up for the Mod Manager could not be read, so nothing here can be installed and no mod is marked as a manual download. The Mod Manager asks for it again the next time it checks for updates.',
       bwUnknown: 'SUPPORT NOT KNOWN',
+      bwWikiOnly: 'Only the Survival Log Wiki has a download of this mod. Turn on "Wiki Downloads" in the Mod Manager\'s settings to install it here.',
       bwInstalling: 'Installing.',
       bwDone: tag => 'Installed ' + tag + '. The game starts it from the next start.',
       bwFailed: reason => 'Could not install it: ' + reason + '.',
@@ -347,6 +348,7 @@
       bwAsked: '请求已复制。请粘贴到该模组在 Nexus 上的帖子里。', bwAskFailed: '无法复制请求。该模组在 Nexus 上的帖子页面已打开。',
       bwNoIndex: '无法读取维基上支持模组管理器的模组列表，所以这里暂时无法安装，也不会把任何模组标为手动下载。模组管理器下次检查更新时会再次获取。',
       bwUnknown: '是否支持未知',
+      bwWikiOnly: '只有 Survival Log 维基提供这个模组的下载。在模组管理器的设置中开启「Wiki Downloads」，即可在这里安装。',
       bwInstalling: '正在安装。',
       bwDone: tag => '已安装 ' + tag + '。下次启动游戏时生效。',
       bwFailed: reason => '无法安装：' + reason + '。',
@@ -1472,6 +1474,7 @@
 
     if (b.support === 'installed') status = '<div class="bw-tag ok">' + esc(word('bwInstalled')) + '</div>';
     else if (b.support === 'unknown') status = '<div class="bw-tag">' + esc(word('bwUnknown')) + '</div>';
+    else if (b.support === 'wikionly') status = '<div class="upd-line">' + esc(word('bwWikiOnly')) + '</div>';
     else if (b.support === 'manual') {
       // Folded to its one-line title until the player opens it, so the list stays about the mods.
       const open = !!state.bwShameOpen[b.key];

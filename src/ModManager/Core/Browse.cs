@@ -16,6 +16,9 @@ public enum BrowseSupport
     /// <summary>Its author has not set it up for the Mod Manager, so it is downloaded from Nexus by hand.</summary>
     Manual,
 
+    /// <summary>Only the wiki keeps a copy, and downloads from the wiki are turned off.</summary>
+    WikiOnly,
+
     /// <summary>The wiki's index could not be read, so whether the Mod Manager can install it is not known.</summary>
     Unknown,
 }
@@ -62,12 +65,20 @@ public static class Browse
     private static readonly Regex WikiZip = new("^([A-Za-z0-9_]+)-\\d+\\.\\d+\\.\\d+\\.zip$", RegexOptions.CultureInvariant);
 
     /// <summary>What the mod installs from, or null when the Mod Manager cannot install it.</summary>
-    public static FreshTarget? TargetOf(ModIndex index, string guid)
+    /// <param name="wikiDownloads">
+    /// When it is off, a mod the wiki keeps a copy of installs from its author's GitHub releases instead, and one with
+    /// no GitHub repository cannot be installed.
+    /// </param>
+    public static FreshTarget? TargetOf(ModIndex index, string guid, bool wikiDownloads)
     {
         if (index.ModOf(guid) is { } mod)
         {
-            return ModIndex.Newest(mod) is { } newest && WikiZip.Match(newest.File) is { Success: true } match
-                ? new FreshTarget(mod.Guid, mod.Name, match.Groups[1].Value + ".dll", newest, null)
+            if (ModIndex.Newest(mod) is not { } newest || WikiZip.Match(newest.File) is not { Success: true } match) return null;
+
+            var dll = match.Groups[1].Value + ".dll";
+
+            return wikiDownloads ? new FreshTarget(mod.Guid, mod.Name, dll, newest, null)
+                : mod.GitHub != null ? new FreshTarget(mod.Guid, mod.Name, dll, null, mod.GitHub)
                 : null;
         }
 
@@ -80,7 +91,7 @@ public static class Browse
     /// </summary>
     /// <param name="installedGuids">Every mod in the plugins folder, on or off.</param>
     /// <param name="installedNexusIds">The Nexus pages the installed mods were matched to.</param>
-    public static IReadOnlyList<BrowseMod> List(NexusCache nexus, ModIndex index, IReadOnlySet<string> installedGuids, IReadOnlySet<int> installedNexusIds, Func<string, InstallState> installOf, Func<string, FreshInstall?> freshOf)
+    public static IReadOnlyList<BrowseMod> List(NexusCache nexus, ModIndex index, IReadOnlySet<string> installedGuids, IReadOnlySet<int> installedNexusIds, Func<string, InstallState> installOf, Func<string, FreshInstall?> freshOf, bool wikiDownloads)
     {
         var guidByNexus = new Dictionary<int, string>();
 
@@ -100,22 +111,25 @@ public static class Browse
             if (guid != null) seenGuids.Add(guid);
 
             var support = guid != null && installedGuids.Contains(guid) || installedNexusIds.Contains(mod.ModId) ? BrowseSupport.Installed
-                : guid != null && TargetOf(index, guid) != null ? BrowseSupport.Installable
+                : guid != null && TargetOf(index, guid, wikiDownloads) != null ? BrowseSupport.Installable
+                : guid != null && TargetOf(index, guid, wikiDownloads: true) != null ? BrowseSupport.WikiOnly
                 : hasIndex ? BrowseSupport.Manual
                 : BrowseSupport.Unknown;
 
-            list.Add(With(new BrowseMod(guid ?? "nexus:" + mod.ModId, mod.Name, mod.Summary, mod.Uploader, mod.Version, mod.UpdatedAt, mod.Endorsements, mod.Downloads, mod.Thumbnail, mod.ModId, guid, support), index, installedGuids, installOf, freshOf));
+            list.Add(With(new BrowseMod(guid ?? "nexus:" + mod.ModId, mod.Name, mod.Summary, mod.Uploader, mod.Version, mod.UpdatedAt, mod.Endorsements, mod.Downloads, mod.Thumbnail, mod.ModId, guid, support), index, installedGuids, installOf, freshOf, wikiDownloads));
         }
 
         var unlisted = index.Mods.Select(mod => (mod.Guid, mod.Name, mod.NexusId, Version: ModIndex.Newest(mod)?.Version ?? ""))
             .Concat(index.Listed.Select(listed => (listed.Guid, listed.Name, listed.NexusId, Version: "")))
-            .Where(mod => seenGuids.Add(mod.Guid) && TargetOf(index, mod.Guid) != null);
+            .Where(mod => seenGuids.Add(mod.Guid) && TargetOf(index, mod.Guid, wikiDownloads: true) != null);
 
         foreach (var mod in unlisted)
         {
-            var support = installedGuids.Contains(mod.Guid) ? BrowseSupport.Installed : BrowseSupport.Installable;
+            var support = installedGuids.Contains(mod.Guid) ? BrowseSupport.Installed
+                : TargetOf(index, mod.Guid, wikiDownloads) != null ? BrowseSupport.Installable
+                : BrowseSupport.WikiOnly;
 
-            list.Add(With(new BrowseMod(mod.Guid, mod.Name, "", "", mod.Version, "", 0, 0, null, mod.NexusId, mod.Guid, support), index, installedGuids, installOf, freshOf));
+            list.Add(With(new BrowseMod(mod.Guid, mod.Name, "", "", mod.Version, "", 0, 0, null, mod.NexusId, mod.Guid, support), index, installedGuids, installOf, freshOf, wikiDownloads));
         }
 
         return list;
@@ -128,13 +142,13 @@ public static class Browse
     public static IReadOnlySet<int> InstalledNexusIds(IEnumerable<ModEntry> installed, ModIndex index) =>
         installed.SelectMany(mod => new[] { mod.Info.NexusId, index.NexusIdOf(mod.Guid), mod.Known.Nexus?.ModId }).OfType<int>().ToHashSet();
 
-    private static BrowseMod With(BrowseMod mod, ModIndex index, IReadOnlySet<string> installedGuids, Func<string, InstallState> installOf, Func<string, FreshInstall?> freshOf)
+    private static BrowseMod With(BrowseMod mod, ModIndex index, IReadOnlySet<string> installedGuids, Func<string, InstallState> installOf, Func<string, FreshInstall?> freshOf, bool wikiDownloads)
     {
         // An installed mod's own updates show on its card in the Mods list, not here.
         if (mod.Guid == null || mod.Support == BrowseSupport.Installed) return mod;
 
         var fresh = freshOf(mod.Guid);
-        IReadOnlyList<BrowseNeed> needs = fresh == null ? Array.Empty<BrowseNeed>() : MissingNeeds(fresh.Needs, installedGuids, index, installOf).Where(need => TargetOf(index, need) == null).Select(need => NeedOf(need, index)).ToList();
+        IReadOnlyList<BrowseNeed> needs = fresh == null ? Array.Empty<BrowseNeed>() : MissingNeeds(fresh.Needs, installedGuids, index, installOf).Where(need => TargetOf(index, need, wikiDownloads) == null).Select(need => NeedOf(need, index)).ToList();
 
         return mod with { Install = installOf(mod.Guid), IsFresh = fresh != null, Needs = needs };
     }

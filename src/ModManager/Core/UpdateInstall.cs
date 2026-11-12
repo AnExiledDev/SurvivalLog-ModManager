@@ -63,7 +63,7 @@ public static class ReleaseAssets
 
         if (chosen.Size > MaxDownloadBytes) return (null, chosen.Name + " is larger than " + MaxDownloadBytes / 1024 / 1024 + " MB");
 
-        return DownloadAddress.IsAllowed(chosen.Url) ? (chosen, null) : (null, "the release's file is not on GitHub: " + chosen.Url);
+        return DownloadAddress.IsAllowed(chosen.Url, wikiDownloads: false) ? (chosen, null) : (null, "the release's file is not on GitHub: " + chosen.Url);
     }
 
     private static List<ReleaseAsset> ZipsIn(string json)
@@ -90,23 +90,26 @@ public static class ReleaseAssets
     }
 }
 
-/// <summary>Downloads are only taken from GitHub and the wiki's copies, over https, including every redirect on the way.</summary>
+/// <summary>
+/// Downloads are only taken from GitHub and, while WikiDownloads is on, the wiki's copies, over https, including every
+/// redirect on the way. The wiki's index is not a download and is read either way.
+/// </summary>
 public static class DownloadAddress
 {
     public const int MaxHops = 5;
 
-    public static bool IsAllowed(Uri uri)
+    public static bool IsAllowed(Uri uri, bool wikiDownloads)
     {
         if (!uri.IsAbsoluteUri || uri.Scheme != Uri.UriSchemeHttps || !uri.IsDefaultPort || uri.UserInfo.Length > 0) return false;
 
         var host = uri.Host.ToLowerInvariant();
 
-        return host == "github.com" || host.EndsWith(".githubusercontent.com", StringComparison.Ordinal) || host == MirrorAddress.Host;
+        return host == "github.com" || host.EndsWith(".githubusercontent.com", StringComparison.Ordinal) || wikiDownloads && host == MirrorAddress.Host;
     }
 
-    /// <summary>The next address of a redirect, or null when it leaves GitHub and the wiki or cannot be read.</summary>
-    public static Uri? Next(Uri request, string? location) =>
-        !string.IsNullOrWhiteSpace(location) && Uri.TryCreate(request, location, out var next) && IsAllowed(next) ? next : null;
+    /// <summary>The next address of a redirect, or null when it leaves the allowed hosts or cannot be read.</summary>
+    public static Uri? Next(Uri request, string? location, bool wikiDownloads) =>
+        !string.IsNullOrWhiteSpace(location) && Uri.TryCreate(request, location, out var next) && IsAllowed(next, wikiDownloads) ? next : null;
 }
 
 /// <summary>A file in a downloaded zip: its path inside the zip and its unpacked size.</summary>

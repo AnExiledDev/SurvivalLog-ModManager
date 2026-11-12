@@ -49,6 +49,7 @@ internal sealed class ModsSession
     /// <summary>Whether the player is typing in a text box in another mod's window or a game page, so the open key is text.</summary>
     private static readonly Func<bool> IsTypingAnywhere = () => Typing.IsActive;
     private readonly Func<bool> _isCheckingForUpdates;
+    private readonly Func<bool> _isUsingWikiCopies;
     private readonly Func<bool> _isShowingUpdateToast;
     private readonly Action<string> _log;
     private bool _isOpen;
@@ -78,7 +79,7 @@ internal sealed class ModsSession
     private BilingualText? _profileProblem;
     private BilingualText? _profileNote;
 
-    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, GameFitChecks fits, UpdateInstaller installer, LogWatch watch, SavedFile profileFile, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isShowingUpdateToast, Action<string> log)
+    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, GameFitChecks fits, UpdateInstaller installer, LogWatch watch, SavedFile profileFile, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isUsingWikiCopies, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
@@ -92,6 +93,7 @@ internal sealed class ModsSession
         _openKey = openKey;
         _isOpenKeyDown = () => Input.GetKeyDown(_openKey());
         _isCheckingForUpdates = isCheckingForUpdates;
+        _isUsingWikiCopies = isUsingWikiCopies;
         _isShowingUpdateToast = isShowingUpdateToast;
         _log = log;
         _items = items;
@@ -448,7 +450,7 @@ internal sealed class ModsSession
     private void StartFresh(string guid)
     {
         // The wiki's index and the Nexus list are only asked for while update checks are on.
-        if (!_isCheckingForUpdates() || _catalog.Mod(guid) != null || Browse.TargetOf(_updates.Index, guid) is not { } target) return;
+        if (!_isCheckingForUpdates() || _catalog.Mod(guid) != null || Browse.TargetOf(_updates.Index, guid, _isUsingWikiCopies()) is not { } target) return;
 
         if (_catalog.IsOffThere(target.Dll))
         {
@@ -473,7 +475,7 @@ internal sealed class ModsSession
         {
             if (_updates.FreshOf(guid) is not { } fresh || _updates.InstallOf(guid) is not InstallState.Installed) continue;
 
-            foreach (var need in Browse.MissingNeeds(fresh.Needs, installed, _updates.Index, _updates.InstallOf).Where(need => _updates.InstallOf(need) is InstallState.None && Browse.TargetOf(_updates.Index, need) != null))
+            foreach (var need in Browse.MissingNeeds(fresh.Needs, installed, _updates.Index, _updates.InstallOf).Where(need => _updates.InstallOf(need) is InstallState.None && Browse.TargetOf(_updates.Index, need, _isUsingWikiCopies()) != null))
             {
                 _log("installing " + need + ", which " + guid + " needs");
                 StartFresh(need);
@@ -566,7 +568,7 @@ internal sealed class ModsSession
     }
 
     /// <summary>Whether BROWSE could install a mod a profile has that is not installed.</summary>
-    private bool CanInstallFresh(string guid) => _isCheckingForUpdates() && Browse.TargetOf(_updates.Index, guid) is { } target && !_catalog.IsOffThere(target.Dll);
+    private bool CanInstallFresh(string guid) => _isCheckingForUpdates() && Browse.TargetOf(_updates.Index, guid, _isUsingWikiCopies()) is { } target && !_catalog.IsOffThere(target.Dll);
 
     private ProfileCheck? ShownCheck(IReadOnlyList<ModEntry> mods)
     {
@@ -657,6 +659,9 @@ internal sealed class ModsSession
 
         return result is RollbackState.Failed failed ? new ModNote(guid, true, RollbackNotes.UndoFailed(version, failed.Reason)) : null;
     }
+
+    /// <summary>Redraws the screen if it is open, for example after a setting changes what BROWSE shows.</summary>
+    public void Refresh() => RefreshOpen();
 
     private void RefreshOpen()
     {
@@ -784,7 +789,7 @@ internal sealed class ModsSession
             ErrorsNotKept = errorsNotKept,
             Trash = _catalog.Trash(),
             Health = _catalog.Health(mods),
-            Browse = _isCheckingForUpdates() ? Browse.List(_updates.Nexus, _updates.Index, mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal), Browse.InstalledNexusIds(mods, _updates.Index), _updates.InstallOf, _updates.FreshOf) : Array.Empty<BrowseMod>(),
+            Browse = _isCheckingForUpdates() ? Browse.List(_updates.Nexus, _updates.Index, mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal), Browse.InstalledNexusIds(mods, _updates.Index), _updates.InstallOf, _updates.FreshOf, _isUsingWikiCopies()) : Array.Empty<BrowseMod>(),
             BrowseFeed = !_isCheckingForUpdates() ? BrowseFeed.Off : _nexus.IsAsking || !_checks.IsIndexSettled ? BrowseFeed.Asking : BrowseFeed.Ready,
             Profiles = new ProfilesView(Profiles(), ShownCheck(mods), _profileProblem, _profileNote),
         };

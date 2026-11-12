@@ -51,8 +51,8 @@ public sealed class BrowseTests
 
     private static readonly NexusCache Nexus = new(DateTimeOffset.UtcNow, new[] { OnNexus(12, "Map"), OnNexus(40, "Bags"), OnNexus(77, "Radar"), OnNexus(77, "Radar") }, new Dictionary<int, NexusFiles>(), new Dictionary<string, IReadOnlyList<string>>());
 
-    private static IReadOnlyList<BrowseMod> List(IEnumerable<string>? installed = null, IEnumerable<int>? installedNexus = null, Func<string, InstallState>? installOf = null, Func<string, FreshInstall?>? freshOf = null) =>
-        Browse.List(Nexus, Index, (installed ?? Array.Empty<string>()).ToHashSet(StringComparer.Ordinal), (installedNexus ?? Array.Empty<int>()).ToHashSet(), installOf ?? (_ => new InstallState.None()), freshOf ?? (_ => null));
+    private static IReadOnlyList<BrowseMod> List(IEnumerable<string>? installed = null, IEnumerable<int>? installedNexus = null, Func<string, InstallState>? installOf = null, Func<string, FreshInstall?>? freshOf = null, bool wikiDownloads = true, ModIndex? index = null) =>
+        Browse.List(Nexus, index ?? Index, (installed ?? Array.Empty<string>()).ToHashSet(StringComparer.Ordinal), (installedNexus ?? Array.Empty<int>()).ToHashSet(), installOf ?? (_ => new InstallState.None()), freshOf ?? (_ => null), wikiDownloads);
 
     // ===== The list =====
 
@@ -111,7 +111,7 @@ public sealed class BrowseTests
     [Fact]
     public void Without_the_wikis_index_no_mod_is_called_a_manual_download()
     {
-        var list = Browse.List(Nexus, ModIndex.Empty, new HashSet<string>(StringComparer.Ordinal), new HashSet<int>(), _ => new InstallState.None(), _ => null);
+        var list = Browse.List(Nexus, ModIndex.Empty, new HashSet<string>(StringComparer.Ordinal), new HashSet<int>(), _ => new InstallState.None(), _ => null, true);
 
         Assert.All(list, mod => Assert.Equal(BrowseSupport.Unknown, mod.Support));
     }
@@ -123,7 +123,7 @@ public sealed class BrowseTests
         var installed = new ModEntry("com.me.radar", "Radar", "1.0.0", "Radar.dll", new ModState.NotLoaded(), info, new ModSwitch.Unavailable(), new UpdateState.NotChecked());
 
         var ids = Browse.InstalledNexusIds(new[] { installed }, ModIndex.Empty);
-        var list = Browse.List(Nexus, ModIndex.Empty, new HashSet<string>(StringComparer.Ordinal) { "com.me.radar" }, ids, _ => new InstallState.None(), _ => null);
+        var list = Browse.List(Nexus, ModIndex.Empty, new HashSet<string>(StringComparer.Ordinal) { "com.me.radar" }, ids, _ => new InstallState.None(), _ => null, true);
 
         Assert.Equal(BrowseSupport.Installed, list.Single(mod => mod.NexusId == 77).Support);
         Assert.Equal(BrowseSupport.Unknown, list.Single(mod => mod.NexusId == 12).Support);
@@ -142,8 +142,8 @@ public sealed class BrowseTests
     [Fact]
     public void The_wikis_mod_installs_from_its_hash_checked_copy_and_a_listed_one_from_its_github()
     {
-        var map = Browse.TargetOf(Index, "com.ann.map");
-        var bags = Browse.TargetOf(Index, "com.bob.bags");
+        var map = Browse.TargetOf(Index, "com.ann.map", true);
+        var bags = Browse.TargetOf(Index, "com.bob.bags", true);
 
         Assert.Equal("Map.dll", map?.Dll);
         Assert.Equal("Map-1.2.0.zip", map?.WikiCopy?.File);
@@ -153,8 +153,8 @@ public sealed class BrowseTests
         Assert.Null(bags?.WikiCopy);
         Assert.Equal("Bob/Bags", bags?.GitHub);
 
-        Assert.Null(Browse.TargetOf(Index, "com.ann.pack"));
-        Assert.Null(Browse.TargetOf(Index, "com.nobody.radar"));
+        Assert.Null(Browse.TargetOf(Index, "com.ann.pack", true));
+        Assert.Null(Browse.TargetOf(Index, "com.nobody.radar", true));
     }
 
     [Fact]
@@ -313,6 +313,80 @@ public sealed class BrowseTests
         engine.Execute("fire('click', { target: card('bwAsk', 'nexus:77') })");
 
         Assert.EndsWith("|askAuthor|77", Posted(engine, "askAuthor"));
+    }
+
+    // ===== WikiDownloads =====
+
+    // Map is the wiki's and also on its author's GitHub. Torch and Rope are only on the wiki: Torch is on Nexus as 77,
+    // Rope is not on Nexus.
+    private static ModIndex WikiOnlyIndex => Read("""
+        {
+          "schema": 1,
+          "mods": [
+            { "guid": "com.ann.map", "name": "Map", "nexus": 12, "github": "Ann/SurvivalLog-Map",
+              "releases": [ { "version": "1.2.0", "file": "Map-1.2.0.zip", "size": 100, "sha256": "HASH" } ] },
+            { "guid": "com.cat.torch", "name": "Torch", "nexus": 77,
+              "releases": [ { "version": "2.0.0", "file": "Torch-2.0.0.zip", "size": 100, "sha256": "HASH" } ] },
+            { "guid": "com.cat.rope", "name": "Rope",
+              "releases": [ { "version": "1.0.0", "file": "Rope-1.0.0.zip", "size": 100, "sha256": "HASH" } ] }
+          ],
+          "conflicts": [], "broken": [], "nexus_ids": {}, "listed": []
+        }
+        """.Replace("HASH", Hash)).Index;
+
+    [Fact]
+    public void With_wiki_downloads_off_a_wiki_mod_installs_from_its_authors_github_and_never_from_the_wiki()
+    {
+        var map = Browse.TargetOf(WikiOnlyIndex, "com.ann.map", wikiDownloads: false);
+
+        Assert.Null(map?.WikiCopy);
+        Assert.Equal("Ann/SurvivalLog-Map", map?.GitHub);
+        Assert.Equal("Map.dll", map?.Dll);
+        Assert.Equal(BrowseSupport.Installable, List(wikiDownloads: false, index: WikiOnlyIndex).Single(mod => mod.Guid == "com.ann.map").Support);
+    }
+
+    [Fact]
+    public void With_wiki_downloads_off_a_mod_only_the_wiki_has_cannot_be_installed_and_is_not_called_a_manual_download()
+    {
+        var list = List(wikiDownloads: false, index: WikiOnlyIndex);
+
+        Assert.Null(Browse.TargetOf(WikiOnlyIndex, "com.cat.torch", wikiDownloads: false));
+        Assert.Null(Browse.TargetOf(WikiOnlyIndex, "com.cat.rope", wikiDownloads: false));
+
+        var torch = list.Single(mod => mod.NexusId == 77);
+
+        Assert.Equal(BrowseSupport.WikiOnly, torch.Support);
+        Assert.Equal("com.cat.torch", torch.Guid);
+        Assert.Equal(BrowseSupport.WikiOnly, list.Single(mod => mod.Guid == "com.cat.rope").Support);
+    }
+
+    [Fact]
+    public void With_wiki_downloads_on_the_wikis_copy_comes_first_even_for_a_mod_on_github()
+    {
+        var map = Browse.TargetOf(WikiOnlyIndex, "com.ann.map", wikiDownloads: true);
+        var torch = Browse.TargetOf(WikiOnlyIndex, "com.cat.torch", wikiDownloads: true);
+
+        Assert.Equal("Map-1.2.0.zip", map?.WikiCopy?.File);
+        Assert.Null(map?.GitHub);
+        Assert.Equal("Torch-2.0.0.zip", torch?.WikiCopy?.File);
+        Assert.Equal("Torch.dll", torch?.Dll);
+
+        var list = List(wikiDownloads: true, index: WikiOnlyIndex);
+
+        Assert.Equal(BrowseSupport.Installable, list.Single(mod => mod.NexusId == 77).Support);
+        Assert.Equal(BrowseSupport.Installable, list.Single(mod => mod.Guid == "com.cat.rope").Support);
+    }
+
+    [Fact]
+    public void A_mod_only_the_wiki_has_says_how_to_install_it_and_offers_nexus_but_no_install_button()
+    {
+        var torch = new BrowseMod("com.cat.torch", "Torch", "Light.", "Cat", "2.0.0", "2026-11-01", 3, 30, null, 77, "com.cat.torch", BrowseSupport.WikiOnly);
+        var drawn = KnownFactsTests.Drawn(OnBrowse(View(BrowseFeed.Ready, torch)));
+
+        Assert.Contains("Turn on &quot;Wiki Downloads&quot; in the Mod Manager", drawn);
+        Assert.Contains("OPEN ON NEXUS", drawn);
+        Assert.DoesNotContain("data-act=\"bwInstall\"", drawn);
+        Assert.DoesNotContain("No Mod Manager support", drawn);
     }
 
     [Fact]

@@ -103,10 +103,13 @@ public sealed class ModIndex
         return new LatestRelease.Found(parts[0], parts[1], tag, page);
     }
 
-    /// <summary>The wiki's copy of an update: only for the same mod, from the same repository, at the same version.</summary>
-    public IndexRelease? MirrorFor(string guid, string? repository, string tag)
+    /// <summary>
+    /// The wiki's copy of an update: only for the same mod, from the same repository, at the same version, and only
+    /// while downloads from the wiki are on.
+    /// </summary>
+    public IndexRelease? MirrorFor(string guid, string? repository, string tag, bool wikiDownloads)
     {
-        if (ModOf(guid) is not { GitHub: { } github } mod || repository == null || !string.Equals(github, repository, StringComparison.OrdinalIgnoreCase)) return null;
+        if (!wikiDownloads || ModOf(guid) is not { GitHub: { } github } mod || repository == null || !string.Equals(github, repository, StringComparison.OrdinalIgnoreCase)) return null;
 
         return ReleaseOf(mod, tag);
     }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.3
+
+- New setting `WikiDownloads` under Updates, off by default. Turn it on to download mods and updates from the Survival Log Wiki's checked copies first. While it is off, the Mod Manager downloads only from the author's GitHub releases.
+- On BROWSE, a mod that only the wiki has a download of shows no INSTALL button while `WikiDownloads` is off. Its card tells you to turn on `WikiDownloads` instead.
+- Made for Survival Log 1.1.20719.
+
 ## 0.20.2
 
 - BROWSE can sort by MOST DOWNLOADED.
