@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.9
+
+- Profile codes now come from Exiled's Toolkit. Every profile code you already shared still works.
+- Needs Exiled's Toolkit 0.21.0 or later.
+- Made for Survival Log 1.1.20719.
+
 ## 0.20.8
 
 - Clearer wording on the Mods screen and in the settings.

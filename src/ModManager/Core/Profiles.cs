@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using ExiledToolkit.Kit;
 
 namespace ModManager.Core;
 
@@ -51,8 +50,8 @@ public sealed record Profile(string Name, IReadOnlyList<ProfileMod> Mods, IReadO
 }
 
 /// <summary>
-/// A profile as short text a player can paste in a chat: "SLMM1-" and the profile, compressed, in base64 that survives
-/// a URL or a chat box. Reading one never trusts its size: a code that unpacks to more than a profile can hold is
+/// A profile as short text a player can paste in a chat: "SLMM1-" and the profile, packed by the Toolkit's
+/// <see cref="ShareCodec"/>. Reading one never trusts its size: a code that unpacks to more than a profile can hold is
 /// refused, so a pasted code cannot fill the memory.
 /// </summary>
 public static class ShareCode
@@ -63,77 +62,39 @@ public static class ShareCode
     public const int MaxMods = 1000;
     public const int MaxSettings = 10_000;
 
-    private static readonly Regex CodeIn = new(Regex.Escape(Prefix) + "([A-Za-z0-9_-]+)", RegexOptions.CultureInvariant);
-
     public static string Write(Profile profile)
     {
         var text = new StringBuilder();
 
-        text.Append("n\t").Append(Field(profile.Name)).Append('\n');
+        text.Append("n\t").Append(ShareCodec.EscapeField(profile.Name)).Append('\n');
 
-        foreach (var mod in profile.Mods) text.Append("m\t").Append(Field(mod.Guid)).Append('\t').Append(Field(mod.Name)).Append('\t').Append(Field(mod.Version)).Append('\t').Append(mod.IsOn ? '1' : '0').Append('\t').Append(mod.SettingsKnown ? '1' : '0').Append('\n');
+        foreach (var mod in profile.Mods) text.Append("m\t").Append(ShareCodec.EscapeField(mod.Guid)).Append('\t').Append(ShareCodec.EscapeField(mod.Name)).Append('\t').Append(ShareCodec.EscapeField(mod.Version)).Append('\t').Append(mod.IsOn ? '1' : '0').Append('\t').Append(mod.SettingsKnown ? '1' : '0').Append('\n');
 
-        foreach (var setting in profile.Settings) text.Append("s\t").Append(Field(setting.Guid)).Append('\t').Append(Field(setting.Section)).Append('\t').Append(Field(setting.Key)).Append('\t').Append(Field(setting.Value)).Append('\n');
+        foreach (var setting in profile.Settings) text.Append("s\t").Append(ShareCodec.EscapeField(setting.Guid)).Append('\t').Append(ShareCodec.EscapeField(setting.Section)).Append('\t').Append(ShareCodec.EscapeField(setting.Key)).Append('\t').Append(ShareCodec.EscapeField(setting.Value)).Append('\n');
 
         // The last line counts the lines above it, so a code cut short in a chat is refused rather than read in part.
         text.Append("e\t").Append(profile.Mods.Count + profile.Settings.Count).Append('\n');
 
-        using var packed = new MemoryStream();
-
-        using (var deflate = new DeflateStream(packed, CompressionLevel.Optimal, true))
-        {
-            var bytes = Encoding.UTF8.GetBytes(text.ToString());
-
-            deflate.Write(bytes, 0, bytes.Length);
-        }
-
-        return Prefix + Convert.ToBase64String(packed.ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        return ShareCodec.Pack(Prefix, text.ToString());
     }
 
     /// <summary>The profile in a pasted text: a share code anywhere in it, else a list from COPY MOD LIST.</summary>
     public static (Profile? Profile, BilingualText? Problem) Read(string pasted)
     {
-        if (string.IsNullOrWhiteSpace(pasted)) return (null, Problems.Empty);
+        var (text, problem) = ShareCodec.Unpack(pasted, Prefix, MaxCodeLength, MaxUnpackedBytes);
 
-        if (pasted.Length > MaxCodeLength) return (null, Problems.TooBig);
-
-        // Chat apps break long lines, so the code is looked for with every space and line break taken out.
-        var joined = Regex.Replace(pasted, "\\s+", "");
-
-        if (CodeIn.Match(joined) is { Success: true } match) return Unpack(match.Groups[1].Value);
-
-        return ModList.Read(pasted) is { } list ? (list, null) : (null, Problems.NotACode);
+        return problem switch
+        {
+            null => Lines(text ?? ""),
+            ShareProblem.Empty => (null, Problems.Empty),
+            ShareProblem.NotACode => ModList.Read(pasted) is { } list ? (list, null) : (null, Problems.NotACode),
+            ShareProblem.Broken => (null, Problems.Broken),
+            _ => (null, Problems.TooBig),
+        };
     }
 
-    private static (Profile?, BilingualText?) Unpack(string code)
+    private static (Profile?, BilingualText?) Lines(string text)
     {
-        string text;
-
-        try
-        {
-            var base64 = code.Replace('-', '+').Replace('_', '/');
-
-            base64 += new string('=', (4 - base64.Length % 4) % 4);
-
-            using var deflate = new DeflateStream(new MemoryStream(Convert.FromBase64String(base64)), CompressionMode.Decompress);
-            using var unpacked = new MemoryStream();
-            var buffer = new byte[16384];
-            int read;
-
-            while ((read = deflate.Read(buffer, 0, buffer.Length)) > 0)
-            {
-                unpacked.Write(buffer, 0, read);
-
-                if (unpacked.Length > MaxUnpackedBytes) return (null, Problems.TooBig);
-            }
-
-            text = Encoding.UTF8.GetString(unpacked.ToArray());
-        }
-        catch (Exception ex) when (ex is FormatException or InvalidDataException)
-        {
-            return (null, Problems.Broken);
-        }
-
         string? name = null;
         int? ends = null;
         var mods = new List<ProfileMod>();
@@ -141,7 +102,7 @@ public static class ShareCode
 
         foreach (var line in text.Split('\n'))
         {
-            var parts = line.Split('\t').Select(Unfield).ToArray();
+            var parts = line.Split('\t').Select(ShareCodec.UnescapeField).ToArray();
 
             switch (parts[0])
             {
@@ -170,11 +131,6 @@ public static class ShareCode
 
         return (new Profile(Profile.CleanName(name), distinctMods, distinctSettings, true), null);
     }
-
-    /// <summary>Tabs and line breaks split the code into fields and lines, so they are escaped inside a field, as is "%".</summary>
-    private static string Field(string value) => value.Replace("%", "%25").Replace("\t", "%09").Replace("\n", "%0A").Replace("\r", "%0D");
-
-    private static string Unfield(string value) => value.Replace("%0D", "\r").Replace("%0A", "\n").Replace("%09", "\t").Replace("%25", "%");
 
     public static class Problems
     {

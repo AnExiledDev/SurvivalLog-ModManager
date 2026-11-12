@@ -43,6 +43,37 @@ public sealed class ProfilesTests
         return ShareCode.Prefix + Convert.ToBase64String(packed.ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 
+    /// <summary>
+    /// How Mod Manager 0.20.8 and earlier wrote a code, copied from ShareCode.Write before the packing moved to the
+    /// Toolkit. Every code players have already shared was made this way, so it must keep reading, and a new code must
+    /// come out the same.
+    /// </summary>
+    private static string OldPack(Profile profile)
+    {
+        static string Field(string value) => value.Replace("%", "%25").Replace("\t", "%09").Replace("\n", "%0A").Replace("\r", "%0D");
+
+        var text = new StringBuilder();
+
+        text.Append("n\t").Append(Field(profile.Name)).Append('\n');
+
+        foreach (var mod in profile.Mods) text.Append("m\t").Append(Field(mod.Guid)).Append('\t').Append(Field(mod.Name)).Append('\t').Append(Field(mod.Version)).Append('\t').Append(mod.IsOn ? '1' : '0').Append('\t').Append(mod.SettingsKnown ? '1' : '0').Append('\n');
+
+        foreach (var setting in profile.Settings) text.Append("s\t").Append(Field(setting.Guid)).Append('\t').Append(Field(setting.Section)).Append('\t').Append(Field(setting.Key)).Append('\t').Append(Field(setting.Value)).Append('\n');
+
+        text.Append("e\t").Append(profile.Mods.Count + profile.Settings.Count).Append('\n');
+
+        using var packed = new MemoryStream();
+
+        using (var deflate = new DeflateStream(packed, CompressionLevel.Optimal, true))
+        {
+            var bytes = Encoding.UTF8.GetBytes(text.ToString());
+
+            deflate.Write(bytes, 0, bytes.Length);
+        }
+
+        return ShareCode.Prefix + Convert.ToBase64String(packed.ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
     // ===== Saving the setup =====
 
     [Fact]
@@ -155,6 +186,82 @@ public sealed class ProfilesTests
 
         Assert.True(Assert.Single(profile!.Mods).IsOn);
         Assert.Equal("one", Assert.Single(profile.Settings).Value);
+    }
+
+    // ===== Codes stay the same now that the Toolkit packs them =====
+
+    [Fact]
+    public void A_new_code_is_the_same_text_as_before_even_with_escaped_fields_and_Chinese()
+    {
+        var profile = new Profile("我的 50%\tsetup", new[] { new ProfileMod("com.x", "物品\nName", "1.0\r", true), new ProfileMod("com.y", "Y", "", false, false) },
+            new[] { new ProfileSetting("com.x", "商店", "Stock\t2", "20004:5\n%0A,1 一百") }, true);
+
+        Assert.Equal(OldPack(profile), ShareCode.Write(profile));
+    }
+
+    [Fact]
+    public void A_new_code_for_an_empty_profile_is_the_same_text_as_before()
+    {
+        var profile = new Profile("P", Array.Empty<ProfileMod>(), Array.Empty<ProfileSetting>(), true);
+
+        Assert.Equal(OldPack(profile), ShareCode.Write(profile));
+    }
+
+    [Fact]
+    public void A_long_code_shared_before_still_reads_as_the_same_profile()
+    {
+        var random = new Random(7);
+        string Word() => string.Concat(Enumerable.Range(0, 12).Select(_ => (char)random.Next('a', 'z' + 1)));
+        var mods = Enumerable.Range(0, 300).Select(i => new ProfileMod("com." + Word(), Word() + " 模组", "1." + i, i % 3 != 0, i % 5 != 0)).ToList();
+        var settings = mods.Take(100).Select(mod => new ProfileSetting(mod.Guid, "General", Word(), Word() + "%\t" + Word())).ToList();
+        var profile = new Profile("Old code", mods, settings, true);
+
+        var code = OldPack(profile);
+        var (read, problem) = ShareCode.Read(code);
+
+        Assert.Contains("-", code.Substring(ShareCode.Prefix.Length));
+        Assert.Contains("_", code.Substring(ShareCode.Prefix.Length));
+        Assert.Null(problem);
+        Assert.Equal(profile.Name, read!.Name);
+        Assert.Equal(profile.Mods, read.Mods);
+        Assert.Equal(profile.Settings, read.Settings);
+    }
+
+    [Theory]
+    [InlineData("empty")]
+    [InlineData("spaces")]
+    [InlineData("not a code")]
+    [InlineData("bad base64")]
+    [InlineData("bad deflate")]
+    [InlineData("too long")]
+    [InlineData("unpacks too big")]
+    public void Each_problem_with_a_pasted_code_still_says_the_same_words(string pasted)
+    {
+        var (text, english) = pasted switch
+        {
+            "empty" => ("", "Paste a profile code or a mod list first."),
+            "spaces" => (" \n\t ", "Paste a profile code or a mod list first."),
+            "not a code" => ("my mods are great", "This is not a profile code or a list from COPY MOD LIST."),
+            "bad base64" => ("SLMM1-A", "The code is cut off or changed. Copy it again from where it was shared."),
+            "bad deflate" => ("SLMM1-AAAA", "The code is cut off or changed. Copy it again from where it was shared."),
+            "too long" => (new string('x', ShareCode.MaxCodeLength + 1), "This is far bigger than any profile, so it was not read."),
+            _ => (Pack(new string('a', ShareCode.MaxUnpackedBytes + 1)), "This is far bigger than any profile, so it was not read."),
+        };
+
+        var (profile, problem) = ShareCode.Read(text);
+
+        Assert.Null(profile);
+        Assert.Equal(english, problem!.English);
+    }
+
+    [Fact]
+    public void A_code_that_unpacks_to_exactly_the_limit_still_reads_and_one_byte_more_does_not()
+    {
+        const string head = "n\tx\n", tail = "e\t0\n";
+        var filler = new string('a', ShareCode.MaxUnpackedBytes - head.Length - tail.Length - 1) + "\n";
+
+        Assert.Equal("x", ShareCode.Read(Pack(head + filler + tail)).Profile!.Name);
+        Assert.Equal(ShareCode.Problems.TooBig, ShareCode.Read(Pack(head + "a" + filler + tail)).Problem);
     }
 
     // ===== A pasted mod list =====
