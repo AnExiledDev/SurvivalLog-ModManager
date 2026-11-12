@@ -551,8 +551,17 @@
     return order;
   }
 
-  function matchesQuery(mod, s, q) {
-    return (s.label + ' ' + s.key + ' ' + s.section + ' ' + s.en + ' ' + s.zh).toLowerCase().indexOf(q) >= 0;
+  // A search matches when every typed word is in one of the texts, in any order, so a stray space hides nothing.
+  function searchWords(query) {
+    return String(query || '').toLowerCase().split(/\s+/).filter(Boolean);
+  }
+
+  function hasEveryWord(texts, words) {
+    return words.every(w => texts.some(text => String(text || '').toLowerCase().indexOf(w) >= 0));
+  }
+
+  function matchesQuery(s, words) {
+    return hasEveryWord([s.label, s.key, s.section, s.en, s.zh], words);
   }
 
   // ===== Style =====
@@ -1332,14 +1341,14 @@
   }
 
   function visibleMods() {
-    const q = state.query.toLowerCase();
+    const words = searchWords(state.query);
     let shown = mods();
 
     if (state.filter === 'changed') shown = shown.filter(m => m.settings.some(isChanged));
     else if (state.filter === 'updates') shown = shown.filter(isUpdatable);
     else if (state.filter === 'errors') shown = shown.filter(hasErrors);
 
-    if (q) shown = shown.filter(m => [m.name, m.nameZh, m.plugin, m.guid].some(text => text.toLowerCase().indexOf(q) >= 0) || m.settings.some(s => matchesQuery(m, s, q)));
+    if (words.length) shown = shown.filter(m => hasEveryWord([m.name, m.nameZh, m.plugin, m.guid], words) || m.settings.some(s => matchesQuery(s, words)));
 
     return shown;
   }
@@ -1435,7 +1444,7 @@
   }
 
   function shownBrowse() {
-    const q = state.browseQuery.toLowerCase();
+    const words = searchWords(state.browseQuery);
     const sorts = {
       endorsed: (a, b) => b.endorsements - a.endorsements || a.name.localeCompare(b.name),
       downloads: (a, b) => b.downloads - a.downloads || a.name.localeCompare(b.name),
@@ -1445,7 +1454,7 @@
 
     return browse()
       .filter(b => inBrowseFilter(b, state.browseFilter))
-      .filter(b => !q || [b.name, b.author, b.summary, b.guid || ''].some(text => text.toLowerCase().indexOf(q) >= 0))
+      .filter(b => hasEveryWord([b.name, b.author, b.summary, b.guid], words))
       .sort(sorts[state.browseSort] || sorts.endorsed);
   }
 
@@ -2225,14 +2234,16 @@
   }
 
   function renderSearch() {
-    const q = state.query.toLowerCase();
-    const pattern = new RegExp('(' + esc(state.query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+    const words = searchWords(state.query);
+    // Each word is marked on its own; the longest goes first, so "bag" and "bagweight" mark the whole of the longer one.
+    const longestFirst = words.slice().sort((a, b) => b.length - a.length);
+    const pattern = new RegExp('(' + longestFirst.map(w => esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'ig');
     const highlight = text => esc(text).replace(pattern, '<mark>$1</mark>');
     let count = 0;
     let html = '';
 
     for (const m of visibleMods()) {
-      const hits = shownSettings(m).filter(s => matchesQuery(m, s, q));
+      const hits = shownSettings(m).filter(s => matchesQuery(s, words));
 
       if (!hits.length) continue;
 
@@ -2634,10 +2645,18 @@
 
   function setItemCount(row, index, count) {
     const list = listOf(row.mod, row.setting);
+    const typed = parseFloat(count);
 
     if (!list[index]) return;
 
-    list[index].count = String(clampValue(row.setting, parseFloat(count)));
+    // A blank box, or one with no number in it, keeps its amount, and the redraw puts that amount back in the box.
+    if (isNaN(typed)) {
+      render();
+
+      return;
+    }
+
+    list[index].count = String(clampValue(row.setting, typed));
     writeList(row, list, list[index].id);
   }
 
@@ -2737,10 +2756,9 @@
   // A choice is kept as the mod spells it; a number or an amount as a number.
   const pickedValue = (s, value) => (hasChoice(s) ? String(value) : clampValue(s, Number(value)));
 
-  function matches(item, q) {
-    const low = q.toLowerCase();
-
-    return item.en.toLowerCase().indexOf(low) >= 0 || item.zh.indexOf(q) >= 0 || String(item.id).toLowerCase().indexOf(low) === 0;
+  // Each typed word is in the item's name, in either language, or starts its id.
+  function matches(item, words) {
+    return words.every(w => hasEveryWord([item.en, item.zh], [w]) || String(item.id).toLowerCase().indexOf(w) === 0);
   }
 
   // The items on show: the search over every item, most used by recipes first, else the chosen shelf.
@@ -2748,10 +2766,10 @@
     const p = state.picker;
     const catalog = catalogOf(s);
     const all = catalog.list;
-    const q = p.q.trim();
+    const words = searchWords(p.q);
 
     // The mod's entries keep the mod's order; items put the ones most recipes take first.
-    if (q) return isEntries(s) ? all.filter(item => matches(item, q)) : all.filter(item => matches(item, q)).sort((a, b) => b.uses - a.uses || a.id - b.id);
+    if (words.length) return isEntries(s) ? all.filter(item => matches(item, words)) : all.filter(item => matches(item, words)).sort((a, b) => b.uses - a.uses || a.id - b.id);
 
     if (p.cat === 'common' && !isEntries(s)) return catalog.common;
 
@@ -3225,6 +3243,13 @@
     render();
   }
 
+  // The name box empties once the setup is sent, ready for the next name.
+  function saveProfile(field) {
+    send('profileSave', [field ? field.value : '']);
+
+    if (field) field.value = '';
+  }
+
   function closeDropdowns(except) {
     root.querySelectorAll('.dd.open').forEach(dd => { if (dd !== except) dd.classList.remove('open'); });
   }
@@ -3360,13 +3385,8 @@
       state.asked = { key: browseOf(act).key, ok: null };
       send('askAuthor', [String(browseOf(act).nexus)]);
     }
-    else if (actName === 'pfSave') {
-      const field = root.querySelector('.pf-name');
-
-      send('profileSave', [field ? field.value : '']);
-
-      if (field) field.value = '';
-    } else if (actName === 'pfShow') send('profileShow', [act.dataset.pf]);
+    else if (actName === 'pfSave') saveProfile(root.querySelector('.pf-name'));
+    else if (actName === 'pfShow') send('profileShow', [act.dataset.pf]);
     else if (actName === 'pfCopy') {
       state.pfCopied = { name: act.dataset.pf, ok: null };
       send('profileCopy', [act.dataset.pf]);
@@ -3557,9 +3577,13 @@
     if (target.dataset.input === 'pkCount') {
       const picking = pickerRow();
 
-      // Only the box changes: redrawing the panel here would swap out the button a click on it is landing on.
+      // Only the box changes: redrawing the panel here would swap out the button a click on it is landing on. A blank
+      // box, or one with no number in it, keeps the amount it had.
       if (picking) {
-        state.picker.count = clampValue(picking.setting, parseFloat(target.value));
+        const typed = parseFloat(target.value);
+
+        if (!isNaN(typed)) state.picker.count = clampValue(picking.setting, typed);
+
         target.value = String(state.picker.count);
       }
 
@@ -3623,9 +3647,17 @@
   }
 
   // The keyboard reaches this page only while a text field has focus; Esc there leaves the field, not the screen.
-  // Enter in the picker's search puts in the item shown on the right, else the first one found.
+  // Enter in the picker's search puts in the item shown on the right, else the first one found. Enter in the profile
+  // name box saves the setup, as SAVE THIS SETUP does.
   function onKeyDown(e) {
     if (e.defaultPrevented || !isTextField(e.target)) return;
+
+    if (e.key === 'Enter' && e.target.classList.contains('pf-name')) {
+      e.preventDefault();
+      saveProfile(e.target);
+
+      return;
+    }
 
     if (e.key === 'Enter' && e.target.classList.contains('pk-find') && state.picker) {
       e.preventDefault();

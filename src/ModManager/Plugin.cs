@@ -18,7 +18,7 @@ namespace ModManager;
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "com.dev.survivallog.modmanager";
-    public const string Version = "0.20.9";
+    public const string Version = "0.20.10";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
     private const string ToolkitVersion = ">=0.21.0";

@@ -463,6 +463,17 @@ public sealed class ProfilesTests
 
     private static readonly Profile Night = new("Night", new[] { new ProfileMod("a", "A", "1.0", true), new ProfileMod("b", "B", "1.0", false) }, new[] { new ProfileSetting("a", "General", "Zoom", "true") }, true);
 
+    [Fact]
+    public void Enter_in_the_name_box_saves_the_setup_under_that_name_and_empties_the_box()
+    {
+        var engine = Page(new ProfilesView(Array.Empty<Profile>(), null, null, null));
+
+        engine.Execute("var nameBox = el('INPUT', ['pf-name'], {}, {}, 'Night run'); fire('keydown', { target: nameBox, key: 'Enter' })");
+
+        Assert.EndsWith("|profileSave|Night run", Posted(engine, "profileSave"));
+        Assert.Equal("", engine.Evaluate("nameBox.value").AsString());
+    }
+
     private static Jint.Engine Page(ProfilesView profiles)
     {
         var engine = new Jint.Engine();

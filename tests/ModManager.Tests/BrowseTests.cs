@@ -295,6 +295,21 @@ public sealed class BrowseTests
         Assert.True(byDownloads.IndexOf("Bags") < byDownloads.IndexOf("Radar"));
     }
 
+    [Theory]
+    [InlineData("bob bigger")]
+    [InlineData("BAGS bob")]
+    public void The_search_finds_every_typed_word_in_any_order_across_name_author_and_summary(string typed)
+    {
+        // Bob is the author of Bags and "Bigger bags." its summary, so only words from two fields find it.
+        var engine = OnBrowse(View(BrowseFeed.Ready, Radar, Bags));
+
+        engine.Execute("drawn.length = 0; fire('input', { target: el('INPUT', ['bw-find'], {}, {}, '" + typed + "') })");
+        var drawn = KnownFactsTests.Drawn(engine);
+
+        Assert.Contains("data-bw=\"com.bob.bags\"", drawn);
+        Assert.DoesNotContain("data-bw=\"nexus:77\"", drawn);
+    }
+
     [Fact]
     public void A_manual_download_is_called_out_folded_and_opens_to_ask_the_author_with_its_nexus_page()
     {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.10
+
+- Search finds every word you type, in any order. "carry bag" now finds a setting described as "How much a bag can carry". This works in the settings search, the item picker and BROWSE. The settings search highlights each word on its own.
+- Fixed: clearing an amount box in an item list, or in the item picker, set the amount to the lowest it can be. A box left empty, or with no number in it, now keeps the amount it had.
+- Press Enter in the profile name box to save the setup, the same as SAVE THIS SETUP.
+- Made for Survival Log 1.1.20719.
+
 ## 0.20.9
 
 - Profile codes now come from Exiled's Toolkit. Every profile code you already shared still works.

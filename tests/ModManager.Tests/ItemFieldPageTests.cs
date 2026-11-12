@@ -542,16 +542,93 @@ public class ItemFieldPageTests
         return pane;
     }
 
+    [Fact]
+    public void The_picker_search_finds_every_typed_word_in_any_order()
+    {
+        var engine = Open(Materials("20004:5"));
+
+        engine.Execute("fire('click', { target: act('pick') })");
+        engine.Execute("drawn.length = 0; fire('input', { target: el('INPUT', ['pk-find'], {}, {}, ' wire  COPPER ') })");
+        var grid = engine.Evaluate("drawn.filter(function (h) { return h.indexOf('class=\"it') >= 0 || h.indexOf('pk-none') >= 0; }).pop() || ''").AsString();
+
+        Assert.Contains("data-id=\"20104\"", grid);
+        Assert.DoesNotContain("data-id=\"20004\"", grid);
+        Assert.DoesNotContain("data-id=\"64001\"", grid);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("abc")]
+    public void An_amount_box_left_blank_or_without_a_number_keeps_the_amount_it_had(string typed)
+    {
+        var engine = Open(Materials("20004:5,20104:3"));
+
+        engine.Execute("fire('change', { target: el('INPUT', [], { input: 'count', index: '0' }, { '[data-row]': firstRow }, '" + typed + "') })");
+
+        Assert.Equal(0, engine.Evaluate("sets().length").AsNumber());
+    }
+
+    [Fact]
+    public void A_blank_amount_in_the_picker_keeps_the_amount_typed_before_it()
+    {
+        var engine = Open(Materials("20004:5,20104:3"));
+        const string package = "el('DIV', ['it'], { id: '64001' }, { '.pk-host': {}, '.it': { dataset: { id: '64001' } } })";
+
+        engine.Execute("fire('click', { target: act('pick') })");
+        engine.Execute("fire('click', { target: " + package + ", detail: 1 })");
+        engine.Execute("fire('change', { target: el('INPUT', [], { input: 'pkCount' }, {}, '5') })");
+        engine.Execute("var amountBox = el('INPUT', [], { input: 'pkCount' }, {}, ''); fire('change', { target: amountBox })");
+
+        Assert.Equal("5", engine.Evaluate("amountBox.value").AsString());
+
+        engine.Execute("fire('click', { target: el('DIV', ['go'], { act: 'pkGo' }, { '.pk-host': {}, '[data-act]': { dataset: { act: 'pkGo' } } }) })");
+
+        Assert.EndsWith("|SmallTurbine|Materials|20004:5,20104:3,64001:5", engine.Evaluate("sets().join('\\n')").AsString());
+    }
+
+    [Theory]
+    [InlineData("carry bag")]
+    [InlineData("  BAG   carry ")]
+    public void The_settings_search_finds_every_typed_word_in_any_order_and_marks_each_one(string typed)
+    {
+        var bagWeight = new Setting(new SettingId("g", "SmallTurbine", "BagWeight"), "BagWeight", new Description("How much a bag can carry", "zh"), new SettingKind.Number(false, 0, 100), "1", "1", "1", false);
+        var shopStock = new Setting(new SettingId("g", "SmallTurbine", "ShopStock"), "ShopStock", new Description("Items in the shop", "zh"), new SettingKind.Number(true, 0, 100), "5", "5", "5", false);
+        var engine = Boot(ReachableBoxes, System.Array.Empty<string>(), new[] { bagWeight, shopStock });
+
+        engine.Execute("var box = found['.find']; box.closest = function () { return null; }; box.value = '" + typed + "'; drawn.length = 0; fire('input', { target: box })");
+        var pane = Pane(engine);
+
+        Assert.Contains("a <mark>bag</mark> can <mark>carry</mark>", pane);
+        Assert.DoesNotContain("Items in the shop", pane);
+    }
+
+    // The page finds its boxes with querySelector once, at start; this keeps each one it asks for so a test can type in it.
+    private const string ReachableBoxes = """
+        var found = {};
+        var makeElement = document.createElement;
+
+        document.createElement = function (tag) {
+          var made = makeElement(tag);
+
+          made.querySelector = function (selector) { return found[selector] = found[selector] || makeElement('div'); };
+
+          return made;
+        };
+        """;
+
     private static Engine Open(params Setting[] settings) => OpenWith(System.Array.Empty<string>(), settings);
 
     /// <summary>Opens the screen with these scripts run first, such as the entries of a List setting.</summary>
-    private static Engine OpenWith(string[] before, params Setting[] settings)
+    private static Engine OpenWith(string[] before, params Setting[] settings) => Boot("", before, settings);
+
+    private static Engine Boot(string beforePage, string[] before, Setting[] settings)
     {
         var mod = new ModEntry("g", "Mod", "1.0", "Mod.dll", new ModState.Loaded(settings), ModInfo.None, new ModSwitch.Allowed(true, System.Array.Empty<string>()), new UpdateState.NotChecked());
         var engine = new Engine();
 
         engine.Execute(Resource("ModManager.Tests.PageFake.js"));
         engine.Execute(StandIns);
+        engine.Execute(beforePage);
         engine.Execute(Resource("ModManager.page.js"));
         engine.Execute(PageScript.Items(Items, new[] { new CategoryName(9, new Description("Materials", "材料")) }));
 
