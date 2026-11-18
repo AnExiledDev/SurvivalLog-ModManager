@@ -100,6 +100,7 @@ public static class PageScript
         json.Append(",\"gameKeys\":").Append(List(view.GameKeys, key => "{\"action\":" + Str(key.Action) + ",\"key\":" + Str(key.Key) + ",\"label\":" + Str(key.Label) + "}"));
         json.Append(",\"dataCheck\":").Append(DataCheckJson(view.DataCheck));
         json.Append(",\"codeCheck\":").Append(CodeCheckJson(view.CodeCheck));
+        json.Append(",\"startPlan\":").Append(StartPlanJson(view));
 
         return json.Append('}').ToString();
     }
@@ -152,6 +153,30 @@ public static class PageScript
             + ",\"unreported\":" + List(done.Unreported, TableChangesJson) + "}",
         _ => "{\"state\":\"waiting\"}",
     };
+
+    public static string StartPlanJson(ModsView view)
+    {
+        var plan = view.StartPlan switch
+        {
+            PlanView.SafeSet set => "\"kind\":\"safeSet\",\"off\":" + List(set.Off, Str),
+            PlanView.SafeNow now => "\"kind\":\"safeNow\",\"off\":" + List(now.Off, Str),
+            PlanView.Round round => "\"kind\":\"round\",\"number\":" + Int(round.Number) + ",\"off\":" + List(round.Off, Str) + ",\"suspects\":" + Int(round.Suspects) +
+                ",\"test\":" + Bool(round.IsTest) + ",\"running\":" + Bool(round.IsRunning) + ",\"crashed\":" + Bool(round.HasCrashed),
+            PlanView.Found found => "\"kind\":\"found\",\"culprit\":" + List(found.Culprit, Str) + ",\"alsoOff\":" + List(found.AlsoOff, Str),
+            PlanView.NotFound => "\"kind\":\"notFound\"",
+            PlanView.Stopped stopped => "\"kind\":\"stopped\",\"search\":" + Bool(stopped.WasSearch),
+            _ => "\"kind\":\"none\"",
+        };
+        var refusal = view.PlanRefusal switch
+        {
+            StartRefusal.NothingToTurnOff => Str("nothing"),
+            StartRefusal.FilesWaiting => Str("files"),
+            _ => "null",
+        };
+
+        return "{" + plan + ",\"holds\":" + List(view.PlanHolds, Str) + ",\"failed\":" + List(view.PlanFailed, Str) + ",\"refusal\":" + refusal +
+            ",\"lastCrash\":" + (view.LastCrash == null ? "null" : List(view.LastCrash, Str)) + "}";
+    }
 
     public static string CodeCheckJson(CodeCheck check) => check switch
     {

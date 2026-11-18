@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.21.0
+
+- The Conflicts tab is better at telling which shared methods matter. Two mods that both change what a game method returns are likely to clash, and the tab names the one that runs last, since its result is the one the game uses. Mods that only change what a method is given, or that can skip it, may clash. Each line says why. A mod that checks whether another mod skipped a method is no longer marked for that skip. Overloads of a method are listed apart, and Performance Analyzer's timing patches are left out.
+- Mods that report what they change through Exiled's Toolkit (table rows, values, native hooks and code bytes) now show on each other's Conflicts tab when they change the same thing, with the value the game ends up with.
+- A hotkey on a key the game uses is shown in red, with the game action that uses it.
+- The HEALTH page always shows now. It checks the game's tables and code for changes no mod reported, and names the running mods whose code can make that kind of change. CHECK AGAIN runs both checks again.
+- When the game did not close normally last time, HEALTH says so and names the mods behind the newest errors before it ended.
+- New on HEALTH: SAFE START runs the next start with every mod off that the Mod Manager can turn off, then turns them back on. FIND THE PROBLEM MOD turns off about half of the mods each start, and you say whether the problem is still there, until it finds the mod that causes it. If the game crashes, that counts as STILL BROKEN without you pressing it.
+- COPY MOD LIST now adds the conflicts, game changes no mod reported, a crash at the end of the last session and the mods SAFE START or FIND THE PROBLEM MOD has turned off.
+- A JOIN THE MODDING DISCORD button at the top of the screen opens the invite to the unofficial modding Discord for Survival Log.
+- Needs Exiled's Toolkit 0.26.0 or later.
+- Made for Survival Log 1.1.21271.
+
 ## 0.20.10
 
 - Search finds every word you type, in any order. "carry bag" now finds a setting described as "How much a bag can carry". This works in the settings search, the item picker and BROWSE. The settings search highlights each word on its own.

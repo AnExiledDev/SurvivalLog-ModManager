@@ -50,6 +50,7 @@ internal sealed class PluginCatalog
     private readonly Dictionary<string, string> _moves = new(StringComparer.OrdinalIgnoreCase);
 
     private IReadOnlyList<(string Path, PluginFile Plugin)>? _offAtStart;
+    private IReadOnlyList<ProblemOwner>? _owners;
     private IReadOnlyDictionary<string, string>? _icons;
     private IReadOnlyDictionary<string, string>? _banners;
 
@@ -105,6 +106,9 @@ internal sealed class PluginCatalog
 
         return (listed, errors.Unclaimed, _errors.Dropped);
     }
+
+    /// <summary>The plugins as the error list names them. BepInEx loads no plugin after the first frame, so this is worked out once.</summary>
+    public IReadOnlyList<ProblemOwner> ErrorOwners() => _owners ??= Owners(Mods());
 
     /// <summary>Each plugin BepInEx found, loaded or not, by the names its log source and its code go by.</summary>
     private static IReadOnlyList<ProblemOwner> Owners(IReadOnlyList<ModEntry> mods)
@@ -206,9 +210,24 @@ internal sealed class PluginCatalog
     public ModLink? Link(string guid, LinkKind kind) => Mod(guid)?.Info.Link(kind);
 
     /// <summary>Moves the mod's DLL into or out of the plugins folder; BepInEx reads the folder at the next start.</summary>
-    public ModNote Switch(string guid, bool isOn)
+    public ModNote Switch(string guid, bool isOn) => Switch(Mod(guid), guid, isOn);
+
+    /// <summary>Switches each mod to on or off for the next start, and returns the mods that could not be switched.</summary>
+    public IReadOnlyList<string> SwitchAll(IReadOnlyDictionary<string, bool> isOnByGuid)
     {
-        var mod = Mod(guid);
+        var mods = Mods();
+        var failed = new List<string>();
+
+        foreach (var (guid, isOn) in isOnByGuid)
+        {
+            if (Switch(mods.FirstOrDefault(mod => mod.Guid == guid), guid, isOn).IsWarning) failed.Add(guid);
+        }
+
+        return failed;
+    }
+
+    private ModNote Switch(ModEntry? mod, string guid, bool isOn)
+    {
         var startPath = StartPathOf(guid);
 
         if (mod?.Switch is not ModSwitch.Allowed allowed || startPath == null) return new ModNote(guid, true, SwitchNotes.CannotSwitch());

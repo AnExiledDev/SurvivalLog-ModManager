@@ -16,15 +16,21 @@ Open it with the Mods button in the Esc menu or on the title screen, or set a ke
 - **Mod lists**: a mod can give a list of its own to pick from, such as buffs, beds or furniture actions, and it shows as a list: one row per entry with its picture, name and what it does, with buttons to move it up or down or take it out. ADD opens a searchable window of everything the mod lists, filed under the mod's groups, with an Add button on each row. The mod can say what you have of each entry. Those rows are marked, and the window gets a "You have" group of them at the top. An entry can also carry a choice you pick on its row, or a number you step up or down. Vital Signs uses these for its food, routine, Life item, bed, pinned buff and buff timer settings.
 - **Settings for one world**: a mod can let each world keep its own value of a setting. While you play, such a setting says whether this world keeps its own value, and the value every other world uses. A change to a value this world keeps goes to this world alone. USE GLOBAL sends it back to the shared value, and THIS WORLD ONLY makes the value this world's own.
 - **Tidy pages**: settings a mod marks as advanced sit in a folded "Advanced" group at the end of their section, and settings that only matter when another setting is on stay hidden until it is.
-- **Hotkey clashes**: a hotkey that another mod also uses is shown in red, with the name of the other mod. Mods can also list fixed hotkeys they use, which show on their page and count in the clash check.
+- **Hotkey clashes**: a hotkey that another mod also uses is shown in red, with the name of the other mod. A hotkey on a key the game uses for one of its actions is shown in red too, with that action. Mods can also list fixed hotkeys they use, which show on their page and count in the clash check.
 - **Errors this session**: warnings and errors in the BepInEx log are listed under the mod they came from, as they happen. A mod with any gets an ERROR or WARNING mark and an ERRORS tab with the message, the stack and how many times it happened, and the "Errors" filter shows only those mods. When an error went through game code that another mod also changes, the tab names that mod, so a real clash shows up as one. Errors that belong to no mod (BepInEx, the game itself) are listed on the HEALTH page.
-- **Copy mod list**: the COPY MOD LIST button at the bottom copies every mod with its version and state, and this session's errors, ready to paste into a bug report.
+- **Copy mod list**: the COPY MOD LIST button at the bottom copies every mod with its version and state, ready to paste into a bug report. It adds the conflicts the Conflicts tabs found, changes to the game's data or code that no mod reported, a crash at the end of the last session, the mods SAFE START or FIND THE PROBLEM MOD has turned off, and this session's errors.
 - **English and Chinese**: the screen follows the game's language, and the language switch at the top changes it. Mod names and descriptions written in both languages show the matching one.
 - **Open the .cfg folder**: a button opens Explorer with the mod's .cfg file selected.
 - **Turn mods on or off**: the switch at the top of a mod's page moves its DLL out of `BepInEx\plugins` into `BepInEx\disabled-plugins` (or back). The change applies at the next game start, and the screen marks mods waiting for a restart. Turned-off mods stay in the list under "Off", and their settings files are kept. Turning a mod off also lists the mods that need it, since they will not start either. Mods in `BepInEx\plugins-disabled` are listed too and can be turned back on.
 - **Uninstall**: UNINSTALL on a mod's page moves its DLL, and its settings file if you tick the box, into `BepInEx\mod-manager\trash`. Before it does, it says whether the mod can get your save ready to load without it (its Uninstall Prep setting, with a button to turn it on), and which other mods stop with it. The mod keeps running until you quit. The TRASH page beside MODS lists every uninstalled mod with RESTORE, which puts it back where it was, and EMPTY TRASH, which deletes them for good (except the ones uninstalled this session, which the game is still running).
 - **Changes waiting for a restart**: a bar at the bottom of the screen lists every mod turned on or off, uninstalled, updated or rolled back this session, and every changed setting that applies only after a restart. UNDO takes one back where it can, and QUIT GAME asks first, then quits the way closing the game's window does, so the game saves your run.
-- **Health check**: the HEALTH page shows up when something is wrong with how mods are installed, or something logged an error that belongs to no mod. It counts problems and warnings at the top and lists the worst first. The install check covers one mod in two DLLs, the same DLL installed twice, a folder unpacked one level too deep inside `BepInEx\plugins`, a BepInEx build other than `6.0.0-be.788`, a mod that needs a newer Exiled's Toolkit than the one installed, and settings files in `BepInEx\config` that no installed mod uses.
+- **Health check**: the HEALTH page counts problems and warnings at the top and lists the worst first. It holds the install check, errors that belong to no mod, the game data and code checks, how the last session ended, and SAFE START and FIND THE PROBLEM MOD. The install check covers one mod in two DLLs, the same DLL installed twice, a folder unpacked one level too deep inside `BepInEx\plugins`, a BepInEx build other than `6.0.0-be.788`, a mod that needs a newer Exiled's Toolkit than the one installed, and settings files in `BepInEx\config` that no installed mod uses.
+- **Game data check**: each time the Mods screen opens, HEALTH compares the game's tables (items, recipes, buildings and the rest) with a copy taken when the game loaded them. Changes that no mod reported through Exiled's Toolkit are listed by table, with how many values and rows changed, and the running mods whose code writes that table. CHECK AGAIN runs it again.
+- **Game code check**: the first time the Mods screen opens, and again after the mods' Harmony patches change, HEALTH compares the game's code in memory with `GameAssembly.dll` on disk. Harmony patches and changes that mods reported through Exiled's Toolkit are left out. Any other change is listed by the game method it is in, with the running mods whose code can change game code outside Harmony.
+- **Last session**: when the game did not close normally last time, HEALTH says so and names the mods behind the newest errors before it ended.
+- **SAFE START**: on HEALTH. The next start runs with every mod off that the Mod Manager can turn off, and the start after that turns them back on. If the problem is gone in that start, a mod causes it.
+- **FIND THE PROBLEM MOD**: on HEALTH. Each start turns off about half of the mods that could still be the problem. After you play, NO PROBLEM or STILL BROKEN at the bottom of the screen sets up the next round, and a crash counts as still broken without you saying so. A mod and the mods that need it go off together. When one is left and no earlier round has shown that the problem goes away without it, one more round checks that. Then it names the mod, keeps it off and turns every other mod back on. 20 mods take 5 or 6 starts. STOP puts every mod back on from the next start.
+- **Modding Discord**: JOIN THE MODDING DISCORD at the top of the screen opens the invite to the unofficial modding Discord for Survival Log in your browser.
 - **Browse**: the BROWSE page beside MODS lists every mod for Survival Log on Nexus Mods, with its picture, author, endorsements and downloads, a search box, filters and sorting. A mod whose author set it up for the Mod Manager has an INSTALL button: it goes straight into `BepInEx\plugins` for the next game start, along with any mods it needs that install the same way, and UNDO in the bar at the bottom takes it out again. A mod from the wiki's list installs from its author's GitHub releases, or from the wiki's checked copy when `WikiDownloads` is on. A mod only the wiki has says to turn on `WikiDownloads` instead of showing INSTALL. One from its author's GitHub that can do something like connect to the internet says so first and waits for INSTALL ANYWAY, unless it is the exact file the wiki lists. Every other mod gets a one-line "No Mod Manager support" note and OPEN ON NEXUS. Click the note for the full story and ASK THE AUTHOR, which copies a short request for Mod Manager support (in English and Chinese) and opens the mod's posts on Nexus for you to paste it. Nothing is ever posted for you.
 - **Profiles**: the PROFILES page keeps setups you can go back to and share. SAVE THIS SETUP saves which mods are on and off and every setting you changed. COPY CODE copies a profile as a short code (it starts with `SLMM1-`) for a chat or a forum post. Paste a code, or a list from COPY MOD LIST, and SEE CHANGES shows everything using it would change first: mods turned on or off from the next start, settings changed now, mods to install from BROWSE, and mods you need to download by hand, with OPEN ON NEXUS. USE THIS SETUP makes those changes, and SAVE AS PROFILE keeps a pasted one. Mods the profile does not name are left as they are. Profiles are saved in `BepInEx\mod-manager\profiles.txt`, one code per line.
 - **What a mod needs**: a mod's page lists the mods it needs, the ones it works with when present, and the ones it does not work with, each marked on, off, not installed or wrong version, with the version range it asks for. It also lists the mods that need it or can use it, so you can see what turning it off affects. When something it needs is off, a TURN ON WHAT IT NEEDS button turns those on for the next start, along with whatever they need in turn, and names any that are not installed.
@@ -38,12 +44,12 @@ Open it with the Mods button in the Esc menu or on the title screen, or set a ke
 - **Roll back**: when an update replaced an older version, ROLL BACK TO (version) on the mod's page puts the old files back for the next game start. The newer files are kept in the backups folder too.
 - **Nexus Mods versions**: mods from Nexus Mods that are not on the wiki's list are looked up on Nexus at most once a day, through its public API, with no account. A mod is recognised by its DLL, from the file lists Nexus publishes for each upload. When Nexus has a newer version, the mod gets a NEXUS mark, and its page says so with a NEXUS button that opens the mod's page there. The Mod Manager does not download from Nexus. The answers are kept in `BepInEx\mod-manager\nexus.json`.
 - **Known problems**: the wiki's list can mark a mod version as known not to work, which gets a BROKEN mark and the reason on its page. An update to such a version is marked HELD and never installed. Mods known not to work together are listed at the top of each one's Conflicts tab.
-- **Conflicts tab**: a mod's page lists the other mods that patch the same parts of the game, which parts, and what each mod does there. Each is marked by how likely the two are to get in each other's way:
-  - **Likely to clash**: both mods rewrite that game code, so one may break what the other expects to find.
-  - **May clash**: at least one mod can skip or rewrite it. Skipping is how most mods change a game rule, so this is common, and they usually work together.
-  - **Probably harmless**: both only add their own code before or after the game's. That rarely causes trouble.
+- **Conflicts tab**: a mod's page lists the other mods that patch the same game methods, which methods, and what each mod does there. Each is marked by how likely the two are to get in each other's way, with a line on why:
+  - **Likely to clash**: both change what the method returns (the tab names the mod that runs last, since its result is the one the game uses), both rewrite the method's code, or one can skip the method and so drop the other's rewrite.
+  - **May clash**: both change what the method is given, one can skip it while the other counts on it having run, or one rewrites its code. Skipping is how most mods change a game rule, so this is common, and they usually work together.
+  - **Probably harmless**: neither mod can undo what the other does there. That rarely causes trouble.
 
-  This shows where to look when two mods misbehave while both are on. It does not mean there is a problem.
+  Mods that report what they change through Exiled's Toolkit (rows they add to the game's tables, values they write, native hooks and changed code bytes) are listed under "Change the same things" when they change the same thing, with what happens: two rows with one id, two values for one field and which one the game has, or two hooks on one method. A value a mod set that is now different, when no mod reported changing it, is listed too. This shows where to look when two mods misbehave while both are on. It does not mean there is a problem.
 - **Changelog tab**: a mod whose CHANGELOG link points to a GitHub file page (`github.com/owner/repo/blob/branch/CHANGELOG.md`) or to any https `.md` or `.txt` file gets a CHANGELOG tab. It loads the changelog the first time you open the tab and shows it on the page, with headings, bullets, bold and code. It is the published file, so it can be ahead of the version you have.
 - **Many sections**: a mod with too many sections for one row of tabs lists them down the left side of its settings.
 - **Tabs from other mods**: a mod can add its own tab to its page, with a page of its own (New Loop Plus adds TALENTS, an editor for its loop rewards). Esc first closes whatever that page has open, then the screen.
@@ -65,26 +71,29 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 - An uninstalled mod keeps running until you quit the game, and EMPTY TRASH leaves it in the trash until the next session.
 - An installed update is used from the next game start. While it downloads, and from then until the next start, the mod cannot be turned on or off here.
 - A rollback is used from the next game start too, and locks the switch the same way. One rollback per mod per session is allowed. A rollback only offers versions the Mod Manager backed up when it installed an update.
-- The Conflicts tab only sees patches made with Harmony, which is what BepInEx mods use. It judges risk by the kind of patch, not by what the code inside does.
+- The Conflicts tab sees patches made with Harmony, which is what most BepInEx mods use, and the changes mods report through Exiled's Toolkit. It judges risk by the kind of patch, not by what the code inside does. A mod that changes the game some other way and reports nothing shows up only in the game data and code checks on HEALTH.
+- The game data check compares with a copy taken when the game loaded its tables, so a change made while the game was still loading can't show. The mods it names for a change are the ones whose code writes that table. That makes them the likely cause, but it doesn't prove it.
+- The game code check needs `GameAssembly.dll` on disk to be the game build that is running. When the game updates while it is open, the check waits for a restart.
+- SAFE START and FIND THE PROBLEM MOD can only turn off mods the Mod Manager can turn off. They count it as a crash when the game ends any way other than quitting normally, such as closing it from Task Manager or Steam. A crash before the Mod Manager has loaded isn't seen. A crash in the first moments of a start, before the game shows anything, costs one extra start. Quitting without NO PROBLEM or STILL BROKEN runs the same round again.
 - GitHub allows 60 requests an hour without an account. Past that, release notes and installs say to try again within the hour. The update itself is still shown.
 
 ## Requirements
 
-- Survival Log 1.1.20719. Built and tested on this version. A game update can break it until the mod is updated.
+- Survival Log 1.1.21271. Built and tested on this version. A game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
-- [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.21.0 or later. The Mods screen does not open without it. Its UI size setting also draws the Mods screen bigger or smaller, and Mod Manager's own `UiScale` under Interface sets a size for this mod alone. At 0, the default, it follows the Toolkit's.
+- [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.26.0 or later. The Mods screen does not open without it. Its UI size setting also draws the Mods screen bigger or smaller, and Mod Manager's own `UiScale` under Interface sets a size for this mod alone. At 0, the default, it follows the Toolkit's.
 
 ## Install
 
 1. Install the [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12) (if no other mods were installed before, start the game once so BepInEx finishes setup, then quit).
-2. Install Exiled's Toolkit 0.21.0 or later.
+2. Install Exiled's Toolkit 0.26.0 or later.
 3. Download `ModManager-x.y.z.zip` from the [latest release](https://github.com/AnExiledDev/SurvivalLog-ModManager/releases/latest) or from [Nexus Mods](https://www.nexusmods.com/survivallog/mods/73).
 4. Extract the zip into the game folder (the folder with `SurvivalLog.exe`). It holds a `BepInEx` folder, so the DLL lands in the right place. When asked, merge the folders. The result should be:
    `C:\Program Files (x86)\Steam\steamapps\common\Survival Log\BepInEx\plugins\ModManager.dll`
 
 ## Uninstall
 
-Delete `ModManager.dll` from the `BepInEx\plugins` folder. For a clean slate, also delete `BepInEx\config\com.dev.survivallog.modmanager.cfg`, `BepInEx\mod-manager.log` and the `BepInEx\mod-manager` folder (old files kept by updates, uninstalled mods in `trash`, saved game version lists, and the saved answers from the wiki, Nexus Mods and the game code check). Settings you changed with it stay in the other mods' .cfg files.
+Delete `ModManager.dll` from the `BepInEx\plugins` folder. For a clean slate, also delete `BepInEx\config\com.dev.survivallog.modmanager.cfg`, `BepInEx\mod-manager.log` and the `BepInEx\mod-manager` folder (old files kept by updates, uninstalled mods in `trash`, saved game version lists, the saved answers from the wiki, Nexus Mods and the game code check, how the last session ended, and the plan for SAFE START and FIND THE PROBLEM MOD). Settings you changed with it stay in the other mods' .cfg files.
 
 ## Configuration
 
@@ -92,9 +101,9 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 ## Troubleshooting
 
-Tested on Survival Log 1.1.20719 with BepInEx `6.0.0-be.788`.
+Tested on Survival Log 1.1.21271 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.20.10 started`. If it is missing, check that Exiled's Toolkit 0.21.0 or newer is installed: BepInEx does not load Mod Manager without it.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.21.0 started`. If it is missing, check that Exiled's Toolkit 0.26.0 or newer is installed: BepInEx does not load Mod Manager without it.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.
@@ -102,6 +111,7 @@ Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.20.10 started`. If it is 
 - Installs log `installing <mod> <tag> over <version>` (with `from the wiki's copy` when it comes from the wiki), then where the old files went, or why it failed.
 - The game code check logs `checked <n> mod DLLs against the game's code`, and uninstalls and the trash log what moved where.
 - A mod's info values that do not fit are logged with the key and the reason.
+- Each start logs `last session closed normally` or `last session did not close normally`, with the start plan. SAFE START and FIND THE PROBLEM MOD log `start plan set` and `start plan now` with each change.
 
 The same lines are in `BepInEx\mod-manager.log`, which survives restarts.
 
@@ -267,6 +277,10 @@ public static class ModManagerAnswers
 ```
 
 A method that throws is logged once in `BepInEx\mod-manager.log` and counts as no answer.
+
+### Report what your mod changes
+
+Harmony patches show on the Conflicts tab by themselves. For anything else your mod changes in the game (rows in the game's tables, values in them, native hooks, bytes of game code), report it through Exiled's Toolkit's `Claims` (see "Reporting changes" in the [Toolkit's README](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit#reporting-changes)). The Mod Manager then lists your mod with any other mod that changes the same thing, and leaves your changes out of the game data and code checks on HEALTH, so those show only the changes no mod reported.
 
 ### Dependencies and incompatibilities
 

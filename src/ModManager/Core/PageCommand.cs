@@ -89,6 +89,21 @@ public abstract record PageCommand
     /// <summary>CHECK AGAIN on HEALTH: compare the game's tables with their copy, and its code with its file, again.</summary>
     public sealed record CheckData : PageCommand;
 
+    /// <summary>SAFE START on HEALTH: the next start runs with every mod off that can be turned off.</summary>
+    public sealed record SafeStart : PageCommand;
+
+    /// <summary>FIND THE PROBLEM MOD on HEALTH: turn about half the mods off each start until the one to blame is left.</summary>
+    public sealed record FindProblemMod : PageCommand;
+
+    /// <summary>How the search's round went this session: still broken, or no problem.</summary>
+    public sealed record AnswerRound(bool IsStillBroken) : PageCommand;
+
+    /// <summary>End the search or the safe start, with every mod back as it was for the next start.</summary>
+    public sealed record StopPlan : PageCommand;
+
+    /// <summary>OK under what the search found, or under the note that the safe start or the search ended.</summary>
+    public sealed record DismissPlan : PageCommand;
+
     /// <summary>For a world rule while a world plays: keep the value for this world alone, or go back to global.</summary>
     public sealed record WorldScope(SettingId Id, bool KeepForWorld) : PageCommand;
 
@@ -183,6 +198,11 @@ public abstract record PageCommand
         ("needs", 2) => new TurnOnNeeds(parts[1]),
         ("copyList", 1) => new CopyList(),
         ("checkData", 1) => new CheckData(),
+        ("safeStart", 1) => new SafeStart(),
+        ("findProblem", 1) => new FindProblemMod(),
+        ("planAnswer", 2) when parts[1] is "0" or "1" => new AnswerRound(parts[1] == "1"),
+        ("planStop", 1) => new StopPlan(),
+        ("planOk", 1) => new DismissPlan(),
         ("uninstall", 3) when parts[2] is "0" or "1" => new Uninstall(parts[1], parts[2] == "1"),
         ("restore", 2) => new Restore(parts[1]),
         ("emptyTrash", 1) => new EmptyTrash(),

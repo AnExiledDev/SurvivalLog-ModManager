@@ -37,6 +37,19 @@ public sealed class Ticker : MonoBehaviour
         }
     }
 
+    /// <summary>Unity calls this when the game quits normally, so the Mod Manager can note that the session closed.</summary>
+    private void OnApplicationQuit()
+    {
+        try
+        {
+            Session?.Quitting();
+        }
+        catch (Exception ex)
+        {
+            Log("could not note that the game closed normally: " + ex);
+        }
+    }
+
     private static void ReportOnce(Exception ex)
     {
         var key = ex.GetType().Name + ": " + ex.Message;

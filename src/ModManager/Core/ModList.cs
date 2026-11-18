@@ -203,6 +203,21 @@ public sealed record ModsView(IReadOnlyList<ModEntry> Mods, IReadOnlyList<string
 
     /// <summary>The last check of the game's code for changes nothing accounts for, for HEALTH.</summary>
     public CodeCheck CodeCheck { get; init; } = new CodeCheck.Checking();
+
+    /// <summary>SAFE START or FIND THE PROBLEM MOD, for the bar at the bottom of the screen.</summary>
+    public PlanView StartPlan { get; init; } = new PlanView.None();
+
+    /// <summary>The mods the safe start or the search moves, which nothing else may switch until it ends.</summary>
+    public IReadOnlyList<string> PlanHolds { get; init; } = Array.Empty<string>();
+
+    /// <summary>Its mods whose DLLs could not be moved the last time it moved them.</summary>
+    public IReadOnlyList<string> PlanFailed { get; init; } = Array.Empty<string>();
+
+    /// <summary>Why neither can start now; null when both can.</summary>
+    public StartRefusal? PlanRefusal { get; init; }
+
+    /// <summary>The mods behind the newest errors of the last session, when it did not close normally; null when it did.</summary>
+    public IReadOnlyList<string>? LastCrash { get; init; }
 }
 
 /// <summary>

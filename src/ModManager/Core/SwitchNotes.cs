@@ -22,6 +22,10 @@ public static class SwitchNotes
             "下次启动时关闭。它的设置文件会保留。以下模组需要它，也不会启动：" + names + "。");
     }
 
+    public static BilingualText HeldByStartPlan() =>
+        new("SAFE START or FIND THE PROBLEM MOD is moving this mod's file between starts. Press STOP at the bottom of the screen first.",
+            "「安全启动」或「查找问题模组」正在每次启动之间移动这个模组的文件。请先按界面底部的「停止」。");
+
     public static BilingualText TargetTaken(string path) =>
         new("Nothing was moved: a file is already at " + path + ". Remove one of the two copies first.", "没有移动任何文件：" + path + " 已有一个文件。请先删除其中一份。");
 

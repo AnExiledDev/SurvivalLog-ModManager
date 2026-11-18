@@ -44,6 +44,7 @@ internal sealed class ModsSession
     private readonly LogWatch _watch;
     private readonly GameTables _tables;
     private readonly CodeScan _code;
+    private readonly StartPlans _starts;
     private readonly PageMailbox _mailbox;
     private readonly WebKeyboard _keyboard = new();
     private readonly KeyCapture _capture = new();
@@ -93,7 +94,7 @@ internal sealed class ModsSession
     private BilingualText? _profileProblem;
     private BilingualText? _profileNote;
 
-    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, GameFitChecks fits, UpdateInstaller installer, LogWatch watch, GameTables tables, CodeScan code, SavedFile profileFile, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isUsingWikiCopies, Func<bool> isShowingUpdateToast, Action<string> log)
+    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, GameFitChecks fits, UpdateInstaller installer, LogWatch watch, GameTables tables, CodeScan code, StartPlans starts, SavedFile profileFile, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isUsingWikiCopies, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
@@ -105,6 +106,7 @@ internal sealed class ModsSession
         _watch = watch;
         _tables = tables;
         _code = code;
+        _starts = starts;
         _mailbox = PageInbox.Listen(PageCommand.Prefix);
         _openKey = openKey;
         _isOpenKeyDown = () => Input.GetKeyDown(_openKey());
@@ -122,6 +124,7 @@ internal sealed class ModsSession
         {
             // On the first frame rather than in Load, so plugins that load after this one are in the list.
             _hasStarted = true;
+            _starts.Start();
             _checks.LoadSaved(UpdateRepositories());
             _nexus.LoadSaved();
             _fits.Start(_catalog.Dlls());
@@ -219,10 +222,10 @@ internal sealed class ModsSession
                 ShowConfigFile(show.Guid);
                 break;
             case PageCommand.Switch flip:
-                ShowAfter(_catalog.Switch(flip.Guid, flip.IsOn));
+                ShowAfter(_starts.IsHolding(flip.Guid) ? HeldNote(flip.Guid) : _catalog.Switch(flip.Guid, flip.IsOn));
                 break;
             case PageCommand.Uninstall uninstall:
-                ShowAfter(_catalog.Uninstall(uninstall.Guid, uninstall.WithSettings));
+                ShowAfter(_starts.IsHolding(uninstall.Guid) ? HeldNote(uninstall.Guid) : _catalog.Uninstall(uninstall.Guid, uninstall.WithSettings));
                 break;
             case PageCommand.Restore restore:
                 ShowAfter(_catalog.Restore(restore.TrashId));
@@ -279,6 +282,26 @@ internal sealed class ModsSession
             case PageCommand.CheckData:
                 CheckData(true);
                 if (_isOpen) _page.Run(PageScript.Refresh(Shown()));
+                break;
+            case PageCommand.SafeStart:
+                _starts.SafeStart();
+                RefreshOpen();
+                break;
+            case PageCommand.FindProblemMod:
+                _starts.FindCulprit();
+                RefreshOpen();
+                break;
+            case PageCommand.AnswerRound answer:
+                _starts.Answer(answer.IsStillBroken);
+                RefreshOpen();
+                break;
+            case PageCommand.StopPlan:
+                _starts.Stop();
+                RefreshOpen();
+                break;
+            case PageCommand.DismissPlan:
+                _starts.Dismiss();
+                RefreshOpen();
                 break;
             case PageCommand.BrowseInstall browseInstall:
                 StartFresh(browseInstall.Guid);
@@ -664,11 +687,11 @@ internal sealed class ModsSession
             switch (step)
             {
                 case ProfileStep.TurnOn on:
-                    if (_catalog.Switch(on.Guid, true).IsWarning) failed.Add(on.Name);
+                    if (_starts.IsHolding(on.Guid) || _catalog.Switch(on.Guid, true).IsWarning) failed.Add(on.Name);
                     else switched++;
                     break;
                 case ProfileStep.TurnOff off:
-                    if (_catalog.Switch(off.Guid, false).IsWarning) failed.Add(off.Name);
+                    if (_starts.IsHolding(off.Guid) || _catalog.Switch(off.Guid, false).IsWarning) failed.Add(off.Name);
                     else switched++;
                     break;
                 case ProfileStep.Install install when _updates.InstallOf(install.Guid) is InstallState.None or InstallState.Failed:
@@ -729,6 +752,9 @@ internal sealed class ModsSession
     /// <summary>Redraws the screen if it is open, for example after a setting changes what BROWSE shows.</summary>
     public void Refresh() => RefreshOpen();
 
+    /// <summary>The game is quitting normally.</summary>
+    public void Quitting() => _starts.Quitting();
+
     private void RefreshOpen()
     {
         if (_isOpen) _page.Run(PageScript.Refresh(Shown()));
@@ -757,7 +783,7 @@ internal sealed class ModsSession
             {
                 var name = _catalog.Mod(other)?.DisplayName ?? other;
 
-                if (_catalog.Switch(other, true).IsWarning)
+                if (_starts.IsHolding(other) || _catalog.Switch(other, true).IsWarning)
                 {
                     failed.Add(name);
 
@@ -803,6 +829,7 @@ internal sealed class ModsSession
 
         _errorsLookedAt = now;
         _watch.Collect();
+        _starts.NoteErrors(_watch.Book);
 
         if (!_isOpen || _watch.Book.Version == _errorsShown || now - _errorsDrawnAt < ErrorRedrawSeconds) return;
 
@@ -861,8 +888,15 @@ internal sealed class ModsSession
             GameKeys = GameKeyBindings(),
             DataCheck = _dataCheck,
             CodeCheck = _codeCheck,
+            StartPlan = _starts.View,
+            PlanHolds = _starts.Holds,
+            PlanFailed = _starts.Failed,
+            PlanRefusal = _starts.WhyNot(mods),
+            LastCrash = _starts.LastCrash,
         };
     }
+
+    private static ModNote HeldNote(string guid) => new(guid, true, SwitchNotes.HeldByStartPlan());
 
     /// <summary>
     /// Starts a compare of the game's tables with the copy taken when they loaded, and of the game's code with its

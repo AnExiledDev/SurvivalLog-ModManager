@@ -151,7 +151,7 @@
       usesIn: n => n ? 'a material in ' + n + ' of the game\'s recipes' : 'not used by any of the game\'s recipes',
       listFull: n => n + ' items already. Remove one first.', noMatch: q => 'No item matches "' + q + '".',
       showing: (n, of) => 'Showing ' + n + ' of ' + of + '. Scroll for more, or search.',
-      copyList: 'COPY MOD LIST', copied: 'COPIED', copyFailed: 'COULD NOT COPY', copyHint: 'Copies every mod with its version and state, and the errors this session, to paste into a bug report.',
+      copyList: 'COPY MOD LIST', copied: 'COPIED', copyFailed: 'COULD NOT COPY', copyHint: 'Copies every mod with its version and state, the conflicts, game changes no mod reported and the errors this session, to paste into a bug report.',
       uninstall: 'UNINSTALL', restore: 'RESTORE', cancel: 'CANCEL', pipUninstalled: 'UNINSTALLED', statusUninstalled: 'UNINSTALLED', uninstalledNext: 'gone from the next start',
       uninstallTitle: name => 'Uninstall ' + name + '?',
       uninstallBody: 'Its DLL moves to the trash now, and the game keeps running it until you quit. RESTORE on the TRASH page puts it back.',
@@ -208,6 +208,35 @@
       pfUse: 'USE THIS SETUP', pfKeep: 'SAVE AS PROFILE', pfClose: 'CLOSE',
       healthIntro: 'Problems with how BepInEx and the mods are installed, found by looking at the game folder each time this screen opens.',
       discord: 'JOIN THE MODDING DISCORD', discordTip: 'The unofficial modding Discord for Survival Log. Opens in your browser.',
+      safeStart: 'SAFE START', findProblem: 'FIND THE PROBLEM MOD', planStop: 'STOP', planOk: 'OK', planFine: 'NO PROBLEM', planBroken: 'STILL BROKEN',
+      toolsTitle: 'Find the mod behind a problem',
+      toolsIntro: 'If the game crashes or something stops working and you don\'t know which mod causes it, these turn mods off for you. Both need the game started again. Mods the Mod Manager can\'t turn off stay on, and STOP at the bottom of the screen puts everything back.',
+      safeTip: 'The next start runs with every mod off that can be turned off, and the start after that turns them back on. If the problem is gone in that start, a mod causes it.',
+      findTip: 'Each start turns about half of the mods off, and you say whether the problem still shows up. A crash counts as still broken without you saying so. 20 mods take 5 or 6 starts.',
+      toolsBusy: isSafe => (isSafe ? 'SAFE START is set up.' : 'FIND THE PROBLEM MOD is running.') + ' Its buttons are at the bottom of the screen.',
+      refuseNothing: 'No mod can be turned off right now, so there is nothing to test.',
+      refuseFiles: 'Some mod files can only be moved after the game restarts. Restart the game, then try again.',
+      crashTitle: 'Last session',
+      crashBody: 'The game didn\'t close normally last time. It may have crashed, or it was closed some other way, like from Task Manager.',
+      crashMods: names => 'The newest errors before it ended came from ' + names + '. If it happens again, try turning those off first, or use FIND THE PROBLEM MOD below.',
+      crashNoMods: 'No mod logged an error before it ended. If it keeps happening, FIND THE PROBLEM MOD below can find the mod that causes it.',
+      safeSet: n => 'The next start runs with ' + n + (n === 1 ? ' mod' : ' mods') + ' off. The start after that turns them back on.',
+      safeNow: n => 'This start runs with ' + n + (n === 1 ? ' mod' : ' mods') + ' off, and they are already back on for the next start. If the problem is gone now, a mod causes it, and FIND THE PROBLEM MOD on HEALTH can find which one.',
+      safeOff: names => 'Off: ' + names + '.',
+      planTitle: n => 'FIND THE PROBLEM MOD: ROUND ' + n,
+      planSetUp: n => 'Round ' + n + ' is set up for the next start. Quit the game and start it again.',
+      planPlay: 'Play until the problem would show up, then say how it went. If the game crashes, just start it again. The next round is already set up.',
+      planCrashed: n => 'The game didn\'t close normally during round ' + n + ', so that round counts as still broken.',
+      planSuspects: n => (n === 1 ? '1 mod' : n + ' mods') + ' could still be the problem.',
+      planTest: n => n === 1 ? 'This round turns off the last mod that could be the problem, to check that the problem goes away without it.' : 'This round turns off all ' + n + ' mods that could still be the problem, to check that the problem goes away without them.',
+      planOff: names => 'Off in this round: ' + names + '.',
+      planFailed: names => 'These mods\' files couldn\'t be moved, so they may not be on or off as planned: ' + names + '. The Mod Manager\'s log says why.',
+      foundOne: name => 'The problem comes from ' + name + '. It stays off from the next start.',
+      foundMany: names => 'The problem comes from one of these mods, which can only be turned off together: ' + names + '. They stay off from the next start.',
+      foundAlsoOff: (names, one) => 'These mods need ' + (one ? 'it' : 'them') + ', so they stay off too: ' + names + '.',
+      foundRest: 'Every other mod is back on from the next start. To use a mod again, turn it on in MODS.',
+      notFound: 'It couldn\'t find one mod that causes the problem. The problem may not show up every time, or it may come from a mod the Mod Manager can\'t turn off, or from the game itself. Every mod is back on from the next start.',
+      planStopped: 'Stopped. Every mod it turned off is back on from the next start.',
       dataTitle: 'Game data check',
       dataIntro: 'Each time this screen opens, the game\'s tables (items, recipes, buildings and the rest) are compared with a copy taken when the game loaded them. Changes no mod reported through Exiled\'s Toolkit are listed here. A change made while the game was still loading is in the copy, so it can\'t show.',
       dataWaiting: 'The game hasn\'t loaded its tables yet. They are checked the next time this screen opens after it has.',
@@ -398,7 +427,7 @@
       usesIn: n => n ? '游戏中 ' + n + ' 个配方的材料' : '游戏配方都不用它',
       listFull: n => '已经有 ' + n + ' 种物品，请先移除一种。', noMatch: q => '没有物品符合「' + q + '」。',
       showing: (n, of) => '已显示 ' + n + ' / ' + of + '，继续滚动或搜索。',
-      copyList: '复制模组列表', copied: '已复制', copyFailed: '无法复制', copyHint: '复制所有模组及其版本和状态，以及这次游戏的错误，可粘贴到问题反馈中。',
+      copyList: '复制模组列表', copied: '已复制', copyFailed: '无法复制', copyHint: '复制所有模组及其版本和状态，以及冲突、没有模组报告的游戏改动和这次游戏的错误，可粘贴到问题反馈中。',
       uninstall: '卸载', restore: '恢复', cancel: '取消', pipUninstalled: '已卸载', statusUninstalled: '已卸载', uninstalledNext: '下次启动时移除',
       uninstallTitle: name => '卸载 ' + name + '？',
       uninstallBody: '它的 DLL 现在会移到回收站，在你退出游戏之前游戏会继续运行它。在「回收站」页面点「恢复」可以把它放回去。',
@@ -455,6 +484,35 @@
       pfUse: '使用此配置', pfKeep: '保存为配置方案', pfClose: '关闭',
       healthIntro: '每次打开这个界面时都会查看游戏文件夹，列出 BepInEx 和模组在安装上的问题。',
       discord: '加入模组 Discord', discordTip: 'Survival Log 非官方模组 Discord，会在浏览器中打开。',
+      safeStart: '安全启动', findProblem: '查找问题模组', planStop: '停止', planOk: '确定', planFine: '没有问题', planBroken: '还是有问题',
+      toolsTitle: '找出导致问题的模组',
+      toolsIntro: '如果游戏崩溃或某个功能失灵，又不知道是哪个模组导致的，这两个按钮可以帮你关闭模组。两者都需要重新启动游戏。模组管理器无法关闭的模组会保持开启，按界面底部的「停止」可以把一切恢复原样。',
+      safeTip: '下次启动时关闭所有能关闭的模组，再下一次启动时重新开启它们。如果那次启动时问题消失了，就说明是某个模组导致的。',
+      findTip: '每次启动关闭大约一半的模组，由你告诉它问题是否还在。游戏崩溃时不用你说，也会算作还是有问题。20 个模组需要启动 5 到 6 次。',
+      toolsBusy: isSafe => (isSafe ? '「安全启动」已准备好。' : '「查找问题模组」正在进行。') + '它的按钮在界面底部。',
+      refuseNothing: '现在没有可以关闭的模组，所以没有可测试的。',
+      refuseFiles: '有些模组文件要等游戏重启后才能移动。请先重启游戏，然后再试。',
+      crashTitle: '上次运行',
+      crashBody: '上次游戏没有正常关闭。可能是崩溃了，也可能是用其他方式关闭的，比如任务管理器。',
+      crashMods: names => '结束前最新的错误来自 ' + names + '。如果再次发生，可以先试着关闭这些模组，或者使用下面的「查找问题模组」。',
+      crashNoMods: '结束前没有模组记录错误。如果经常这样，下面的「查找问题模组」可以找出导致问题的模组。',
+      safeSet: n => '下次启动时会关闭 ' + n + ' 个模组，再下一次启动时会重新开启它们。',
+      safeNow: n => '这次启动关闭了 ' + n + ' 个模组，它们在下次启动时已经会重新开启。如果现在问题消失了，就说明是某个模组导致的，「健康」里的「查找问题模组」可以找出是哪一个。',
+      safeOff: names => '关闭的模组：' + names + '。',
+      planTitle: n => '查找问题模组：第 ' + n + ' 轮',
+      planSetUp: n => '第 ' + n + ' 轮已为下次启动准备好。请退出游戏，然后重新启动。',
+      planPlay: '请玩到问题本该出现的时候，然后告诉它结果。如果游戏崩溃，直接重新启动即可，下一轮已经准备好了。',
+      planCrashed: n => '第 ' + n + ' 轮时游戏没有正常关闭，所以那一轮算作还是有问题。',
+      planSuspects: n => '还有 ' + n + ' 个模组可能是问题所在。',
+      planTest: n => n === 1 ? '这一轮会关闭最后一个可能有问题的模组，看看没有它问题是否消失。' : '这一轮会关闭全部 ' + n + ' 个可能有问题的模组，看看没有它们问题是否消失。',
+      planOff: names => '这一轮关闭的模组：' + names + '。',
+      planFailed: names => '这些模组的文件无法移动，所以它们可能没有按计划开启或关闭：' + names + '。模组管理器的日志写明了原因。',
+      foundOne: name => '问题出在 ' + name + '。从下次启动起它会保持关闭。',
+      foundMany: names => '问题出在这几个只能一起关闭的模组之一：' + names + '。从下次启动起它们会保持关闭。',
+      foundAlsoOff: (names, one) => '这些模组需要' + (one ? '它' : '它们') + '，所以也会保持关闭：' + names + '。',
+      foundRest: '其他模组从下次启动起都会重新开启。想再用某个模组，在「MODS」里开启它即可。',
+      notFound: '没能找到导致问题的某一个模组。问题可能不是每次都会出现，也可能来自模组管理器无法关闭的模组，或者游戏本身。从下次启动起所有模组都会重新开启。',
+      planStopped: '已停止。它关闭的模组从下次启动起都会重新开启。',
       dataTitle: '游戏数据检查',
       dataIntro: '每次打开这个界面时，都会把游戏的数据表（物品、配方、建筑等）和游戏载入它们时保存的副本对比。这里列出没有模组通过 Exiled\'s Toolkit 报告的改动。游戏还在载入时做的改动已经在副本里，所以不会显示。',
       dataWaiting: '游戏还没有载入数据表。载入后再打开这个界面时就会检查。',
@@ -754,7 +812,7 @@
 #slmm .hl-pip { font-family: var(--mono); font-size: .85rem; letter-spacing: 1px; padding: 4px 10px; border: 1px solid rgba(255,255,255,0.15); color: #bbb; }
 #slmm .hl-pip.err { color: #f08070; border-color: rgba(220,80,60,0.5); background: rgba(220,80,60,0.08); }
 #slmm .hl-pip.warn { color: #f0a060; border-color: rgba(232,129,58,0.5); background: rgba(232,129,58,0.08); }
-#slmm .hl-sec + .hl-sec { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+#slmm .hl-sec + .hl-sec, #slmm .health-page > .hl-clear + .hl-sec { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
 #slmm .hl-clear { margin-top: 12px; color: #7c7; font-size: .95rem; }
 #slmm .hl-note { margin-top: 12px; color: #aaa; font-size: .95rem; }
 #slmm .hl-acts { margin-top: 12px; display: flex; gap: 10px; }
@@ -776,6 +834,16 @@
 #slmm .pend-row .pt { flex: 1; color: #aaa; }
 #slmm .pend-quit { display: flex; align-items: center; gap: 12px; margin-top: 6px; font-size: .88rem; color: #ccc; }
 #slmm .pend-quit span { flex: 1; }
+#slmm .pend-plan { display: flex; align-items: flex-start; gap: 14px; padding: 4px 0; font-size: .88rem; color: #ccc; }
+#slmm .pend-plan ~ .pend-hd { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(235,163,8,0.2); }
+#slmm .pp-b { flex: 1; line-height: 1.45; }
+#slmm .pp-b > b { margin-right: 10px; font-family: var(--mono); font-weight: 400; color: var(--amber); letter-spacing: .5px; }
+#slmm .pp-names { margin-top: 2px; max-height: 44px; overflow-y: auto; color: #aaa; }
+#slmm .pp-warn { margin-top: 2px; color: #f0a060; }
+#slmm .pp-acts { display: flex; gap: 8px; flex-shrink: 0; }
+#slmm .hl-tool { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+#slmm .hl-tool .key-btn { flex-shrink: 0; min-width: 230px; text-align: center; }
+#slmm .hl-tool span { color: #ccc; font-size: .92rem; line-height: 1.45; }
 #slmm .tr-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.25); }
 #slmm .un-cfg { display: flex; align-items: center; gap: 8px; margin-top: 10px; cursor: pointer; }
 #slmm .errs-page { padding: 26px 40px 40px; }
@@ -1421,8 +1489,9 @@
     const trashed = trash();
     const found = health();
     const changed = dataChanges();
-    const healthCount = found.length + others.length + changed.length + codeChanged();
-    const healthWorst = healthLevel(found) === 'err' || others.some(e => e.level === 'error') ? 'err' : healthLevel(found) === 'warn' || others.length || changed.some(t => dataLevel(t) === 'warn') ? 'warn' : 'info';
+    const crashed = startPlan().lastCrash ? 1 : 0;
+    const healthCount = found.length + others.length + changed.length + codeChanged() + crashed;
+    const healthWorst = healthLevel(found) === 'err' || others.some(e => e.level === 'error') ? 'err' : healthLevel(found) === 'warn' || others.length || changed.some(t => dataLevel(t) === 'warn') || crashed ? 'warn' : 'info';
 
     // HEALTH holds the install check, the errors no mod could be matched to and the game data and code checks, so it always shows. TRASH stays while it shows what its last button did, even when empty.
     if (state.page === 'trash' && !trashed.length && !trashNote()) state.page = 'mods';
@@ -1738,6 +1807,17 @@
     return state.view && state.view.codeCheck ? state.view.codeCheck : { state: 'checking' };
   }
 
+  function startPlan() {
+    return state.view && state.view.startPlan ? state.view.startPlan : { kind: 'none', holds: [], failed: [], refusal: null, lastCrash: null };
+  }
+
+  // Mod names for the start plan's lists. A mod the list no longer has goes by its GUID.
+  function namesOf(guids) {
+    const names = new Map(mods().map(m => [m.guid, nameOf(m)]));
+
+    return guids.map(guid => names.get(guid) || guid).join(', ');
+  }
+
   // How many game methods the last finished check found changes in that nothing accounts for.
   function codeChanged() {
     const check = codeCheck();
@@ -1754,9 +1834,10 @@
 
     const changed = dataChanges();
     const codeCount = codeChanged();
-    const checks = dataSection(changed) + codeSection() + checkAgain();
+    const checks = dataSection(changed) + codeSection() + checkAgain() + toolsSection();
+    const crashed = startPlan().lastCrash ? 1 : 0;
 
-    if (!found.length && !others.length && !changed.length && !codeCount) return '<div class="errs-page health-page"><div class="hl-clear">' + esc(word('healthAllClear')) + '</div>' + checks + '</div>';
+    if (!found.length && !others.length && !changed.length && !codeCount && !crashed) return '<div class="errs-page health-page"><div class="hl-clear">' + esc(word('healthAllClear')) + '</div>' + checks + '</div>';
 
     const tally = { err: 0, warn: 0, info: 0 };
 
@@ -1764,6 +1845,7 @@
     others.forEach(e => { tally[e.level === 'error' ? 'err' : 'warn']++; });
     changed.forEach(t => { tally[dataLevel(t)]++; });
     tally.info += codeCount;
+    tally.warn += crashed;
 
     const summary = '<div class="hl-sum">' + ['err', 'warn', 'info'].filter(level => tally[level]).map(level => '<span class="hl-pip ' + level + '">' + esc(word('healthSum')[level](tally[level])) + '</span>').join('') + '</div>';
     const install = '<div class="hl-sec"><div class="sec-t">' + esc(word('healthTitle')) + ' &middot; ' + found.length + '</div><div class="cf-intro">' + esc(word('healthIntro')) + '</div>' +
@@ -1771,7 +1853,7 @@
     const logged = others.length ? '<div class="hl-sec"><div class="sec-t">' + esc(word('otherErrors')) + ' &middot; ' + others.length + '</div><div class="cf-intro">' + esc(word('otherErrorsIntro')) + '</div>' + others.map(errorBlock).join('') + '</div>' : '';
     const installFirst = found.length && (healthLevel(found) === 'err' || !others.some(e => e.level === 'error'));
 
-    return '<div class="errs-page health-page">' + summary + (installFirst || !others.length ? install + logged : logged + install) + checks + '</div>';
+    return '<div class="errs-page health-page">' + summary + crashSection() + (installFirst || !others.length ? install + logged : logged + install) + checks + '</div>';
   }
 
   // What the last compare of the game's tables found, or why there is nothing yet. A change no mod reported names the
@@ -1816,6 +1898,30 @@
   function codeItem(code) {
     return '<div class="hl-item info" data-code-method="' + esc(code.function) + '"><div class="mname">' + esc(code.method || word('codeUnnamed')(code.function)) + '</div>' +
       '<div class="hl-b">' + esc(word('codeChange')(code.bytes, code.offset, code.runs)) + '</div></div>';
+  }
+
+  // How the last session ended, when it didn't close normally, with the mods behind its newest errors.
+  function crashSection() {
+    const crash = startPlan().lastCrash;
+
+    if (!crash) return '';
+
+    return '<div class="hl-sec" data-health-section="crash"><div class="sec-t">' + esc(word('crashTitle')) + '</div><div class="hl-item warn"><div class="mname">' + esc(word('crashBody')) + '</div>' +
+      '<div class="hl-b">' + esc(crash.length ? word('crashMods')(namesOf(crash)) : word('crashNoMods')) + '</div></div></div>';
+  }
+
+  // SAFE START and FIND THE PROBLEM MOD, or why neither can start now, or where the one set up is.
+  function toolsSection() {
+    const plan = startPlan();
+    const note = text => '<div class="hl-note">' + esc(text) + '</div>';
+    const tool = (act, tip) => '<div class="hl-tool"><div class="key-btn" data-act="' + act + '">' + esc(word(act)) + '</div><span>' + esc(word(tip)) + '</span></div>';
+    let body;
+
+    if (plan.kind === 'safeSet' || plan.kind === 'round') body = note(word('toolsBusy')(plan.kind === 'safeSet'));
+    else if (plan.refusal) body = note(word(plan.refusal === 'files' ? 'refuseFiles' : 'refuseNothing'));
+    else body = tool('safeStart', 'safeTip') + tool('findProblem', 'findTip');
+
+    return '<div class="hl-sec" data-health-section="tools"><div class="sec-t">' + esc(word('toolsTitle')) + '</div><div class="cf-intro">' + esc(word('toolsIntro')) + '</div>' + body + '</div>';
   }
 
   // One button checks both again, shown once either check has finished.
@@ -3412,11 +3518,15 @@
     const items = [];
     const add = (m, text, undo) => items.push({ mod: m, text: text, undo: undo });
     const isOnNow = m => m.state !== 'off';
+    const held = new Set(startPlan().holds);
 
     for (const m of mods()) {
-      if (m.switch.kind === 'uninstalled') add(m, word('pendUninstalled'), () => send('restore', [m.switch.trash]));
-      else if (isPending(m)) add(m, word(m.switch.next ? 'pendOn' : 'pendOff'), () => send('switch', [m.guid, isOnNow(m) ? '1' : '0']));
-      else if (m.switch.kind === 'held' && m.switch.next !== isOnNow(m)) add(m, word(m.switch.next ? 'pendOn' : 'pendOff') + (state.lang === 'zh' ? '，' : ', ') + word('heldUntilRestart'), null);
+      // SAFE START and FIND THE PROBLEM MOD move these mods' files between starts, and their part of the bar says so.
+      const isPlanned = held.has(m.guid);
+
+      if (!isPlanned && m.switch.kind === 'uninstalled') add(m, word('pendUninstalled'), () => send('restore', [m.switch.trash]));
+      else if (!isPlanned && isPending(m)) add(m, word(m.switch.next ? 'pendOn' : 'pendOff'), () => send('switch', [m.guid, isOnNow(m) ? '1' : '0']));
+      else if (!isPlanned && m.switch.kind === 'held' && m.switch.next !== isOnNow(m)) add(m, word(m.switch.next ? 'pendOn' : 'pendOff') + (state.lang === 'zh' ? '，' : ', ') + word('heldUntilRestart'), null);
 
       if (m.install.kind === 'installed') add(m, word('pendUpdate')(tagText(m.install.tag)), m.rollback.kind === 'available' ? () => send('rollback', [m.guid]) : null);
 
@@ -3437,23 +3547,65 @@
   function renderPend() {
     const items = pendingChanges();
     const host = $('.pend');
+    const button = (act, text, cls) => '<div class="key-btn' + (cls ? ' ' + cls : '') + '" data-act="' + act + '">' + esc(text) + '</div>';
+    const plan = planBlock(button);
 
     state.pendItems = items;
-    $('.win').classList.toggle('has-pend', items.length > 0);
+    $('.win').classList.toggle('has-pend', items.length > 0 || plan !== null);
 
-    if (!items.length) {
+    if (!items.length && !plan) {
       state.confirmQuit = false;
       if (host.innerHTML) host.innerHTML = '';
 
       return;
     }
 
-    const button = (act, text, cls) => '<div class="key-btn' + (cls ? ' ' + cls : '') + '" data-act="' + act + '">' + esc(text) + '</div>';
-    const head = '<div class="pend-hd"><span>&#x21BB;</span><b>' + esc(word('pendTitle')(items.length)) + '</b>' + button('pendToggle', word(state.pendOpen ? 'pendHide' : 'pendShow')) + (state.confirmQuit ? '' : button('quitGame', word('quitGame'))) + '</div>';
+    const planQuits = plan !== null && plan.quits;
+    const head = items.length ? '<div class="pend-hd"><span>&#x21BB;</span><b>' + esc(word('pendTitle')(items.length)) + '</b>' + button('pendToggle', word(state.pendOpen ? 'pendHide' : 'pendShow')) + (state.confirmQuit || planQuits ? '' : button('quitGame', word('quitGame'))) + '</div>' : '';
     const quit = state.confirmQuit ? '<div class="pend-quit"><span><b>' + esc(word('quitTitle')) + '</b> ' + esc(word('quitBody')) + '</span>' + button('quitYes', word('quitYes'), 'danger') + button('quitNo', word('cancel')) + '</div>' : '';
     const row = (item, i) => '<div class="pend-row"><span class="pn">' + esc(nameOf(item.mod)) + '</span><span class="pt">' + esc(item.text) + '</span>' + (item.undo ? '<div class="key-btn" data-act="undo" data-undo="' + i + '">' + esc(word('undo')) + '</div>' : '') + '</div>';
+    const list = items.length && state.pendOpen ? '<div class="pend-list">' + items.map(row).join('') + '</div>' : '';
 
-    morph(host, head + quit + (state.pendOpen ? '<div class="pend-list">' + items.map(row).join('') + '</div>' : ''));
+    // The question to quit goes right under the button that asked it.
+    morph(host, (plan ? plan.html : '') + (planQuits ? quit + head : head + quit) + list);
+  }
+
+  // SAFE START or FIND THE PROBLEM MOD, above the changes waiting for the next start: what this start or the next one
+  // does, and the buttons that move it on. Null when neither is set up and there is nothing left to read.
+  function planBlock(button) {
+    const plan = startPlan();
+    const line = (cls, text) => '<div class="' + cls + '">' + esc(text) + '</div>';
+    const failed = plan.failed.length ? line('pp-warn', word('planFailed')(namesOf(plan.failed))) : '';
+    const block = (title, body, names, acts) => '<div class="pend-plan" data-plan="' + plan.kind + '"><div class="pp-b"><b>' + esc(title) + '</b>' + esc(body) + (names ? line('pp-names', names) : '') + failed + '</div><div class="pp-acts">' + acts + '</div></div>';
+    const quit = state.confirmQuit ? '' : button('quitGame', word('quitGame'));
+    const stop = button('planStop', word('planStop'));
+    const ok = button('planOk', word('planOk'));
+
+    if (plan.kind === 'safeSet') return { quits: true, html: block(word('safeStart'), word('safeSet')(plan.off.length), word('safeOff')(namesOf(plan.off)), quit + stop) };
+
+    if (plan.kind === 'safeNow') return { quits: false, html: block(word('safeStart'), word('safeNow')(plan.off.length), word('safeOff')(namesOf(plan.off)), ok) };
+
+    if (plan.kind === 'round') {
+      const crashed = plan.crashed ? word('planCrashed')(plan.number - 1) + ' ' : '';
+      const now = plan.running ? word('planPlay') : word('planSetUp')(plan.number);
+      const odds = plan.test ? word('planTest')(plan.suspects) : word('planSuspects')(plan.suspects);
+      const acts = plan.running ? button('planFine', word('planFine')) + button('planBroken', word('planBroken')) + stop : quit + stop;
+
+      return { quits: !plan.running, html: block(word('planTitle')(plan.number), crashed + now + ' ' + odds, word('planOff')(namesOf(plan.off)), acts) };
+    }
+
+    if (plan.kind === 'found') {
+      const one = plan.culprit.length === 1;
+      const alsoOff = plan.alsoOff.length ? ' ' + word('foundAlsoOff')(namesOf(plan.alsoOff), one) : '';
+
+      return { quits: false, html: block(word('findProblem'), word(one ? 'foundOne' : 'foundMany')(namesOf(plan.culprit)) + alsoOff + ' ' + word('foundRest'), '', ok) };
+    }
+
+    if (plan.kind === 'notFound') return { quits: false, html: block(word('findProblem'), word('notFound'), '', ok) };
+
+    if (plan.kind === 'stopped') return { quits: false, html: block(word(plan.search ? 'findProblem' : 'safeStart'), word('planStopped'), '', ok) };
+
+    return null;
   }
 
   function renderCopyButton() {
@@ -3631,6 +3783,8 @@
     else if (actName === 'needs') send('needs', [state.selected]);
     else if (actName === 'copyList') send('copyList');
     else if (actName === 'checkData') send('checkData');
+    else if (actName === 'safeStart' || actName === 'findProblem' || actName === 'planStop' || actName === 'planOk') send(actName);
+    else if (actName === 'planFine' || actName === 'planBroken') send('planAnswer', [actName === 'planBroken' ? '1' : '0']);
     else if (actName === 'bwInstall' && browseOf(act)) send('browseInstall', [browseOf(act).guid]);
     else if (actName === 'bwApprove' && browseOf(act)) send('browseApprove', [browseOf(act).guid]);
     else if (actName === 'bwUndo' && browseOf(act)) send('browseUndo', [browseOf(act).guid]);
