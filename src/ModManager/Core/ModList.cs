@@ -197,6 +197,12 @@ public sealed record ModsView(IReadOnlyList<ModEntry> Mods, IReadOnlyList<string
 
     /// <summary>The game's hotkeys as the player bound them, so a mod's hotkey on one of those keys can be shown as a clash.</summary>
     public IReadOnlyList<GameKeyBinding> GameKeys { get; init; } = Array.Empty<GameKeyBinding>();
+
+    /// <summary>The last check of the game's tables for changes no mod reported, for HEALTH.</summary>
+    public DataCheck DataCheck { get; init; } = new DataCheck.Waiting();
+
+    /// <summary>The last check of the game's code for changes nothing accounts for, for HEALTH.</summary>
+    public CodeCheck CodeCheck { get; init; } = new CodeCheck.Checking();
 }
 
 /// <summary>

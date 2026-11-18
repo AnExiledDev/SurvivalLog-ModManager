@@ -38,7 +38,12 @@ internal sealed class ModsSession
     private readonly NexusLookups _nexus;
     private readonly GameFitChecks _fits;
     private readonly UpdateInstaller _installer;
+    /// <summary>The invite to the unofficial modding Discord for Survival Log, for the button at the top of the screen.</summary>
+    private const string ModdingDiscord = "https://discord.gg/pDrQtqbZgb";
+
     private readonly LogWatch _watch;
+    private readonly GameTables _tables;
+    private readonly CodeScan _code;
     private readonly PageMailbox _mailbox;
     private readonly WebKeyboard _keyboard = new();
     private readonly KeyCapture _capture = new();
@@ -72,6 +77,14 @@ internal sealed class ModsSession
     private readonly SaveBackupAsk _backupAsk = new();
 
     private readonly SavedFile _profileFile;
+
+    /// <summary>The last check of the game's tables, shown on HEALTH, and what the compare read before it was sorted.</summary>
+    private DataCheck _dataCheck = new DataCheck.Waiting();
+
+    private TableReading? _reading;
+
+    /// <summary>The last check of the game's code for changes nothing accounts for, shown on HEALTH.</summary>
+    private CodeCheck _codeCheck = new CodeCheck.Checking();
     private IReadOnlyList<Profile>? _profiles;
     private IReadOnlyList<string> _profilesUnread = Array.Empty<string>();
 
@@ -80,7 +93,7 @@ internal sealed class ModsSession
     private BilingualText? _profileProblem;
     private BilingualText? _profileNote;
 
-    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, GameFitChecks fits, UpdateInstaller installer, LogWatch watch, SavedFile profileFile, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isUsingWikiCopies, Func<bool> isShowingUpdateToast, Action<string> log)
+    public ModsSession(WebPage page, PluginCatalog catalog, GameItemTable items, UpdateBook updates, UpdateChecks checks, NexusLookups nexus, GameFitChecks fits, UpdateInstaller installer, LogWatch watch, GameTables tables, CodeScan code, SavedFile profileFile, Func<KeyCode> openKey, Func<bool> isCheckingForUpdates, Func<bool> isUsingWikiCopies, Func<bool> isShowingUpdateToast, Action<string> log)
     {
         _page = page;
         _catalog = catalog;
@@ -90,6 +103,8 @@ internal sealed class ModsSession
         _fits = fits;
         _installer = installer;
         _watch = watch;
+        _tables = tables;
+        _code = code;
         _mailbox = PageInbox.Listen(PageCommand.Prefix);
         _openKey = openKey;
         _isOpenKeyDown = () => Input.GetKeyDown(_openKey());
@@ -122,6 +137,18 @@ internal sealed class ModsSession
         var hasInstalled = _installer.TakeFinished();
         var hasAskedNexus = _nexus.TakeFinished();
         var hasCheckedCode = _fits.TakeFinished();
+        var reading = _tables.Continue();
+        var hasCheckedData = reading != null;
+        var gameCode = _code.Continue(Claims.All);
+        var hasCheckedGameCode = gameCode != null;
+
+        if (hasCheckedData) _reading = reading;
+
+        // The mods' code checks name the mods that write each table, so a reading sorted before they finished is sorted again.
+        if (hasCheckedData || (hasCheckedCode && _reading != null)) SortReading();
+
+        // They also say which mods can change the game's code outside Harmony.
+        if (hasCheckedGameCode || (hasCheckedCode && _codeCheck is CodeCheck.Done)) _codeCheck = WithChangers(gameCode ?? _codeCheck);
 
         if (hasChecked) TellUpdatesOnce();
 
@@ -129,7 +156,7 @@ internal sealed class ModsSession
 
         if (_nexus.IsWaiting && _checks.IsIndexSettled && _isCheckingForUpdates()) AskNexus();
 
-        if ((hasChecked || hasInstalled || hasAskedNexus || hasCheckedCode) && _isOpen) _page.Run(PageScript.Refresh(Shown()));
+        if ((hasChecked || hasInstalled || hasAskedNexus || hasCheckedCode || hasCheckedData || hasCheckedGameCode) && _isOpen) _page.Run(PageScript.Refresh(Shown()));
         else RedrawForNewErrors(now);
 
         if (_capture.Target != null)
@@ -235,6 +262,9 @@ internal sealed class ModsSession
             case PageCommand.RollForward forward:
                 ShowAfter(RollForward(forward.Guid));
                 break;
+            case PageCommand.OpenDiscord:
+                Open(ModdingDiscord);
+                break;
             case PageCommand.QuitGame:
                 // The game saves the run in its own quit handler (GameSaveManager.OnApplicationQuit), as when its window is closed.
                 _log("quitting the game, as the player asked");
@@ -245,6 +275,10 @@ internal sealed class ModsSession
                 break;
             case PageCommand.CopyList:
                 CopyList();
+                break;
+            case PageCommand.CheckData:
+                CheckData(true);
+                if (_isOpen) _page.Run(PageScript.Refresh(Shown()));
                 break;
             case PageCommand.BrowseInstall browseInstall:
                 StartFresh(browseInstall.Guid);
@@ -825,7 +859,62 @@ internal sealed class ModsSession
             BrowseFeed = !_isCheckingForUpdates() ? BrowseFeed.Off : _nexus.IsAsking || !_checks.IsIndexSettled ? BrowseFeed.Asking : BrowseFeed.Ready,
             Profiles = IsProfilesRead() ? new ProfilesView(Profiles(), ShownCheck(mods), _profileProblem, _profileNote) : new ProfilesView(Array.Empty<Profile>(), ShownCheck(mods), _profileProblem, ProfileNotes.Unreadable),
             GameKeys = GameKeyBindings(),
+            DataCheck = _dataCheck,
+            CodeCheck = _codeCheck,
         };
+    }
+
+    /// <summary>
+    /// Starts a compare of the game's tables with the copy taken when they loaded, and of the game's code with its
+    /// file. Opening the screen keeps the last results on show until the new ones are in; CHECK AGAIN shows that it is checking.
+    /// </summary>
+    private void CheckData(bool isAsked)
+    {
+        var claims = Claims.All();
+        var started = _tables.Start(claims.Fields);
+        var isCheckingCode = _code.Start(claims, isAsked);
+
+        if (isCheckingCode && (isAsked || _codeCheck is not CodeCheck.Done)) _codeCheck = new CodeCheck.Checking();
+
+        if (started is DataCheck.Checking && _dataCheck is DataCheck.Done && !isAsked) return;
+
+        _dataCheck = started;
+    }
+
+    private CodeCheck WithChangers(CodeCheck check) => check is CodeCheck.Done done ? done with { Changers = CodeChangers() } : check;
+
+    /// <summary>The running mods whose code can change the game's code outside Harmony, by guid.</summary>
+    private IReadOnlyList<string> CodeChangers() =>
+        _catalog.Mods()
+            .Where(mod => mod.State is ModState.Loaded && mod.Fit?.ChangesCode == true)
+            .Select(mod => mod.Guid)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(guid => guid, StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>Sorts the last compare into changes a mod reported and changes none did, and finds the reported values another write replaced.</summary>
+    private void SortReading()
+    {
+        if (_reading is not { } reading) return;
+
+        try
+        {
+            var claims = Claims.All();
+            var writes = _catalog.Mods()
+                .Where(mod => mod.State is ModState.Loaded)
+                .Select(mod => (mod.Guid, Writes: mod.Fit?.Writes ?? Array.Empty<string>()))
+                .Where(mod => mod.Writes.Count > 0)
+                .GroupBy(mod => mod.Guid, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First().Writes, StringComparer.Ordinal);
+
+            _catalog.WrittenOver = ClaimClashes.WrittenOver(claims, field => reading.Current.TryGetValue((field.Table, field.Row, field.Field), out var now) ? now : null);
+            _dataCheck = DataCheck.Sort(reading.Tables, reading.Rows, reading.Changes, claims, writes);
+        }
+        catch (Exception e)
+        {
+            _log("could not sort what the check of the game's tables found: " + e.Message);
+            _dataCheck = new DataCheck.NoCopy(NoCopyReason.Unreadable);
+        }
     }
 
     /// <summary>The game's hotkeys, or none when they cannot be read: the screen still opens, with no clashes against them shown.</summary>
@@ -849,6 +938,7 @@ internal sealed class ModsSession
     /// <param name="filter">The list filter to start on; null keeps the one the page had.</param>
     private void OpenScreen(string? filter)
     {
+        CheckData(false);
         var view = View();
 
         _page.Install();

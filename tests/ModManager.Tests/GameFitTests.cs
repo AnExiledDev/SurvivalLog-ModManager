@@ -67,6 +67,37 @@ public sealed class GameFitTests : IDisposable
     }
 
     [Fact]
+    public void The_table_values_and_rows_a_dll_changes_are_noted_and_reads_are_not()
+    {
+        Assert.Equal(new[] { "Config_Action", "Config_Item", "Config_Item.price", "Config_Item.weight" }, Check(WriteTableMod("TableMod.dll")).Writes);
+    }
+
+    [Fact]
+    public void A_dll_that_writes_no_table_notes_no_writes()
+    {
+        Assert.Empty(Check(WriteMod("DoorMod.dll")).Writes);
+    }
+
+    [Fact]
+    public void A_dll_that_calls_Windows_to_make_code_writable_can_change_the_game_code()
+    {
+        Assert.True(Check(WriteNativeMod("Protect.dll", "VirtualProtect", placesDetour: false)).ChangesCode);
+    }
+
+    [Fact]
+    public void A_dll_that_places_a_native_hook_can_change_the_game_code()
+    {
+        Assert.True(Check(WriteNativeMod("Detour.dll", "GetModuleHandleW", placesDetour: true)).ChangesCode);
+    }
+
+    [Fact]
+    public void A_dll_that_only_reads_from_Windows_or_only_patches_with_Harmony_cannot_change_the_game_code()
+    {
+        Assert.False(Check(WriteNativeMod("Reader.dll", "GetModuleHandleW", placesDetour: false)).ChangesCode);
+        Assert.False(Check(WriteMod("DoorMod.dll")).ChangesCode);
+    }
+
+    [Fact]
     public void A_file_that_is_not_a_dll_is_not_checked_rather_than_called_broken()
     {
         var path = Path.Combine(_root, "notes.dll");
@@ -138,7 +169,7 @@ public sealed class GameFitTests : IDisposable
 
     // ===== The saved copy =====
 
-    private static readonly GameFit Outdated = new(10, 2, new[] { "Game.Door::Shut", "Game.Window" });
+    private static readonly GameFit Outdated = new(10, 2, new[] { "Game.Door::Shut", "Game.Window" }) { Writes = new[] { "Config_Item", "Config_Item.price" } };
 
     [Fact]
     public void The_saved_copy_reads_back_as_it_was()
@@ -151,13 +182,33 @@ public sealed class GameFitTests : IDisposable
         Assert.Equal(Outdated.Missing, read.ByDll[new string('a', 64)].Missing);
         Assert.Equal(2, read.ByDll[new string('a', 64)].MissingCount);
         Assert.Equal(10, read.ByDll[new string('a', 64)].Checked);
+        Assert.Equal(Outdated.Writes, read.ByDll[new string('a', 64)].Writes);
     }
 
     [Fact]
     public void A_saved_copy_of_another_schema_or_that_cannot_be_read_is_not_used()
     {
+        Assert.Null(GameFitCache.FromJson("{\"schema\":1,\"interop\":\"s\",\"dlls\":{}}"));
+        Assert.Null(GameFitCache.FromJson("{\"schema\":3,"));
+    }
+
+    [Fact]
+    public void A_saved_copy_from_before_code_changes_were_noted_is_not_used_so_every_dll_is_checked_for_them()
+    {
         Assert.Null(GameFitCache.FromJson("{\"schema\":2,\"interop\":\"s\",\"dlls\":{}}"));
-        Assert.Null(GameFitCache.FromJson("{\"schema\":1,"));
+    }
+
+    [Fact]
+    public void Whether_a_mod_can_change_the_game_code_is_kept_in_the_saved_copy()
+    {
+        var a = new string('a', 64);
+        var b = new string('b', 64);
+        var cache = new GameFitCache("stamp", new Dictionary<string, GameFit> { [a] = Outdated with { ChangesCode = true }, [b] = Outdated });
+
+        var read = GameFitCache.FromJson(cache.ToJson());
+
+        Assert.True(read?.ByDll[a].ChangesCode);
+        Assert.False(read?.ByDll[b].ChangesCode);
     }
 
     [Fact]
@@ -345,6 +396,113 @@ public sealed class GameFitTests : IDisposable
         module.Types.Add(PatchClass(module, "PatchOpen", Patch(module, harmony, Game("Gate"), "Open"), null));
         module.Types.Add(PatchClass(module, "PatchSlam", Patch(module, harmony, Game("Door"), null), Patch(module, harmony, null, "Slam")));
         module.Types.Add(PatchClass(module, "PatchLocked", Patch(module, harmony, Game("Door"), "Locked"), null));
+
+        var path = Path.Combine(_root, fileName);
+
+        assembly.Write(path);
+
+        return path;
+    }
+
+    /// <summary>
+    /// A mod that sets Config_Item's price through its property and weight through its backing field, adds rows to a
+    /// Dictionary of Config_Item and replaces ConfigManager's Config_Action table. It also only reads a Config_Item
+    /// value and a Dictionary of rows, adds to a Dictionary of something else, and sets a value on a game type that
+    /// is no table and on a Config_ type from another library: none of those are writes.
+    /// </summary>
+    private string WriteTableMod(string fileName)
+    {
+        var assembly = AssemblyDefinition.CreateAssembly(new AssemblyNameDefinition("TableMod", new Version(1, 0)), "TableMod", ModuleKind.Dll);
+        var module = assembly.MainModule;
+        var game = new AssemblyNameReference("Assembly-CSharp", new Version(0, 0, 0, 0));
+        var other = new AssemblyNameReference("OtherLib", new Version(1, 0, 0, 0));
+        var collections = new AssemblyNameReference("Il2Cppmscorlib", new Version(0, 0, 0, 0));
+
+        module.AssemblyReferences.Add(game);
+        module.AssemblyReferences.Add(other);
+        module.AssemblyReferences.Add(collections);
+
+        TypeReference Game(string name) => new("Game", name, module, game);
+
+        GenericInstanceType Rows(TypeReference row)
+        {
+            var dictionary = new GenericInstanceType(new TypeReference("Il2CppSystem.Collections.Generic", "Dictionary`2", module, collections));
+
+            dictionary.GenericArguments.Add(module.TypeSystem.Int32);
+            dictionary.GenericArguments.Add(row);
+
+            return dictionary;
+        }
+
+        MethodReference Call(TypeReference type, string name, TypeReference? parameter = null)
+        {
+            var method = new MethodReference(name, module.TypeSystem.Void, type) { HasThis = true };
+
+            if (parameter != null) method.Parameters.Add(new ParameterDefinition(parameter));
+
+            return method;
+        }
+
+        var item = Game("Config_Item");
+        var run = new MethodDefinition("Run", MethodAttributes.Public | MethodAttributes.Static, module.TypeSystem.Void);
+        var il = run.Body.GetILProcessor();
+
+        il.Emit(OpCodes.Call, Call(item, "set_price", module.TypeSystem.Int32));
+        il.Emit(OpCodes.Call, Call(item, "set__weight_k__BackingField", module.TypeSystem.Single));
+        il.Emit(OpCodes.Call, Call(item, "get_name"));
+        il.Emit(OpCodes.Call, Call(Rows(item), "Add"));
+        il.Emit(OpCodes.Call, Call(Rows(item), "TryGetValue"));
+        il.Emit(OpCodes.Call, Call(Rows(new TypeReference("Other", "Thing", module, other)), "Add"));
+        il.Emit(OpCodes.Call, Call(Game("ConfigManager"), "set__Config_Action_Dict", Rows(Game("Config_Action"))));
+        il.Emit(OpCodes.Call, Call(Game("Door"), "set_Locked", module.TypeSystem.Boolean));
+        il.Emit(OpCodes.Call, Call(new TypeReference("Other", "Config_Fake", module, other), "set_price", module.TypeSystem.Int32));
+        il.Emit(OpCodes.Ret);
+
+        var main = new TypeDefinition("TableMod", "Main", TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed, module.TypeSystem.Object);
+
+        main.Methods.Add(run);
+        module.Types.Add(main);
+
+        var path = Path.Combine(_root, fileName);
+
+        assembly.Write(path);
+
+        return path;
+    }
+
+    /// <summary>
+    /// A mod that declares a Windows call to <paramref name="entryPoint"/> under another name, and that may make a
+    /// MonoMod NativeDetour.
+    /// </summary>
+    private string WriteNativeMod(string fileName, string entryPoint, bool placesDetour)
+    {
+        var assembly = AssemblyDefinition.CreateAssembly(new AssemblyNameDefinition("NativeMod", new Version(1, 0)), "NativeMod", ModuleKind.Dll);
+        var module = assembly.MainModule;
+        var kernel = new ModuleReference("kernel32.dll");
+        var main = new TypeDefinition("NativeMod", "Main", TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed, module.TypeSystem.Object);
+        var native = new MethodDefinition("Native", MethodAttributes.Private | MethodAttributes.Static | MethodAttributes.HideBySig | MethodAttributes.PInvokeImpl, module.TypeSystem.Boolean)
+        {
+            PInvokeInfo = new PInvokeInfo(PInvokeAttributes.CallConvWinapi, entryPoint, kernel),
+            ImplAttributes = MethodImplAttributes.PreserveSig,
+        };
+        var run = new MethodDefinition("Run", MethodAttributes.Public | MethodAttributes.Static, module.TypeSystem.Void);
+        var il = run.Body.GetILProcessor();
+
+        module.ModuleReferences.Add(kernel);
+
+        if (placesDetour)
+        {
+            var monoMod = new AssemblyNameReference("MonoMod.RuntimeDetour", new Version(22, 0, 0, 0));
+
+            module.AssemblyReferences.Add(monoMod);
+            il.Emit(OpCodes.Newobj, new MethodReference(".ctor", module.TypeSystem.Void, new TypeReference("MonoMod.RuntimeDetour", "NativeDetour", module, monoMod)) { HasThis = true });
+            il.Emit(OpCodes.Pop);
+        }
+
+        il.Emit(OpCodes.Ret);
+        main.Methods.Add(native);
+        main.Methods.Add(run);
+        module.Types.Add(main);
 
         var path = Path.Combine(_root, fileName);
 

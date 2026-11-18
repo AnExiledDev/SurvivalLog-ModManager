@@ -5,9 +5,11 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
 using ExiledToolkit;
+using ExiledToolkit.Game;
 using ExiledToolkit.Kit;
 using ExiledToolkit.Web;
 using ModManager.Adapters;
+using HarmonyLib;
 using ModManager.Core;
 using UnityEngine;
 
@@ -21,7 +23,7 @@ public sealed class Plugin : BasePlugin
     public const string Version = "0.20.10";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
-    private const string ToolkitVersion = ">=0.25.0";
+    private const string ToolkitVersion = ">=0.26.0";
 
     internal const string EscButtonId = "modmanager.mods";
     internal const string TitleButtonId = "modmanager.title";
@@ -52,7 +54,7 @@ public sealed class Plugin : BasePlugin
         }
         catch (Exception ex) when (ex is MissingMethodException or TypeLoadException or MissingFieldException)
         {
-            Log.LogError("Mod Manager needs Exiled's Toolkit 0.21.0 or later, so the Mods screen is off: " + ex.Message);
+            Log.LogError("Mod Manager needs Exiled's Toolkit 0.26.0 or later, so the Mods screen is off: " + ex.Message);
         }
     }
 
@@ -82,7 +84,12 @@ public sealed class Plugin : BasePlugin
         var scanner = new InstallScanner(Paths.BepInExRootPath, Paths.PluginPath, Paths.PatcherPluginPath, Paths.ConfigPath, log.Write);
         var catalog = new PluginCatalog(folders, updates, shelf.Versions, watch.Book, Guid, ReadGameVersion(log.Write), items, fits.FitOf, trash, Paths.ConfigPath, scanner, log.Write);
         var page = new WebPage(typeof(Plugin).Assembly, "ModManager.page.js", PageScript.Api, PageCommand.Prefix + "noscript", log.Write);
-        var session = new ModsSession(page, catalog, items, updates, checks, nexus, fits, installer, watch, new SavedFile(Path.Combine(Paths.BepInExRootPath, "mod-manager", "profiles.txt"), "profiles", log.Write), () => openKey.Value, () => checkForUpdates.Value, () => wikiDownloads.Value, () => showToast.Value, log.Write);
+        var tables = new GameTables(log.Write);
+        var code = new CodeScan(log.Write);
+
+        // Hooked in Load, so the copy is taken before any later mod's hook on the same step runs.
+        tables.Hook(new PatchKit(new Harmony(Guid), log.Write));
+        var session = new ModsSession(page, catalog, items, updates, checks, nexus, fits, installer, watch, tables, code, new SavedFile(Path.Combine(Paths.BepInExRootPath, "mod-manager", "profiles.txt"), "profiles", log.Write), () => openKey.Value, () => checkForUpdates.Value, () => wikiDownloads.Value, () => showToast.Value, log.Write);
 
         // Walked on a worker from now, so the item pickers usually find the icons ready.
         WebIcons.StartScan();

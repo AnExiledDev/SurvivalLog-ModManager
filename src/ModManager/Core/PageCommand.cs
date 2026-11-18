@@ -77,11 +77,17 @@ public abstract record PageCommand
     /// <summary>Quit the game, the way closing its window does.</summary>
     public sealed record QuitGame : PageCommand;
 
+    /// <summary>Open the invite to the unofficial modding Discord for Survival Log in the player's browser.</summary>
+    public sealed record OpenDiscord : PageCommand;
+
     /// <summary>Turn on, from the next start, the installed mods this one needs that are off.</summary>
     public sealed record TurnOnNeeds(string Guid) : PageCommand;
 
     /// <summary>Put the list of installed mods on the clipboard, for a bug report.</summary>
     public sealed record CopyList : PageCommand;
+
+    /// <summary>CHECK AGAIN on HEALTH: compare the game's tables with their copy, and its code with its file, again.</summary>
+    public sealed record CheckData : PageCommand;
 
     /// <summary>For a world rule while a world plays: keep the value for this world alone, or go back to global.</summary>
     public sealed record WorldScope(SettingId Id, bool KeepForWorld) : PageCommand;
@@ -173,8 +179,10 @@ public abstract record PageCommand
         ("rollback", 2) => new RollBack(parts[1]),
         ("rollForward", 2) => new RollForward(parts[1]),
         ("quitGame", 1) => new QuitGame(),
+        ("discord", 1) => new OpenDiscord(),
         ("needs", 2) => new TurnOnNeeds(parts[1]),
         ("copyList", 1) => new CopyList(),
+        ("checkData", 1) => new CheckData(),
         ("uninstall", 3) when parts[2] is "0" or "1" => new Uninstall(parts[1], parts[2] == "1"),
         ("restore", 2) => new Restore(parts[1]),
         ("emptyTrash", 1) => new EmptyTrash(),

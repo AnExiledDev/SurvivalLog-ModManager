@@ -19,14 +19,31 @@ public sealed record GameFit(int Checked, int MissingCount, IReadOnlyList<string
 {
     public const int MaxNames = 50;
 
+    /// <summary>Far more than any mod writes; a longer saved list is cut, not trusted whole.</summary>
+    public const int MaxWrites = 2000;
+
     public bool IsMissingAny => MissingCount > 0;
 
-    public static GameFit Of(int checkedCount, IEnumerable<string> missing)
-    {
-        var names = missing.Distinct(StringComparer.Ordinal).OrderBy(name => name, StringComparer.Ordinal).ToList();
+    /// <summary>
+    /// What its code changes in the game's tables, sorted: "Config_Item.price" for a value it sets, "Config_Item" for
+    /// rows it adds, replaces or removes. Writes made through reflection are not seen.
+    /// </summary>
+    public IReadOnlyList<string> Writes { get; init; } = Array.Empty<string>();
 
-        return new GameFit(checkedCount, names.Count, names.Take(MaxNames).ToList());
+    /// <summary>
+    /// Its code can change the game's code outside Harmony: it places native hooks, or calls Windows to make code
+    /// writable or to write it. A code change nothing reported most likely comes from a mod like this.
+    /// </summary>
+    public bool ChangesCode { get; init; }
+
+    public static GameFit Of(int checkedCount, IEnumerable<string> missing, IEnumerable<string>? writes = null, bool changesCode = false)
+    {
+        var names = Sorted(missing);
+
+        return new GameFit(checkedCount, names.Count, names.Take(MaxNames).ToList()) { Writes = Sorted(writes ?? Array.Empty<string>()).Take(MaxWrites).ToList(), ChangesCode = changesCode };
     }
+
+    private static List<string> Sorted(IEnumerable<string> names) => names.Distinct(StringComparer.Ordinal).OrderBy(name => name, StringComparer.Ordinal).ToList();
 }
 
 /// <summary>
@@ -35,7 +52,7 @@ public sealed record GameFit(int Checked, int MissingCount, IReadOnlyList<string
 /// </summary>
 public sealed record GameFitCache(string Stamp, IReadOnlyDictionary<string, GameFit> ByDll)
 {
-    public const int Schema = 1;
+    public const int Schema = 3;
 
     /// <summary>More than any plugins folder holds; a longer saved list is cut, not trusted whole.</summary>
     public const int MaxDlls = 1000;
@@ -99,6 +116,12 @@ public sealed record GameFitCache(string Stamp, IReadOnlyDictionary<string, Game
                 foreach (var name in fit.Missing) json.WriteStringValue(name);
 
                 json.WriteEndArray();
+                json.WriteStartArray("writes");
+
+                foreach (var write in fit.Writes) json.WriteStringValue(write);
+
+                json.WriteEndArray();
+                json.WriteBoolean("changesCode", fit.ChangesCode);
                 json.WriteEndObject();
             }
 
@@ -127,9 +150,12 @@ public sealed record GameFitCache(string Stamp, IReadOnlyDictionary<string, Game
                 {
                     if (!NexusApi.IsSha256(pair.Name) || Json.IntOf(pair.Value, "checked") is not { } checkedCount || Json.IntOf(pair.Value, "missingCount") is not { } missingCount) continue;
 
-                    var names = Json.ArrayOf(pair.Value, "missing").Where(name => name.ValueKind == JsonValueKind.String).Select(name => name.GetString() ?? "").Where(name => name.Length > 0).Take(GameFit.MaxNames).ToList();
+                    var names = Texts(pair.Value, "missing").Take(GameFit.MaxNames).ToList();
+                    var writes = Texts(pair.Value, "writes").Take(GameFit.MaxWrites).ToList();
 
-                    byDll[pair.Name] = new GameFit(checkedCount, Math.Max(missingCount, names.Count), names);
+                    var changesCode = pair.Value.TryGetProperty("changesCode", out var flag) && flag.ValueKind == JsonValueKind.True;
+
+                    byDll[pair.Name] = new GameFit(checkedCount, Math.Max(missingCount, names.Count), names) { Writes = writes, ChangesCode = changesCode };
                 }
             }
 
@@ -140,4 +166,7 @@ public sealed record GameFitCache(string Stamp, IReadOnlyDictionary<string, Game
             return null;
         }
     }
+
+    private static IEnumerable<string> Texts(JsonElement parent, string name) =>
+        Json.ArrayOf(parent, name).Where(text => text.ValueKind == JsonValueKind.String).Select(text => text.GetString() ?? "").Where(text => text.Length > 0);
 }

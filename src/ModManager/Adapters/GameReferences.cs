@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using ModManager.Core;
 using Mono.Cecil;
 
@@ -11,12 +12,21 @@ namespace ModManager.Adapters;
 /// Checks what a DLL uses from the game's code against BepInEx's interop folder, which BepInEx builds from the game
 /// build that is running: every game type it names, every member of one it calls or reads, and every game method a
 /// HarmonyPatch attribute names. Reads DLLs without loading them. Only what the game's code was read for and does
-/// not have counts as missing: a reference that cannot be followed is left out, never called missing.
+/// not have counts as missing: a reference that cannot be followed is left out, never called missing. It also notes
+/// what the DLL's code changes in the game's tables, so a change no mod reported can name the mods that may have made it.
 /// </summary>
 internal sealed class GameReferences : IDisposable
 {
     /// <summary>Base types followed when looking for a patch target, as Harmony looks in them too; far more than any game class has.</summary>
     private const int MaxBaseTypes = 32;
+
+    /// <summary>The Dictionary methods that put a row in a table, replace one or take rows out.</summary>
+    private static readonly HashSet<string> RowWrites = new(StringComparer.Ordinal) { "Add", "TryAdd", "set_Item", "Remove", "Clear" };
+
+    private static readonly Regex BackingField = new("^_(.+)_k__BackingField$", RegexOptions.CultureInvariant);
+
+    /// <summary>The Windows calls that make memory writable or write into memory.</summary>
+    private static readonly HashSet<string> CodeWriters = new(StringComparer.Ordinal) { "VirtualProtect", "VirtualProtectEx", "WriteProcessMemory", "NtProtectVirtualMemory", "NtWriteVirtualMemory" };
 
     private readonly DefaultAssemblyResolver _resolver = new();
     private readonly HashSet<string> _game;
@@ -55,7 +65,9 @@ internal sealed class GameReferences : IDisposable
     private GameFit Check(ModuleDefinition module)
     {
         var missing = new List<string>();
+        var writes = new List<string>();
         var checkedCount = 0;
+        var changesCode = CallsCodeWriter(module);
 
         // Null when the game's code could not be read for it, so it is neither counted nor called missing.
         void Note(bool? isThere, string name)
@@ -76,6 +88,10 @@ internal sealed class GameReferences : IDisposable
 
         foreach (var member in module.GetMemberReferences())
         {
+            if (member is MethodReference method && TableWrite(method) is { } write) writes.Add(write);
+
+            if (IsDetour(member)) changesCode = true;
+
             if (DeclaringTypeOf(member) is not { } declaring || !IsGame(declaring)) continue;
 
             var (isRead, definition) = Lookup(declaring);
@@ -97,8 +113,51 @@ internal sealed class GameReferences : IDisposable
             Note(definition == null ? false : HasByName(definition, name), definition == null ? Name(type) : Name(type) + "::" + name);
         }
 
-        return GameFit.Of(checkedCount, missing);
+        return GameFit.Of(checkedCount, missing, writes, changesCode);
     }
+
+    /// <summary>A member of a native hook type: MonoMod's NativeDetour, or BepInEx's INativeDetour and its DetourProvider.</summary>
+    private static bool IsDetour(MemberReference member) =>
+        DeclaringTypeOf(member) is { } type && (type.Name.Contains("NativeDetour", StringComparison.Ordinal) || type.Name.Contains("DetourProvider", StringComparison.Ordinal));
+
+    /// <summary>
+    /// Whether the DLL declares a call into Windows or a hook library that makes code writable or writes it. Changing
+    /// the game's code at runtime needs one of these.
+    /// </summary>
+    private static bool CallsCodeWriter(ModuleDefinition module) =>
+        module.GetTypes()
+            .SelectMany(type => type.Methods)
+            .Where(method => method.IsPInvokeImpl)
+            .Select(method => method.PInvokeInfo?.EntryPoint ?? method.Name)
+            .Any(IsCodeWriter);
+
+    private static bool IsCodeWriter(string entry) =>
+        CodeWriters.Contains(entry) || entry.StartsWith("Dobby", StringComparison.Ordinal) || entry.StartsWith("MH_", StringComparison.Ordinal);
+
+    /// <summary>
+    /// What a call changes in the game's tables: a row's setter gives "Config_Item.price" (the interop name of a
+    /// backing field gives the property's), a Dictionary of rows or ConfigManager's table setter gives "Config_Item".
+    /// Null for anything else.
+    /// </summary>
+    private string? TableWrite(MethodReference method)
+    {
+        if (method.DeclaringType is GenericInstanceType { ElementType.Name: "Dictionary`2" } dictionary) return RowWrites.Contains(method.Name) ? RowTableOf(dictionary) : null;
+        if (DeclaringTypeOf(method) is not { } type || !IsGame(type) || !method.Name.StartsWith("set_", StringComparison.Ordinal)) return null;
+        if (IsRowClass(type)) return type.Name + "." + PropertyOf(method.Name.Substring(4));
+
+        // ConfigManager's _Config_Item_Dict, as Il2CppInterop names the setter of a field: the whole table is replaced.
+        if (type.Name == "ConfigManager" && method.Parameters.Count == 1 && method.Parameters[0].ParameterType is GenericInstanceType table) return RowTableOf(table);
+
+        return null;
+    }
+
+    /// <summary>The row class of a Dictionary of the game's rows, null for a Dictionary of anything else.</summary>
+    private string? RowTableOf(GenericInstanceType dictionary) =>
+        dictionary.GenericArguments.Count == 2 && dictionary.GenericArguments[1] is { } row && IsGame(row) && IsRowClass(row) ? row.Name : null;
+
+    private static bool IsRowClass(TypeReference type) => type.Name.StartsWith("Config_", StringComparison.Ordinal);
+
+    private static string PropertyOf(string name) => BackingField.Match(name) is { Success: true } match ? match.Groups[1].Value : name;
 
     /// <summary>Of a generic type's member, the type itself; null for a member of an array or a generic parameter, which no game type declares.</summary>
     private static TypeReference? DeclaringTypeOf(MemberReference member)

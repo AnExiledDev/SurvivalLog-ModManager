@@ -98,6 +98,8 @@ public static class PageScript
         json.Append(",\"browse\":").Append(List(view.Browse, BrowseJson));
         json.Append(",\"profiles\":").Append(ProfilesJson(view.Profiles));
         json.Append(",\"gameKeys\":").Append(List(view.GameKeys, key => "{\"action\":" + Str(key.Action) + ",\"key\":" + Str(key.Key) + ",\"label\":" + Str(key.Label) + "}"));
+        json.Append(",\"dataCheck\":").Append(DataCheckJson(view.DataCheck));
+        json.Append(",\"codeCheck\":").Append(CodeCheckJson(view.CodeCheck));
 
         return json.Append('}').ToString();
     }
@@ -141,6 +143,46 @@ public static class PageScript
 
         return json.Append('}').ToString();
     }
+
+    public static string DataCheckJson(DataCheck check) => check switch
+    {
+        DataCheck.Checking => "{\"state\":\"checking\"}",
+        DataCheck.NoCopy noCopy => "{\"state\":\"noCopy\",\"reason\":" + Str(noCopy.Reason == NoCopyReason.LoadedFirst ? "loadedFirst" : "unreadable") + "}",
+        DataCheck.Done done => "{\"state\":\"done\",\"tables\":" + Int(done.Tables) + ",\"rows\":" + Int(done.Rows) + ",\"reported\":" + Int(done.Reported)
+            + ",\"unreported\":" + List(done.Unreported, TableChangesJson) + "}",
+        _ => "{\"state\":\"waiting\"}",
+    };
+
+    public static string CodeCheckJson(CodeCheck check) => check switch
+    {
+        CodeCheck.NoScan noScan => "{\"state\":\"noScan\",\"reason\":" + Str(noScan.Reason switch
+        {
+            NoScanReason.FileChanged => "fileChanged",
+            NoScanReason.TooMany => "tooMany",
+            _ => "unreadable",
+        }) + "}",
+        CodeCheck.Done done => "{\"state\":\"done\",\"megabytes\":" + Int((int)(done.Reading.Scanned / (1024 * 1024))) + ",\"changed\":" + Int(done.Reading.Changed)
+            + ",\"byHarmony\":" + Int(done.Reading.ByHarmony) + ",\"byClaims\":" + Int(done.Reading.ByClaims) + ",\"reported\":" + Int(done.Reading.Reported)
+            + ",\"unreportedCount\":" + Int(done.Reading.Unreported.Count) + ",\"unreported\":" + List(done.Reading.Unreported.Take(CodeCheck.Shown), UnreportedCodeJson)
+            + ",\"changers\":" + List(done.Changers, Str) + "}",
+        _ => "{\"state\":\"checking\"}",
+    };
+
+    private static string UnreportedCodeJson(UnreportedCode code) =>
+        "{\"function\":" + Str("0x" + code.Function.ToString("x", CultureInfo.InvariantCulture)) + ",\"offset\":" + Int(code.Offset) + ",\"bytes\":" + Int(code.Bytes)
+        + ",\"runs\":" + Int(code.Runs) + ",\"method\":" + StrOrNull(code.Method) + "}";
+
+    private static string TableChangesJson(TableChanges table) =>
+        "{\"table\":" + Str(table.Table) + ",\"added\":" + Int(table.Added) + ",\"removed\":" + Int(table.Removed) + ",\"changed\":" + Int(table.Changed)
+        + ",\"shown\":" + List(table.Shown, TableChangeJson) + ",\"writers\":" + List(table.Writers, Str) + "}";
+
+    private static string TableChangeJson(TableChange change) => change switch
+    {
+        TableChange.RowAdded => "{\"kind\":\"added\",\"row\":" + Str(change.Row) + "}",
+        TableChange.RowRemoved => "{\"kind\":\"removed\",\"row\":" + Str(change.Row) + "}",
+        TableChange.ValueChanged value => "{\"kind\":\"changed\",\"row\":" + Str(value.Row) + ",\"field\":" + Str(value.Field) + ",\"was\":" + StrOrNull(value.Was) + ",\"now\":" + StrOrNull(value.Now) + "}",
+        _ => throw new ArgumentOutOfRangeException(nameof(change), change, null),
+    };
 
     private static string HealthJson(HealthFinding finding) => finding switch
     {
