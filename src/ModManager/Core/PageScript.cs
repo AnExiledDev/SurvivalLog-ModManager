@@ -406,6 +406,9 @@ public static class PageScript
         ClaimKind.HookAndPatch => "hookAndPatch",
         ClaimKind.SameBytes => "sameBytes",
         ClaimKind.BytesUnderHook => "bytesUnderHook",
+        ClaimKind.BothAdd => "bothAdd",
+        ClaimKind.SetAfterAdded => "setAfterAdded",
+        ClaimKind.AddedAfterSet => "addedAfterSet",
         ClaimKind.WrittenOver => "writtenOver",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };

@@ -104,6 +104,43 @@ public class ConflictsPageTests
         Assert.Contains("This mod sets it to 50 and com.b sets it to 80. The game has the value from com.b, which wrote it last.", drawn);
     }
 
+    [Theory]
+    [InlineData("com.a", "This mod replaces it after com.b added its own entries to it. What com.b added may be gone.")]
+    [InlineData("com.b", "com.b replaces it after this mod added its own entries to it. What this mod added may be gone.")]
+    public void A_list_replaced_after_a_mod_added_to_it_names_who_replaced_it(string replacer, string said)
+    {
+        var clash = new ClaimClash(ClaimKind.SetAfterAdded, PatchRisk.LikelyClash, "Config_ShopFurniture 1 ItemIdList", LastWord: replacer);
+        var engine = Open(View(Mod("com.a") with { ClaimClashes = new[] { new ClaimOverlap("com.b", PatchRisk.LikelyClash, new[] { clash }) } }, Mod("com.b")));
+
+        engine.Execute("fire('click', { target: el('DIV', ['tab'], { side: 'conflicts' }, { '[data-side]': { dataset: { side: 'conflicts' } } }) })");
+
+        Assert.Contains(said, KnownFactsTests.Drawn(engine));
+    }
+
+    [Theory]
+    [InlineData("com.a", "com.b sets it and this mod adds its own entries after that. The game keeps both.")]
+    [InlineData("com.b", "This mod sets it and com.b adds its own entries after that. The game keeps both.")]
+    public void Entries_added_after_a_list_was_set_name_who_added_them(string adder, string said)
+    {
+        var clash = new ClaimClash(ClaimKind.AddedAfterSet, PatchRisk.Harmless, "Config_ShopFurniture 1 ItemIdList", LastWord: adder);
+        var engine = Open(View(Mod("com.a") with { ClaimClashes = new[] { new ClaimOverlap("com.b", PatchRisk.Harmless, new[] { clash }) } }, Mod("com.b")));
+
+        engine.Execute("fire('click', { target: el('DIV', ['tab'], { side: 'conflicts' }, { '[data-side]': { dataset: { side: 'conflicts' } } }) })");
+
+        Assert.Contains(said, KnownFactsTests.Drawn(engine));
+    }
+
+    [Fact]
+    public void Two_mods_adding_to_one_list_reach_the_page_as_both_add()
+    {
+        var clash = new ClaimClash(ClaimKind.BothAdd, PatchRisk.Harmless, "Config_ShopFurniture 1 ItemIdList");
+        var mod = Mod("com.a") with { ClaimClashes = new[] { new ClaimOverlap("com.b", PatchRisk.Harmless, new[] { clash }) } };
+
+        using var json = JsonDocument.Parse(PageScript.ModJson(mod));
+
+        Assert.Equal("bothAdd", json.RootElement.GetProperty("claimClashes")[0].GetProperty("clashes")[0].GetProperty("kind").GetString());
+    }
+
     [Fact]
     public void A_value_written_over_by_a_mod_that_reports_nothing_names_no_mod()
     {

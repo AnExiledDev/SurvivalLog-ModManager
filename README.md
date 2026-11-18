@@ -49,7 +49,7 @@ Open it with the Mods button in the Esc menu or on the title screen, or set a ke
   - **May clash**: both change what the method is given, one can skip it while the other counts on it having run, or one rewrites its code. Skipping is how most mods change a game rule, so this is common, and they usually work together.
   - **Probably harmless**: neither mod can undo what the other does there. That rarely causes trouble.
 
-  Mods that report what they change through Exiled's Toolkit (rows they add to the game's tables, values they write, native hooks and changed code bytes) are listed under "Change the same things" when they change the same thing, with what happens: two rows with one id, two values for one field and which one the game has, or two hooks on one method. A value a mod set that is now different, when no mod reported changing it, is listed too. This shows where to look when two mods misbehave while both are on. It does not mean there is a problem.
+  Mods that report what they change through Exiled's Toolkit (rows they add to the game's tables, values they write, native hooks and changed code bytes) are listed under "Change the same things" when they change the same thing, with what happens: two rows with one id, two values for one field and which one the game has, a mod that replaces a list after another mod added to it, or two hooks on one method. Two mods that each add their own entries to one list, like a shop's stock, are fine and marked that way. A value a mod set that is now different, when no mod reported changing it, is listed too. This shows where to look when two mods misbehave while both are on. It does not mean there is a problem.
 - **Changelog tab**: a mod whose CHANGELOG link points to a GitHub file page (`github.com/owner/repo/blob/branch/CHANGELOG.md`) or to any https `.md` or `.txt` file gets a CHANGELOG tab. It loads the changelog the first time you open the tab and shows it on the page, with headings, bullets, bold and code. It is the published file, so it can be ahead of the version you have.
 - **Many sections**: a mod with too many sections for one row of tabs lists them down the left side of its settings.
 - **Tabs from other mods**: a mod can add its own tab to its page, with a page of its own (New Loop Plus adds TALENTS, an editor for its loop rewards). Esc first closes whatever that page has open, then the screen.
@@ -81,12 +81,12 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 
 - Survival Log 1.1.21271. Built and tested on this version. A game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
-- [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.26.0 or later. The Mods screen does not open without it. Its UI size setting also draws the Mods screen bigger or smaller, and Mod Manager's own `UiScale` under Interface sets a size for this mod alone. At 0, the default, it follows the Toolkit's.
+- [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.28.0 or later. The Mods screen does not open without it. Its UI size setting also draws the Mods screen bigger or smaller, and Mod Manager's own `UiScale` under Interface sets a size for this mod alone. At 0, the default, it follows the Toolkit's.
 
 ## Install
 
 1. Install the [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12) (if no other mods were installed before, start the game once so BepInEx finishes setup, then quit).
-2. Install Exiled's Toolkit 0.26.0 or later.
+2. Install Exiled's Toolkit 0.28.0 or later.
 3. Download `ModManager-x.y.z.zip` from the [latest release](https://github.com/AnExiledDev/SurvivalLog-ModManager/releases/latest) or from [Nexus Mods](https://www.nexusmods.com/survivallog/mods/73).
 4. Extract the zip into the game folder (the folder with `SurvivalLog.exe`). It holds a `BepInEx` folder, so the DLL lands in the right place. When asked, merge the folders. The result should be:
    `C:\Program Files (x86)\Steam\steamapps\common\Survival Log\BepInEx\plugins\ModManager.dll`
@@ -103,7 +103,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 Tested on Survival Log 1.1.21271 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.21.0 started`. If it is missing, check that Exiled's Toolkit 0.26.0 or newer is installed: BepInEx does not load Mod Manager without it.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.21.1 started`. If it is missing, check that Exiled's Toolkit 0.28.0 or newer is installed: BepInEx does not load Mod Manager without it.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.

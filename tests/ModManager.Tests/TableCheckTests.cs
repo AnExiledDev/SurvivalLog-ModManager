@@ -39,8 +39,8 @@ public class TableCheckTests
         return diff.Finish();
     }
 
-    private static ClaimSet Claims(IEnumerable<RowClaim>? rows = null, IEnumerable<FieldClaim>? fields = null) =>
-        new((rows ?? Array.Empty<RowClaim>()).ToList(), (fields ?? Array.Empty<FieldClaim>()).ToList(), Array.Empty<HookClaim>(), Array.Empty<BytesClaim>());
+    private static ClaimSet Claims(IEnumerable<RowClaim>? rows = null, IEnumerable<FieldClaim>? fields = null, IEnumerable<EntryClaim>? entries = null) =>
+        new((rows ?? Array.Empty<RowClaim>()).ToList(), (fields ?? Array.Empty<FieldClaim>()).ToList(), Array.Empty<HookClaim>(), Array.Empty<BytesClaim>(), (entries ?? Array.Empty<EntryClaim>()).ToList());
 
     private static TableChange.ValueChanged Price(string row, string was, string now) => new("Config_Item", row, "price", was, now);
 
@@ -188,6 +188,16 @@ public class TableCheckTests
     public void A_value_a_mod_reported_writing_is_reported()
     {
         var done = DataCheck.Sort(1, 1, new[] { Price("1203", "50", "80") }, Claims(fields: new[] { new FieldClaim("com.a", "Config_Item", "1203", "price", "80", 1) }), NoWrites);
+
+        Assert.Equal(1, done.Reported);
+        Assert.Empty(done.Unreported);
+    }
+
+    [Fact]
+    public void A_list_a_mod_reported_adding_entries_to_is_reported()
+    {
+        var stock = new TableChange.ValueChanged("Config_ShopFurniture", "1", "ItemIdList", "a1b2", "c3d4");
+        var done = DataCheck.Sort(1, 1, new[] { stock }, Claims(entries: new[] { new EntryClaim("com.wind", "Config_ShopFurniture", "1", "ItemIdList", new[] { "910001" }, 1) }), NoWrites);
 
         Assert.Equal(1, done.Reported);
         Assert.Empty(done.Unreported);

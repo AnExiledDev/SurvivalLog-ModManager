@@ -90,7 +90,7 @@
       claimsTitle: 'Change the same things',
       claimsWhy: 'These change the same game data or code as this one. The line under each one says what happens.',
       unreportedMod: 'Unknown mod',
-      claimWhat: { sameRow: 'same row', sameValue: 'same value', bothHook: 'both hook it', hookAndPatch: 'hook and Harmony patch', sameBytes: 'same code bytes', bytesUnderHook: 'code under a hook', writtenOver: 'written over' },
+      claimWhat: { sameRow: 'same row', sameValue: 'same value', bothHook: 'both hook it', hookAndPatch: 'hook and Harmony patch', sameBytes: 'same code bytes', bytesUnderHook: 'code under a hook', bothAdd: 'both add to it', setAfterAdded: 'replaced', addedAfterSet: 'added later', writtenOver: 'written over' },
       claim: {
         sameRow: 'Both add a row with this id. Only one of the two can be in the game.',
         sameValue: (mine, other, theirs, last) => 'This mod sets it to ' + mine + ' and ' + other + ' sets it to ' + theirs + '. The game has the value from ' + last + ', which wrote it last.',
@@ -99,7 +99,12 @@
         hookAndPatch: 'One hooks this game method directly and the other patches it with Harmony. That can crash the game or stop one of them from working.',
         sameBytes: 'Both change the same bytes of this game method. Only the last change is there, so the other mod\'s change is lost.',
         bytesUnderHook: 'One changes the start of this game method, right where the other\'s hook goes. One of them may not work, or the game may crash.',
-        writtenOver: (mine, now) => 'This mod set it to ' + mine + ', but the game now has ' + now + '. Another mod changed it, and that mod does not say what it changes.'
+        writtenOver: (mine, now) => 'This mod set it to ' + mine + ', but the game now has ' + now + '. Another mod changed it, and that mod does not say what it changes.',
+        bothAdd: 'Both add their own entries to it. The game keeps both.',
+        setAfterAddedMine: other => 'This mod replaces it after ' + other + ' added its own entries to it. What ' + other + ' added may be gone.',
+        setAfterAddedTheirs: other => other + ' replaces it after this mod added its own entries to it. What this mod added may be gone.',
+        addedAfterSetMine: other => other + ' sets it and this mod adds its own entries after that. The game keeps both.',
+        addedAfterSetTheirs: other => 'This mod sets it and ' + other + ' adds its own entries after that. The game keeps both.'
       },
       needsProblem: list => 'It needs these, which are off, not installed or the wrong version, so it will not start: ' + list + '.',
       clashProblem: list => 'It does not work with these, which are on, so it will not start: ' + list + '.',
@@ -366,7 +371,7 @@
       claimsTitle: '修改了相同的内容',
       claimsWhy: '这些模组与本模组修改了相同的游戏数据或代码。每处下方写明了会发生什么。',
       unreportedMod: '未知模组',
-      claimWhat: { sameRow: '相同的行', sameValue: '相同的数值', bothHook: '都挂钩了它', hookAndPatch: '挂钩与 Harmony 补丁', sameBytes: '相同的代码字节', bytesUnderHook: '挂钩处的代码', writtenOver: '被改掉了' },
+      claimWhat: { sameRow: '相同的行', sameValue: '相同的数值', bothHook: '都挂钩了它', hookAndPatch: '挂钩与 Harmony 补丁', sameBytes: '相同的代码字节', bytesUnderHook: '挂钩处的代码', bothAdd: '都往里添加', setAfterAdded: '被替换', addedAfterSet: '之后添加', writtenOver: '被改掉了' },
       claim: {
         sameRow: '两者都添加了这个编号的行，游戏中只能有其中一个。',
         sameValue: (mine, other, theirs, last) => '本模组把它设为 ' + mine + '，' + other + ' 把它设为 ' + theirs + '。游戏用的是最后写入的' + last + '的值。',
@@ -375,7 +380,12 @@
         hookAndPatch: '一方直接挂钩了这个游戏方法，另一方用 Harmony 给它打了补丁。这可能让游戏崩溃，或让其中一个不起作用。',
         sameBytes: '两者都修改了这个游戏方法中相同的字节。只有最后的修改还在，另一个模组的修改丢失了。',
         bytesUnderHook: '一方修改了这个游戏方法的开头，正是另一方挂钩的位置。其中一个可能不起作用，游戏也可能崩溃。',
-        writtenOver: (mine, now) => '本模组把它设为 ' + mine + '，但游戏里现在是 ' + now + '。另一个模组改了它，而那个模组不说明自己改了什么。'
+        writtenOver: (mine, now) => '本模组把它设为 ' + mine + '，但游戏里现在是 ' + now + '。另一个模组改了它，而那个模组不说明自己改了什么。',
+        bothAdd: '两者都往里添加了自己的内容，游戏会全部保留。',
+        setAfterAddedMine: other => '本模组在 ' + other + ' 往里添加自己的内容之后替换了它。' + other + ' 添加的内容可能已经没了。',
+        setAfterAddedTheirs: other => other + ' 在本模组往里添加自己的内容之后替换了它。本模组添加的内容可能已经没了。',
+        addedAfterSetMine: other => other + ' 设置了它，本模组之后又往里添加了自己的内容。游戏会全部保留。',
+        addedAfterSetTheirs: other => '本模组设置了它，' + other + ' 之后又往里添加了自己的内容。游戏会全部保留。'
       },
       needsProblem: list => '它需要的以下模组已关闭、未安装或版本不符，所以它不会启动：' + list + '。',
       clashProblem: list => '它与以下已开启的模组不兼容，所以它不会启动：' + list + '。',
@@ -2346,6 +2356,8 @@
       if (c.kind === 'sameValue') return c.lastWord ? word('claim').sameValue(c.mine, who(o.guid), c.theirs, who(c.lastWord)) : word('claim').sameValueSame(c.mine);
 
       if (c.kind === 'writtenOver') return word('claim').writtenOver(c.mine, c.theirs);
+
+      if (c.kind === 'setAfterAdded' || c.kind === 'addedAfterSet') return word('claim')[c.kind + (c.lastWord === m.guid ? 'Mine' : 'Theirs')](who(o.guid));
 
       return word('claim')[c.kind];
     };

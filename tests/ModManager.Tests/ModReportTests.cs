@@ -121,6 +121,20 @@ public class ModReportTests
     }
 
     [Fact]
+    public void A_list_replaced_after_another_mod_added_to_it_names_both_mods()
+    {
+        var replaced = new ClaimClash(ClaimKind.SetAfterAdded, PatchRisk.LikelyClash, "Config_ShopFurniture 1 ItemIdList", LastWord: "com.b.shop");
+        var bothAdd = new ClaimClash(ClaimKind.BothAdd, PatchRisk.Harmless, "Config_ShopFurniture 14 ItemIdList");
+        var wind = Mod("com.a.wind", "Wind Power", Running, On) with { ClaimClashes = new[] { new ClaimOverlap("com.b.shop", PatchRisk.LikelyClash, new[] { replaced, bothAdd }) } };
+        var shop = Mod("com.b.shop", "Shop", Running, On) with { ClaimClashes = new[] { new ClaimOverlap("com.a.wind", PatchRisk.LikelyClash, new[] { replaced, bothAdd }) } };
+
+        var text = ModReport.Text(ViewOf(wind, shop));
+
+        Assert.Contains("- Wind Power and Shop are likely to clash: Shop replaces Config_ShopFurniture 1 ItemIdList after Wind Power added to it, which can drop what Wind Power added\n", text);
+        Assert.DoesNotContain("14 ItemIdList", text);
+    }
+
+    [Fact]
     public void No_conflicts_heading_when_nothing_can_clash()
     {
         var text = ModReport.Text(ViewOf(Mod("com.a.one", "One", Running, On)));

@@ -283,14 +283,14 @@ public abstract record DataCheck
 
     /// <summary>
     /// Sorts the changes into the ones a mod reported and the ones no mod did. A changed value is reported when a mod
-    /// reported writing that field, or adding that row (a mod can put its own row where a game row was); an added row
-    /// when a mod reported adding it. No mod can report removing a game row, so a removed row is never reported.
+    /// reported writing that field, adding entries to it, or adding that row (a mod can put its own row where a game row
+    /// was); an added row when a mod reported adding it. No mod can report removing a game row, so a removed row is never reported.
     /// </summary>
     /// <param name="writes">What each running mod's code changes, by its guid: "Config_Item.price" for a field, "Config_Item" for adding, replacing or removing rows.</param>
     public static Done Sort(int tables, int rows, IEnumerable<TableChange> changes, ClaimSet claims, IReadOnlyDictionary<string, IReadOnlyList<string>> writes)
     {
         var addedRows = claims.Rows.Select(claim => (claim.Table, claim.Row)).ToHashSet();
-        var wroteFields = claims.Fields.Select(claim => (claim.Table, claim.Row, claim.Field)).ToHashSet();
+        var wroteFields = claims.Fields.Select(claim => (claim.Table, claim.Row, claim.Field)).Concat(claims.Entries.Select(claim => (claim.Table, claim.Row, claim.Field))).ToHashSet();
         var reported = 0;
         var unreported = new List<TableChange>();
 

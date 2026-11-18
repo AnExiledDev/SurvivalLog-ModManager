@@ -198,9 +198,17 @@ public static class ModReport
         ClaimKind.HookAndPatch => "a native hook and a Harmony patch on " + clash.Where,
         ClaimKind.SameBytes => "both change the same bytes of " + clash.Where,
         ClaimKind.BytesUnderHook => "bytes changed where a hook goes, at the start of " + clash.Where,
+        ClaimKind.BothAdd => "both add their own entries to " + clash.Where,
+        ClaimKind.SetAfterAdded => LastName(clash, nameOf) + " replaces " + clash.Where + " after " + OtherName(clash, mine, theirs, nameOf) + " added to it, which can drop what " + OtherName(clash, mine, theirs, nameOf) + " added",
+        ClaimKind.AddedAfterSet => OtherName(clash, mine, theirs, nameOf) + " sets " + clash.Where + " and " + LastName(clash, nameOf) + " adds to it after that",
         ClaimKind.WrittenOver => clash.Where + " is " + clash.Theirs + " now, not the " + clash.Mine + " it set, and no mod that reports its changes wrote that",
         _ => clash.Kind + " " + clash.Where,
     };
+
+    private static string LastName(ClaimClash clash, Func<string, string> nameOf) => nameOf(clash.LastWord ?? "");
+
+    /// <summary>Of the two mods a clash was found between, the one that did not change it last.</summary>
+    private static string OtherName(ClaimClash clash, string mine, string theirs, Func<string, string> nameOf) => LastName(clash, nameOf) == mine ? theirs : mine;
 
     private static string Counted(TableChanges table)
     {

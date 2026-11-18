@@ -20,10 +20,10 @@ namespace ModManager;
 public sealed class Plugin : BasePlugin
 {
     public const string Guid = "com.dev.survivallog.modmanager";
-    public const string Version = "0.21.0";
+    public const string Version = "0.21.1";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
-    private const string ToolkitVersion = ">=0.26.0";
+    private const string ToolkitVersion = ">=0.28.0";
 
     internal const string EscButtonId = "modmanager.mods";
     internal const string TitleButtonId = "modmanager.title";
@@ -54,7 +54,7 @@ public sealed class Plugin : BasePlugin
         }
         catch (Exception ex) when (ex is MissingMethodException or TypeLoadException or MissingFieldException)
         {
-            Log.LogError("Mod Manager needs Exiled's Toolkit 0.26.0 or later, so the Mods screen is off: " + ex.Message);
+            Log.LogError("Mod Manager needs Exiled's Toolkit 0.28.0 or later, so the Mods screen is off: " + ex.Message);
         }
     }
 

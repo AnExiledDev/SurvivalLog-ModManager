@@ -14,8 +14,12 @@ namespace ModManager.Tests;
 /// </summary>
 public class ClaimClashesTests
 {
-    private static ClaimSet Set(IEnumerable<RowClaim>? rows = null, IEnumerable<FieldClaim>? fields = null, IEnumerable<HookClaim>? hooks = null, IEnumerable<BytesClaim>? bytes = null) =>
-        new((rows ?? Array.Empty<RowClaim>()).ToList(), (fields ?? Array.Empty<FieldClaim>()).ToList(), (hooks ?? Array.Empty<HookClaim>()).ToList(), (bytes ?? Array.Empty<BytesClaim>()).ToList());
+    private static ClaimSet Set(IEnumerable<RowClaim>? rows = null, IEnumerable<FieldClaim>? fields = null, IEnumerable<HookClaim>? hooks = null, IEnumerable<BytesClaim>? bytes = null, IEnumerable<EntryClaim>? entries = null) =>
+        new((rows ?? Array.Empty<RowClaim>()).ToList(), (fields ?? Array.Empty<FieldClaim>()).ToList(), (hooks ?? Array.Empty<HookClaim>()).ToList(), (bytes ?? Array.Empty<BytesClaim>()).ToList(), (entries ?? Array.Empty<EntryClaim>()).ToList());
+
+    private static EntryClaim Stock(string guid, long order, params string[] items) => new(guid, "Config_ShopFurniture", "1", "ItemIdList", items, order);
+
+    private static FieldClaim StockSet(string guid, long order) => new(guid, "Config_ShopFurniture", "1", "ItemIdList", "[1001, 1002]", order);
 
     private static PatchedMethod Patched(string method, params string[] guids) => new(method, guids.Select(guid => new PatchUse(guid, PatchEffect.RunsAfter)).ToList());
 
@@ -54,6 +58,40 @@ public class ClaimClashesTests
         var clashes = Find(Set(fields: new[] { new FieldClaim("com.a", "Config_Item", "1203", "price", "50", 1), new FieldClaim("com.b", "Config_Item", "1203", "price", "50", 2) }));
 
         Assert.Equal(new ClaimClash(ClaimKind.SameValue, PatchRisk.Harmless, "Config_Item 1203 price", "50", "50"), clashes["com.a"].Single().Clashes.Single());
+    }
+
+    [Fact]
+    public void Two_mods_adding_their_own_entries_to_one_list_is_harmless()
+    {
+        var clashes = Find(Set(entries: new[] { Stock("com.wind", 1, "910001"), Stock("com.hydro", 2, "920001") }));
+        var expected = new ClaimClash(ClaimKind.BothAdd, PatchRisk.Harmless, "Config_ShopFurniture 1 ItemIdList");
+
+        Assert.Equal(new[] { new ClaimOverlap("com.hydro", PatchRisk.Harmless, new[] { expected }) }, clashes["com.wind"]);
+        Assert.Equal(new[] { new ClaimOverlap("com.wind", PatchRisk.Harmless, new[] { expected }) }, clashes["com.hydro"]);
+    }
+
+    [Fact]
+    public void A_mod_replacing_a_list_after_another_added_to_it_is_likely_to_clash_on_both_pages()
+    {
+        var clashes = Find(Set(fields: new[] { StockSet("com.shops", 5) }, entries: new[] { Stock("com.wind", 3, "910001") }));
+        var expected = new ClaimClash(ClaimKind.SetAfterAdded, PatchRisk.LikelyClash, "Config_ShopFurniture 1 ItemIdList", LastWord: "com.shops");
+
+        Assert.Equal(new[] { new ClaimOverlap("com.shops", PatchRisk.LikelyClash, new[] { expected }) }, clashes["com.wind"]);
+        Assert.Equal(new[] { new ClaimOverlap("com.wind", PatchRisk.LikelyClash, new[] { expected }) }, clashes["com.shops"]);
+    }
+
+    [Fact]
+    public void Entries_added_after_another_mod_set_the_list_keep_both()
+    {
+        var clashes = Find(Set(fields: new[] { StockSet("com.shops", 2) }, entries: new[] { Stock("com.wind", 4, "910001") }));
+
+        Assert.Equal(new ClaimClash(ClaimKind.AddedAfterSet, PatchRisk.Harmless, "Config_ShopFurniture 1 ItemIdList", LastWord: "com.wind"), clashes["com.shops"].Single().Clashes.Single());
+    }
+
+    [Fact]
+    public void A_mod_that_sets_and_adds_to_its_own_list_is_no_clash()
+    {
+        Assert.Empty(Find(Set(fields: new[] { StockSet("com.wind", 5) }, entries: new[] { Stock("com.wind", 3, "910001") })));
     }
 
     [Fact]

@@ -26,14 +26,23 @@ public enum ClaimKind
     /// <summary>One changed bytes at the start of a method, where the other's hook or Harmony patch writes its jump.</summary>
     BytesUnderHook,
 
+    /// <summary>Both added their own entries to one list or text, so both sets of entries are kept.</summary>
+    BothAdd,
+
+    /// <summary>One wrote the whole field after the other added its entries to it, which can drop them. LastWord is the one that wrote.</summary>
+    SetAfterAdded,
+
+    /// <summary>One wrote the field and the other added its entries after that, so both are kept. LastWord is the one that added.</summary>
+    AddedAfterSet,
+
     /// <summary>A value this mod wrote is not in the table any more, and no mod that reports its changes wrote it. Found by the table check.</summary>
     WrittenOver,
 }
 
 /// <summary>
 /// One thing two mods both change. Where names it: "Config_Item 910001" for a row, "Config_Item 910001 price" for a
-/// value, "Type.Method" for code. Mine and Theirs are the two values of a SameValue (Theirs is what the table holds now
-/// for a WrittenOver); LastWord is the mod whose value the table holds.
+/// value or a list, "Type.Method" for code. Mine and Theirs are the two values of a SameValue (Theirs is what the table
+/// holds now for a WrittenOver); LastWord is the mod whose value the table holds, or whose change to a list came last.
 /// </summary>
 public sealed record ClaimClash(ClaimKind Kind, PatchRisk Risk, string Where, string? Mine = null, string? Theirs = null, string? LastWord = null);
 
@@ -84,6 +93,8 @@ public static class ClaimClashes
                 }
             }
         }
+
+        FindListClashes(claims, found);
 
         foreach (var group in claims.Hooks.GroupBy(hook => hook.Method, StringComparer.Ordinal))
         {
@@ -148,6 +159,34 @@ public static class ClaimClashes
     /// <summary>Both lists merged per mod pair, so a mod's clashes with one other mod read as one block.</summary>
     public static IReadOnlyDictionary<string, IReadOnlyList<ClaimOverlap>> Merge(IReadOnlyDictionary<string, IReadOnlyList<ClaimOverlap>> a, IReadOnlyDictionary<string, IReadOnlyList<ClaimOverlap>> b) =>
         Grouped(a.Concat(b).SelectMany(pair => pair.Value.SelectMany(overlap => overlap.Clashes.Select(clash => (pair.Key, overlap.Guid, clash)))).ToList());
+
+    /// <summary>
+    /// Mods that add their own entries to a list keep each other's, so that is harmless. A mod that writes the whole
+    /// field after another added to it may have dropped those entries; one that wrote it before kept them.
+    /// </summary>
+    private static void FindListClashes(ClaimSet claims, List<(string Guid, string Other, ClaimClash Clash)> found)
+    {
+        var writes = claims.Fields.ToLookup(field => (field.Table, field.Row, field.Field));
+
+        foreach (var group in claims.Entries.GroupBy(entry => (entry.Table, entry.Row, entry.Field)))
+        {
+            var where = group.Key.Table + " " + group.Key.Row + " " + group.Key.Field;
+
+            foreach (var (mine, theirs) in Pairs(group.Select(entry => entry.Guid))) found.Add((mine, theirs, new ClaimClash(ClaimKind.BothAdd, PatchRisk.Harmless, where)));
+
+            foreach (var added in group)
+            {
+                foreach (var write in writes[group.Key].Where(write => write.Guid != added.Guid))
+                {
+                    var clash = write.Order > added.Order
+                        ? new ClaimClash(ClaimKind.SetAfterAdded, PatchRisk.LikelyClash, where, LastWord: write.Guid)
+                        : new ClaimClash(ClaimKind.AddedAfterSet, PatchRisk.Harmless, where, LastWord: added.Guid);
+
+                    Both(found, added.Guid, write.Guid, clash);
+                }
+            }
+        }
+    }
 
     private static void Both(List<(string Guid, string Other, ClaimClash Clash)> found, string a, string b, ClaimClash clash)
     {
