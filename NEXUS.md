@@ -1,5 +1,5 @@
 Name: Mod Manager
-Summary: An in-game Mods screen. See every installed mod, turn mods on or off, change their settings, install updates and browse Nexus mods without leaving the game. It also shows which mods clash, finds the mod behind a crash, and warns about mods that may not fit your game version or are installed wrong. Works with every BepInEx mod. Needs Exiled's Toolkit.
+Summary: An in-game Mods screen. See every installed mod, turn mods on or off, change settings, install updates and browse Nexus mods without leaving the game. It also shows which mods clash, finds the mod behind a crash, and warns about mods that may not fit your game version or are installed wrong. Works with every BepInEx mod. Needs Exiled's Toolkit.
 
 Description (BBCode):
 [center][img]https://sldb.core-directive.com/media/save/1-save-safe.png[/img][/center]
