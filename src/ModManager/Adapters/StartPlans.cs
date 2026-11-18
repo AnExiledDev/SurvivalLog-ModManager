@@ -110,8 +110,8 @@ internal sealed class StartPlans
 
         var safe = CulpritSearch.SafeStart(mods);
 
-        Failed = Lay(safe.Off.ToDictionary(guid => guid, _ => false));
-        Begin(safe);
+        // The plan is saved before any DLL moves, so the next start always knows to put them back.
+        if (Begin(safe)) Failed = Lay(safe.Off.ToDictionary(guid => guid, _ => false));
     }
 
     public void FindCulprit()
@@ -122,8 +122,7 @@ internal sealed class StartPlans
 
         var round = CulpritSearch.Begin(DateTime.UtcNow.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture), mods);
 
-        Failed = Lay(CulpritSearch.Layout(round, round));
-        Begin(round);
+        if (Begin(round)) Failed = Lay(CulpritSearch.Layout(round, round));
     }
 
     /// <summary>The player says how the round this session runs went. A crash needs no answer: the next start notices it.</summary>
@@ -225,14 +224,21 @@ internal sealed class StartPlans
         _log("start plan now " + Describe(next));
     }
 
-    private void Begin(StartPlan plan)
+    /// <summary>False when the plan could not be saved; then nothing is set and no DLL may move.</summary>
+    private bool Begin(StartPlan plan)
     {
+        if (!_planFile.Save(PlanText.Write(plan)))
+        {
+            _log("could not save the start plan, so no mod was moved: " + Describe(plan));
+            return false;
+        }
+
         _plan = plan;
         _answers = null;
         _hasRoundCrashed = false;
         _shown = null;
-        Save();
         _log("start plan set: " + Describe(plan));
+        return true;
     }
 
     private void End()

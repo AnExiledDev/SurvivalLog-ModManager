@@ -4,6 +4,8 @@
 
 - **Warning:** needs Exiled's Toolkit 0.28.0 or newer. Update the Toolkit first.
 - The Conflicts tab now knows when mods that report their changes through Exiled's Toolkit add their own entries to one list, like a shop's stock. Two mods that each add theirs are marked harmless, since the game keeps both. A mod that replaces the whole list after another mod added to it is marked likely to clash, since what the other mod added may be gone.
+- Fixed: while SAFE START or FIND THE PROBLEM MOD is moving a mod's file, that mod can no longer be updated or rolled back. INSTALL ALL UPDATES skips it until you press STOP.
+- Fixed: if SAFE START or FIND THE PROBLEM MOD can't save its plan, it now moves no mods, so the next start can't lose track of them.
 - Made for Survival Log 1.1.21271.
 
 ## 0.21.0

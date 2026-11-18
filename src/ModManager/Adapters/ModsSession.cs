@@ -248,9 +248,16 @@ internal sealed class ModsSession
             case PageCommand.OpenNexus openNexus:
                 Open(_catalog.Mod(openNexus.Guid)?.Known.Nexus is { } nexus ? NexusApi.PageUrl(nexus.ModId) : null);
                 break;
+            // A mod SAFE START or FIND THE PROBLEM MOD is moving keeps its file until that ends, so it is not updated or rolled back either.
+            case PageCommand.Install install when _starts.IsHolding(install.Guid):
+                ShowAfter(HeldNote(install.Guid));
+                break;
             case PageCommand.Install install:
                 StartInstall(install.Guid);
                 RefreshOpen();
+                break;
+            case PageCommand.ApproveInstall approve when _starts.IsHolding(approve.Guid):
+                ShowAfter(HeldNote(approve.Guid));
                 break;
             case PageCommand.ApproveInstall approve:
                 ApproveInstall(approve.Guid);
@@ -259,11 +266,14 @@ internal sealed class ModsSession
             case PageCommand.InstallAll:
                 InstallAll();
                 break;
+            case PageCommand.RollBack rollBack when _starts.IsHolding(rollBack.Guid):
+                ShowAfter(HeldNote(rollBack.Guid));
+                break;
             case PageCommand.RollBack rollBack:
                 RollBack(rollBack.Guid);
                 break;
             case PageCommand.RollForward forward:
-                ShowAfter(RollForward(forward.Guid));
+                ShowAfter(_starts.IsHolding(forward.Guid) ? HeldNote(forward.Guid) : RollForward(forward.Guid));
                 break;
             case PageCommand.OpenDiscord:
                 Open(ModdingDiscord);
@@ -713,7 +723,7 @@ internal sealed class ModsSession
     /// <summary>Every update not installed yet, failed ones again; the installs run side by side.</summary>
     private void InstallAll()
     {
-        var waiting = _catalog.Mods().Where(mod => mod.Update is UpdateState.Available && mod.Install is InstallState.None or InstallState.Failed && mod.Rollback is not RollbackState.Done && mod.Known.UpdateHeld == null).ToList();
+        var waiting = _catalog.Mods().Where(mod => mod.Update is UpdateState.Available && mod.Install is InstallState.None or InstallState.Failed && mod.Rollback is not RollbackState.Done && mod.Known.UpdateHeld == null && !_starts.IsHolding(mod.Guid)).ToList();
 
         _log("installing all " + waiting.Count + " updates");
 
