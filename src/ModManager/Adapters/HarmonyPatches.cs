@@ -15,7 +15,8 @@ internal static class HarmonyPatches
 {
     /// <param name="pluginOf">A loaded plugin's GUID by the assembly it was loaded from.</param>
     /// <param name="guids">Every loaded plugin's GUID, for patches whose Harmony id is the plugin's GUID.</param>
-    public static IReadOnlyList<PatchedMethod> Shared(IReadOnlyDictionary<Assembly, string> pluginOf, IReadOnlyCollection<string> guids, Action<string> report)
+    /// <returns>Every game method a loaded plugin patches, with all the plugins' patches on it.</returns>
+    public static IReadOnlyList<PatchedMethod> Patched(IReadOnlyDictionary<Assembly, string> pluginOf, IReadOnlyCollection<string> guids, Action<string> report)
     {
         var found = new List<(MethodBase Method, List<PatchUse> Uses)>();
 
@@ -27,7 +28,7 @@ internal static class HarmonyPatches
 
                 var uses = UsesOf(method, info, patch => OwnerOf(patch, pluginOf, guids));
 
-                if (uses.Select(use => use.Guid).Distinct().Count() > 1) found.Add((method, uses));
+                if (uses.Count > 0) found.Add((method, uses));
             }
         }
         catch (Exception ex)
@@ -114,7 +115,7 @@ internal static class HarmonyPatches
     private static bool IsGameArgumentByRef(ParameterInfo parameter) =>
         parameter.ParameterType.IsByRef && parameter.Name is { } name && (!name.StartsWith("__", StringComparison.Ordinal) || name.Length > 2 && name.Skip(2).All(char.IsDigit));
 
-    /// <summary>"Type.Method", with the parameter types added when two shared methods would otherwise read the same.</summary>
+    /// <summary>"Type.Method", with the parameter types added when two patched methods would otherwise read the same.</summary>
     private static IReadOnlyList<PatchedMethod> Named(IReadOnlyList<(MethodBase Method, List<PatchUse> Uses)> found)
     {
         var overloaded = found.GroupBy(pair => ShortName(pair.Method)).Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet();

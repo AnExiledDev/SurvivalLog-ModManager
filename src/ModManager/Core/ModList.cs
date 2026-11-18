@@ -135,6 +135,9 @@ public sealed record ModEntry(string Guid, string Name, string Version, string F
     /// <summary>The other mods that patch some of the same game methods.</summary>
     public IReadOnlyList<PatchOverlap> PatchOverlaps { get; init; } = Array.Empty<PatchOverlap>();
 
+    /// <summary>The other mods that reported changing some of the same table rows, values or game code, and values of its own the table check found written over.</summary>
+    public IReadOnlyList<ClaimOverlap> ClaimClashes { get; init; } = Array.Empty<ClaimOverlap>();
+
     /// <summary>The game versions the mod's author lists this version of it as working on, besides the ones it was made for.</summary>
     public IReadOnlyList<string> ListedGameVersions { get; init; } = Array.Empty<string>();
 
@@ -191,7 +194,17 @@ public sealed record ModsView(IReadOnlyList<ModEntry> Mods, IReadOnlyList<string
     public BrowseFeed BrowseFeed { get; init; } = BrowseFeed.Off;
 
     public ProfilesView Profiles { get; init; } = ProfilesView.Empty;
+
+    /// <summary>The game's hotkeys as the player bound them, so a mod's hotkey on one of those keys can be shown as a clash.</summary>
+    public IReadOnlyList<GameKeyBinding> GameKeys { get; init; } = Array.Empty<GameKeyBinding>();
 }
+
+/// <summary>
+/// One of the game's hotkey actions and its key, by its KeyCode name ("B", "Tab"). The game ignores held keys, so a
+/// mod's "B + LeftControl" also presses the game's B.
+/// </summary>
+/// <param name="Label">The action's name as the game's key settings show it.</param>
+public sealed record GameKeyBinding(string Action, string Key, string Label);
 
 /// <summary>
 /// Remembers each setting's value from the first time this game session read it, so the page can say what changed

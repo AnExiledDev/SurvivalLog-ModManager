@@ -11,10 +11,11 @@
     <ToolkitSrc>$([System.IO.Path]::GetDirectoryName($([System.IO.Path]::GetDirectoryName($([System.IO.Path]::GetDirectoryName('$(ToolkitDll)'))))))</ToolkitSrc>
   </PropertyGroup>
 
-  <!-- The pure core is compiled straight in, with the Toolkit's plain helper it uses, so the tests need none of the game or BepInEx assemblies. -->
+  <!-- The pure core is compiled straight in, with the Toolkit's plain helpers it uses, so the tests need none of the game or BepInEx assemblies. -->
   <ItemGroup>
     <Compile Include="..\..\src\ModManager\Core\*.cs" Link="Core\%(Filename)%(Extension)" />
     <Compile Include="$(ToolkitSrc)\Core\ShareCodec.cs" Link="Toolkit\ShareCodec.cs" />
+    <Compile Include="$(ToolkitSrc)\Core\ClaimBook.cs" Link="Toolkit\ClaimBook.cs" />
   </ItemGroup>
 
   <!-- The adapters that only read files and DLLs are tested against real ones; Mono.Cecil comes from the game's BepInEx. -->

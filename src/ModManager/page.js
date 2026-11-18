@@ -24,6 +24,7 @@
       noSettingsTitle: 'NO SETTINGS', noSettingsBody: 'This mod has nothing to set.',
       mayRestart: 'MAY NEED RESTART', resetTo: v => 'Reset to ' + v, pressKey: 'PRESS A KEY', none: 'None',
       alsoUsed: list => 'Also used by ' + list + '.', readOnly: 'Read only',
+      gameKey: label => 'the game (' + label + ')',
       worldSet: v => 'This world keeps its own value. Every other world uses ' + v + '.', worldGlobal: 'Changes here are for every world.',
       useGlobal: 'USE GLOBAL', keepWorld: 'THIS WORLD ONLY',
       footerNone: 'No changes this session. Everything saves the moment you change it.',
@@ -86,6 +87,20 @@
       thisModInLine: 'this mod',
       sharedCount: n => n === 1 ? '1 shared' : n + ' shared',
       moreMethods: n => 'and ' + n + ' more',
+      claimsTitle: 'Change the same things',
+      claimsWhy: 'These change the same game data or code as this one. The line under each one says what happens.',
+      unreportedMod: 'Unknown mod',
+      claimWhat: { sameRow: 'same row', sameValue: 'same value', bothHook: 'both hook it', hookAndPatch: 'hook and Harmony patch', sameBytes: 'same code bytes', bytesUnderHook: 'code under a hook', writtenOver: 'written over' },
+      claim: {
+        sameRow: 'Both add a row with this id. Only one of the two can be in the game.',
+        sameValue: (mine, other, theirs, last) => 'This mod sets it to ' + mine + ' and ' + other + ' sets it to ' + theirs + '. The game has the value from ' + last + ', which wrote it last.',
+        sameValueSame: value => 'Both set it to ' + value + ', so it makes no difference.',
+        bothHook: 'Both hook this game method directly. A method takes only one hook like that, so one of them does not work.',
+        hookAndPatch: 'One hooks this game method directly and the other patches it with Harmony. That can crash the game or stop one of them from working.',
+        sameBytes: 'Both change the same bytes of this game method. Only the last change is there, so the other mod\'s change is lost.',
+        bytesUnderHook: 'One changes the start of this game method, right where the other\'s hook goes. One of them may not work, or the game may crash.',
+        writtenOver: (mine, now) => 'This mod set it to ' + mine + ', but the game now has ' + now + '. Another mod changed it, and that mod does not say what it changes.'
+      },
       needsProblem: list => 'It needs these, which are off, not installed or the wrong version, so it will not start: ' + list + '.',
       clashProblem: list => 'It does not work with these, which are on, so it will not start: ' + list + '.',
       turnOnNeeds: 'TURN ON WHAT IT NEEDS',
@@ -224,6 +239,7 @@
       noSettingsTitle: '无设置', noSettingsBody: '这个模组没有可以设置的内容。',
       mayRestart: '可能需要重启', resetTo: v => '恢复为 ' + v, pressKey: '请按一个键', none: '无',
       alsoUsed: list => '也被 ' + list + ' 使用。', readOnly: '只读',
+      gameKey: label => '游戏（' + label + '）',
       worldSet: v => '这个存档使用自己的值。其他存档使用 ' + v + '。', worldGlobal: '这里的改动对所有存档生效。',
       useGlobal: '使用全局', keepWorld: '仅限这个存档',
       footerNone: '本次没有修改。每项设置一改就会保存。',
@@ -286,6 +302,20 @@
       thisModInLine: '本模组',
       sharedCount: n => '共用 ' + n + ' 处',
       moreMethods: n => '另外 ' + n + ' 处',
+      claimsTitle: '修改了相同的内容',
+      claimsWhy: '这些模组与本模组修改了相同的游戏数据或代码。每处下方写明了会发生什么。',
+      unreportedMod: '未知模组',
+      claimWhat: { sameRow: '相同的行', sameValue: '相同的数值', bothHook: '都挂钩了它', hookAndPatch: '挂钩与 Harmony 补丁', sameBytes: '相同的代码字节', bytesUnderHook: '挂钩处的代码', writtenOver: '被改掉了' },
+      claim: {
+        sameRow: '两者都添加了这个编号的行，游戏中只能有其中一个。',
+        sameValue: (mine, other, theirs, last) => '本模组把它设为 ' + mine + '，' + other + ' 把它设为 ' + theirs + '。游戏用的是最后写入的' + last + '的值。',
+        sameValueSame: value => '两者都把它设为 ' + value + '，所以没有影响。',
+        bothHook: '两者都直接挂钩了这个游戏方法。一个方法只能有一个这样的挂钩，所以其中一个不起作用。',
+        hookAndPatch: '一方直接挂钩了这个游戏方法，另一方用 Harmony 给它打了补丁。这可能让游戏崩溃，或让其中一个不起作用。',
+        sameBytes: '两者都修改了这个游戏方法中相同的字节。只有最后的修改还在，另一个模组的修改丢失了。',
+        bytesUnderHook: '一方修改了这个游戏方法的开头，正是另一方挂钩的位置。其中一个可能不起作用，游戏也可能崩溃。',
+        writtenOver: (mine, now) => '本模组把它设为 ' + mine + '，但游戏里现在是 ' + now + '。另一个模组改了它，而那个模组不说明自己改了什么。'
+      },
       needsProblem: list => '它需要的以下模组已关闭、未安装或版本不符，所以它不会启动：' + list + '。',
       clashProblem: list => '它与以下已开启的模组不兼容，所以它不会启动：' + list + '。',
       turnOnNeeds: '开启它需要的模组',
@@ -2015,9 +2045,9 @@
     const knownBlock = c => '<div class="cf-mod likely"><div class="cf-head"><span class="rel" data-mod="' + esc(c.guid) + '">' + esc(otherName(c)) + '</span></div><div class="cf-why">' + esc(textOf(c)) + '</div></div>';
     const known = m.known.conflicts.length ? '<div class="sec"><div class="sec-t">' + esc(word('knownConflicts')) + '</div><div class="cf-why">' + esc(word('knownConflictsWhy')) + '</div>' + m.known.conflicts.map(knownBlock).join('') + '</div>' : '';
 
-    if (!m.patchOverlaps.length) return '<div class="cf">' + known + '</div>';
+    if (!m.patchOverlaps.length) return '<div class="cf">' + known + claimsSection(m) + '</div>';
 
-    let html = '<div class="cf">' + known + '<div class="cf-intro">' + esc(word('conflictsIntro')) + '</div><div class="cf-sum">' + risks.map(pill).join('') + '</div>';
+    let html = '<div class="cf">' + known + claimsSection(m) + '<div class="cf-intro">' + esc(word('conflictsIntro')) + '</div><div class="cf-sum">' + risks.map(pill).join('') + '</div>';
 
     for (const risk of risks) {
       const members = m.patchOverlaps.filter(o => o.risk === risk);
@@ -2026,6 +2056,29 @@
     }
 
     return html + '</div>';
+  }
+
+  // Mods that change the same table rows, values or game code as this one, by what each tells the Toolkit, and this
+  // mod's values that the game data check found changed by a mod that tells nothing (its guid is empty).
+  function claimsSection(m) {
+    if (!m.claimClashes.length) return '';
+
+    const shown = 8;
+    const who = guid => guid === m.guid ? word('thisModInLine') : otherName({ guid });
+    const said = (o, c) => {
+      if (c.kind === 'sameValue') return c.lastWord ? word('claim').sameValue(c.mine, who(o.guid), c.theirs, who(c.lastWord)) : word('claim').sameValueSame(c.mine);
+
+      if (c.kind === 'writtenOver') return word('claim').writtenOver(c.mine, c.theirs);
+
+      return word('claim')[c.kind];
+    };
+    const row = (o, c) => '<div class="cf-m"><span class="rd ' + c.risk + '"></span><span class="cf-name">' + esc(c.where) + '</span><span class="cf-eff">' + esc(word('claimWhat')[c.kind]) + '</span><span class="cf-r">' + esc(said(o, c)) + '</span></div>';
+    const head = o => o.guid ? '<span class="rel" data-mod="' + esc(o.guid) + '">' + esc(otherName(o)) + '</span>' : '<span class="rel">' + esc(word('unreportedMod')) + '</span>';
+    const block = o => '<div class="cf-mod ' + o.risk + '"><div class="cf-head">' + head(o) + '<span class="cf-count">' + esc(word('sharedCount')(o.clashes.length)) + '</span></div>' +
+      o.clashes.slice(0, shown).map(c => row(o, c)).join('') +
+      (o.clashes.length > shown ? '<div class="cf-more">' + esc(word('moreMethods')(o.clashes.length - shown)) + '</div>' : '') + '</div>';
+
+    return '<div class="sec"><div class="sec-t">' + esc(word('claimsTitle')) + '</div><div class="cf-why">' + esc(word('claimsWhy')) + '</div>' + m.claimClashes.map(block).join('') + '</div>';
   }
 
   // The Errors tab: what this mod logged this session, and any game method it went through that another mod patches too.
@@ -2186,9 +2239,9 @@
     return buttons.length ? '<div class="links">' + buttons.join('') + '</div>' : '';
   }
 
-  // Mods known not to work with this one, and mods that patch the same game code.
+  // Mods known not to work with this one, mods that change the same game data or code, and mods that patch the same game code.
   function conflictCount(m) {
-    return m.known.conflicts.length + m.patchOverlaps.length;
+    return m.known.conflicts.length + m.claimClashes.length + m.patchOverlaps.length;
   }
 
   // A tab per settings section once there are two, then a Changelog tab when the mod names one the page can show,
@@ -2206,7 +2259,7 @@
     const sideTab = (side, inner) => '<div class="tab tab-x' + (state.side === side ? ' on' : '') + '" data-side="' + esc(side) + '">' + inner + '</div>';
     const shown = shownSettings(m);
     const sectionTabs = names.length < 2 ? '' : names.map(n => tab(n, n, shown.filter(s => s.section === n))).join('');
-    const worst = m.known.conflicts.length ? 'likely' : ['likely', 'may', 'harmless'].find(risk => m.patchOverlaps.some(o => o.risk === risk));
+    const worst = m.known.conflicts.length ? 'likely' : ['likely', 'may', 'harmless'].find(risk => m.claimClashes.concat(m.patchOverlaps).some(o => o.risk === risk));
     const ownTabsHtml = own.map(t => sideTab(OWN_SIDE + t.id, esc(ownTitle(t)))).join('');
     const changelogTab = hasChangelog ? sideTab('changelog', esc(word('tabChangelog'))) : '';
     const conflictsTab = hasConflicts ? sideTab('conflicts', esc(word('tabConflicts')) + ' <i>' + conflictCount(m) + '</i><span class="rd ' + worst + '"></span>') : '';
@@ -3141,6 +3194,7 @@
   }
 
   // Every hotkey setting, in any mod, set to exactly these keys, and every running mod's fixed hotkey on them, but self.
+  // Then the game's hotkeys on the main key: the game ignores held keys, so Ctrl+B also opens what B opens.
   function keyUsers(keys, m, self) {
     const others = [];
     const name = (mod, label) => (mod === m ? label : nameOf(mod) + ' (' + label + ')');
@@ -3155,6 +3209,12 @@
       for (const fixed of mod.hotkeys) {
         if (fixed.keys === keys && fixed !== self) others.push(name(mod, state.lang === 'zh' ? fixed.zh : fixed.en));
       }
+    }
+
+    const main = keys.split(' + ')[0];
+
+    for (const game of (state.view && state.view.gameKeys) || []) {
+      if (game.key === main) others.push(word('gameKey')(game.label));
     }
 
     return others;

@@ -97,6 +97,7 @@ public static class PageScript
         json.Append(",\"browseFeed\":").Append(Str(view.BrowseFeed.ToString().ToLowerInvariant()));
         json.Append(",\"browse\":").Append(List(view.Browse, BrowseJson));
         json.Append(",\"profiles\":").Append(ProfilesJson(view.Profiles));
+        json.Append(",\"gameKeys\":").Append(List(view.GameKeys, key => "{\"action\":" + Str(key.Action) + ",\"key\":" + Str(key.Key) + ",\"label\":" + Str(key.Label) + "}"));
 
         return json.Append('}').ToString();
     }
@@ -125,6 +126,7 @@ public static class PageScript
         json.Append(",\"relations\":").Append(List(mod.Relations, RelationJson));
         json.Append(",\"dependents\":").Append(List(mod.Dependents, RelationJson));
         json.Append(",\"patchOverlaps\":").Append(List(mod.PatchOverlaps, OverlapJson));
+        json.Append(",\"claimClashes\":").Append(List(mod.ClaimClashes, ClaimOverlapJson));
         json.Append(",\"errors\":").Append(List(mod.Errors, ErrorJson));
         json.Append(",\"install\":").Append(InstallJson(mod.Install));
         json.Append(",\"rollback\":").Append(RollbackJson(mod.Rollback, mod.Version));
@@ -325,6 +327,22 @@ public static class PageScript
         "{\"guid\":" + Str(overlap.Guid) + ",\"risk\":" + Str(RiskName(overlap.Risk)) + ",\"methods\":" + List(overlap.Methods, method =>
             "{\"name\":" + Str(method.Method) + ",\"risk\":" + Str(RiskName(method.Risk)) + ",\"mine\":" + List(method.Mine, effect => Str(EffectName(effect))) + ",\"theirs\":" + List(method.Theirs, effect => Str(EffectName(effect))) + ",\"reason\":" + Str(ReasonName(method.Reason)) + ",\"lastWord\":" + (method.LastWord == null ? "null" : Str(method.LastWord)) + "}") + "}";
 
+    private static string ClaimOverlapJson(ClaimOverlap overlap) =>
+        "{\"guid\":" + Str(overlap.Guid) + ",\"risk\":" + Str(RiskName(overlap.Risk)) + ",\"clashes\":" + List(overlap.Clashes, clash =>
+            "{\"kind\":" + Str(ClaimKindName(clash.Kind)) + ",\"risk\":" + Str(RiskName(clash.Risk)) + ",\"where\":" + Str(clash.Where) + ",\"mine\":" + StrOrNull(clash.Mine) + ",\"theirs\":" + StrOrNull(clash.Theirs) + ",\"lastWord\":" + StrOrNull(clash.LastWord) + "}") + "}";
+
+    private static string ClaimKindName(ClaimKind kind) => kind switch
+    {
+        ClaimKind.SameRow => "sameRow",
+        ClaimKind.SameValue => "sameValue",
+        ClaimKind.BothHook => "bothHook",
+        ClaimKind.HookAndPatch => "hookAndPatch",
+        ClaimKind.SameBytes => "sameBytes",
+        ClaimKind.BytesUnderHook => "bytesUnderHook",
+        ClaimKind.WrittenOver => "writtenOver",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+    };
+
     private static string ErrorJson(ModProblem error) =>
         "{\"level\":" + Str(error.Problem.Level == ProblemLevel.Error ? "error" : "warning") +
         ",\"source\":" + Str(error.Problem.Source) +
@@ -478,6 +496,8 @@ public static class PageScript
     private static string Call(string method, string arguments) => Api + "&&" + Api + "." + method + "(" + arguments + ")";
 
     private static string List<T>(IEnumerable<T> items, Func<T, string> write) => "[" + string.Join(",", items.Select(write)) + "]";
+
+    private static string StrOrNull(string? value) => value == null ? "null" : Str(value);
 
     private static string Bool(bool value) => value ? "true" : "false";
 

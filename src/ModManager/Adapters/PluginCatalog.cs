@@ -85,7 +85,9 @@ internal sealed class PluginCatalog
     {
         var nodes = Nodes();
         var mods = Plugins().Select(plugin => Entry(plugin, nodes)).Concat(OffAtStart().Select(OffEntry)).ToList();
-        var overlaps = PatchOverlaps.Find(SharedPatches());
+        var patched = PatchedMethods();
+        var overlaps = PatchOverlaps.Find(patched);
+        var claimClashes = ClaimClashes.Merge(ClaimClashes.Find(Claims.All(), patched), WrittenOver);
         var declaredBy = mods.Select(mod => mod.Guid).Distinct().ToDictionary(guid => guid, DeclaredOf);
         var errors = ProblemOwners.Assign(_errors.All(), Owners(mods), overlaps);
         var installed = mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal);
@@ -95,6 +97,7 @@ internal sealed class PluginCatalog
             Relations = RelationResolver.Resolve(declaredBy[mod.Guid], mods, IsInRange),
             Dependents = RelationResolver.Dependents(mod.Guid, declaredBy, mods),
             PatchOverlaps = overlaps.TryGetValue(mod.Guid, out var shared) ? shared : Array.Empty<PatchOverlap>(),
+            ClaimClashes = claimClashes.TryGetValue(mod.Guid, out var sameThings) ? sameThings : Array.Empty<ClaimOverlap>(),
             Errors = errors.ByMod.TryGetValue(mod.Guid, out var own) ? own : Array.Empty<ModProblem>(),
             Known = KnownFactsOf.For(mod, _updates.Index, _updates.Nexus, installed, HashOf(mod.Guid)),
             Fit = _fitOf(HashOf(mod.Guid)),
@@ -123,8 +126,14 @@ internal sealed class PluginCatalog
         return dot < 0 ? "" : name.Substring(0, dot);
     }
 
+    /// <summary>
+    /// The values mods reported writing that the last table check found written over, by the mod whose value it was.
+    /// Empty until the tables are checked.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<ClaimOverlap>> WrittenOver { get; set; } = new Dictionary<string, IReadOnlyList<ClaimOverlap>>();
+
     /// <summary>Read fresh each time: a mod may patch late, or unpatch when it reloads.</summary>
-    private IReadOnlyList<PatchedMethod> SharedPatches()
+    private IReadOnlyList<PatchedMethod> PatchedMethods()
     {
         var loaded = Plugins().Where(plugin => plugin.Instance != null).ToList();
         var pluginOf = new Dictionary<Assembly, string>();
@@ -134,7 +143,7 @@ internal sealed class PluginCatalog
             pluginOf.TryAdd(plugin.Instance.GetType().Assembly, plugin.Metadata.GUID);
         }
 
-        return HarmonyPatches.Shared(pluginOf, loaded.Select(plugin => plugin.Metadata.GUID).ToHashSet(), message => ReportOnce("patches", message));
+        return HarmonyPatches.Patched(pluginOf, loaded.Select(plugin => plugin.Metadata.GUID).ToHashSet(), message => ReportOnce("patches", message));
     }
 
     /// <summary>The icons of every mod that embeds a usable one, read once: DLLs do not change their pictures while the game runs.</summary>

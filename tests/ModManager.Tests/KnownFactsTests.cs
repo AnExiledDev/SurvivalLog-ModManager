@@ -194,14 +194,16 @@ public class KnownFactsTests
 
     internal static string Drawn(Engine engine) => engine.Evaluate("drawn.join('\\n')").AsString();
 
-    internal static Engine Open(params ModEntry[] mods)
+    internal static Engine Open(params ModEntry[] mods) => Open(new ModsView(mods, Array.Empty<string>(), false, "F10"));
+
+    internal static Engine Open(ModsView view)
     {
         var engine = new Engine();
 
         engine.Execute(Resource("ModManager.Tests.PageFake.js"));
         engine.Execute(ItemFieldPageTests.StandIns);
         engine.Execute(Resource("ModManager.page.js"));
-        engine.Execute(PageScript.Open(new ModsView(mods, Array.Empty<string>(), false, "F10")));
+        engine.Execute(PageScript.Open(view));
 
         return engine;
     }

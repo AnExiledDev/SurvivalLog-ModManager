@@ -21,7 +21,7 @@ public sealed class Plugin : BasePlugin
     public const string Version = "0.20.10";
 
     /// <summary>The Toolkit version whose internals this build was made against.</summary>
-    private const string ToolkitVersion = ">=0.21.0";
+    private const string ToolkitVersion = ">=0.25.0";
 
     internal const string EscButtonId = "modmanager.mods";
     internal const string TitleButtonId = "modmanager.title";

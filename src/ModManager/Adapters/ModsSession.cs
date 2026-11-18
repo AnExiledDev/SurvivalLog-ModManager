@@ -824,7 +824,23 @@ internal sealed class ModsSession
             Browse = _isCheckingForUpdates() ? Browse.List(_updates.Nexus, _updates.Index, mods.Select(mod => mod.Guid).ToHashSet(StringComparer.Ordinal), Browse.InstalledNexusIds(mods, _updates.Index), _updates.InstallOf, _updates.FreshOf, _isUsingWikiCopies()) : Array.Empty<BrowseMod>(),
             BrowseFeed = !_isCheckingForUpdates() ? BrowseFeed.Off : _nexus.IsAsking || !_checks.IsIndexSettled ? BrowseFeed.Asking : BrowseFeed.Ready,
             Profiles = IsProfilesRead() ? new ProfilesView(Profiles(), ShownCheck(mods), _profileProblem, _profileNote) : new ProfilesView(Array.Empty<Profile>(), ShownCheck(mods), _profileProblem, ProfileNotes.Unreadable),
+            GameKeys = GameKeyBindings(),
         };
+    }
+
+    /// <summary>The game's hotkeys, or none when they cannot be read: the screen still opens, with no clashes against them shown.</summary>
+    private IReadOnlyList<GameKeyBinding> GameKeyBindings()
+    {
+        try
+        {
+            return GameKeys.All().Select(key => new GameKeyBinding(key.Action, key.Key.ToString(), key.Label)).ToList();
+        }
+        catch (Exception e)
+        {
+            _log("could not read the game's hotkeys, so the Mods screen shows no clashes with them: " + e.Message);
+
+            return Array.Empty<GameKeyBinding>();
+        }
     }
 
     /// <summary>Opens the Mods screen: the Mods button in the Esc menu and on the title screen runs this.</summary>
