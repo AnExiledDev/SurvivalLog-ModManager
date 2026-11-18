@@ -217,9 +217,9 @@ public class PageScriptTests
     }
 
     [Fact]
-    public void Shared_patches_send_the_other_mod_the_risk_and_what_each_mod_does()
+    public void Shared_patches_send_the_other_mod_the_risk_what_each_mod_does_and_why()
     {
-        var method = new SharedMethod("Player.TakeDamage", PatchRisk.MayClash, new[] { PatchEffect.CanSkip }, new[] { PatchEffect.RunsBefore, PatchEffect.RunsAfter });
+        var method = new SharedMethod("Player.TakeDamage", PatchRisk.MayClash, new[] { PatchEffect.CanSkip }, new[] { PatchEffect.RunsBefore, PatchEffect.SetsResult }, ClashReason.Skips);
         using var json = JsonDocument.Parse(PageScript.ModJson(Loaded() with { PatchOverlaps = new[] { new PatchOverlap("com.b", PatchRisk.MayClash, new[] { method }) } }));
         var overlap = json.RootElement.GetProperty("patchOverlaps")[0];
         var sent = overlap.GetProperty("methods")[0];
@@ -228,7 +228,9 @@ public class PageScriptTests
         Assert.Equal("may", overlap.GetProperty("risk").GetString());
         Assert.Equal("Player.TakeDamage", sent.GetProperty("name").GetString());
         Assert.Equal("skip", sent.GetProperty("mine")[0].GetString());
-        Assert.Equal("after", sent.GetProperty("theirs")[1].GetString());
+        Assert.Equal("result", sent.GetProperty("theirs")[1].GetString());
+        Assert.Equal("skip", sent.GetProperty("reason").GetString());
+        Assert.Equal(JsonValueKind.Null, sent.GetProperty("lastWord").ValueKind);
     }
 
     [Fact]

@@ -70,11 +70,20 @@
       conflictsIntro: 'Other mods that patch the same game code as this one. This shows where to look when mods misbehave together, but it does not mean there is a problem. If two mods act up while both are on, try turning one off.',
       risk: { likely: 'LIKELY TO CLASH', may: 'MAY CLASH', harmless: 'PROBABLY HARMLESS' },
       riskWhy: {
-        likely: 'Both mods rewrite the same game code, so one may break what the other expects to find.',
-        may: 'At least one mod can skip or rewrite the game code. They usually work together, but one may change what the other expects.',
-        harmless: 'Both mods only add their own code before or after the game code. That rarely causes trouble.'
+        likely: 'Here one mod can cancel out what the other does. The line under each one says how.',
+        may: 'They usually work together, but one may change what the other expects. The line under each one says how.',
+        harmless: 'Neither mod can undo what the other does here. That rarely causes trouble.'
       },
-      effect: { before: 'runs before it', after: 'runs after it', skip: 'can skip it', rewrite: 'rewrites it' },
+      effect: { before: 'runs before it', after: 'runs after it', args: 'changes what it is given', result: 'changes what it returns', skip: 'can skip it', rewrite: 'changes the call to it' },
+      reason: {
+        bothResult: name => 'Both change what it returns. Only the last one to run counts, and that is ' + name + '.',
+        bothRewrite: 'Both change the call to it, so the second may not find what it looks for.',
+        skipRewrite: 'When one skips it, the other\'s change to the call never runs.',
+        bothArgs: 'Both change what it is given. The changes add up, one after the other.',
+        skip: 'When one skips it, the other may be counting on it having run.',
+        rewrite: 'One changes the call to it, and the other may count on the usual call.'
+      },
+      thisModInLine: 'this mod',
       sharedCount: n => n === 1 ? '1 shared' : n + ' shared',
       moreMethods: n => 'and ' + n + ' more',
       needsProblem: list => 'It needs these, which are off, not installed or the wrong version, so it will not start: ' + list + '.',
@@ -261,11 +270,20 @@
       conflictsIntro: '与本模组修改了相同游戏代码的其他模组。这只是模组一起出问题时的排查线索，不代表一定有问题。如果两个模组同时开启时出现异常，试着关闭其中一个。',
       risk: { likely: '很可能冲突', may: '可能冲突', harmless: '大概无害' },
       riskWhy: {
-        likely: '两个模组都改写了同一段游戏代码，一方可能会破坏另一方所依赖的内容。',
-        may: '至少有一个模组能跳过或改写这段游戏代码。它们通常可以一起使用，但一方可能会改变另一方所预期的结果。',
-        harmless: '两个模组都只是在这段游戏代码之前或之后加入自己的代码，很少引起问题。'
+        likely: '在这里一个模组可能抵消另一个模组的修改。每处下方写明了原因。',
+        may: '它们通常可以一起使用，但一方可能会改变另一方所预期的结果。每处下方写明了原因。',
+        harmless: '在这里两个模组都无法抵消对方的修改，很少引起问题。'
       },
-      effect: { before: '在它之前运行', after: '在它之后运行', skip: '可以跳过它', rewrite: '改写了它' },
+      effect: { before: '在它之前运行', after: '在它之后运行', args: '修改它收到的参数', result: '修改它的返回值', skip: '可以跳过它', rewrite: '修改了对它的调用' },
+      reason: {
+        bothResult: name => '两者都修改它的返回值。只有最后运行的那个有效，也就是' + name + '。',
+        bothRewrite: '两者都修改了对它的调用，后一个可能找不到它要找的内容。',
+        skipRewrite: '一方跳过它时，另一方对调用的修改就不会运行。',
+        bothArgs: '两者都修改它收到的参数，修改会依次叠加。',
+        skip: '一方跳过它时，另一方可能依赖它已经运行过。',
+        rewrite: '一方修改了对它的调用，另一方可能依赖原本的调用。'
+      },
+      thisModInLine: '本模组',
       sharedCount: n => '共用 ' + n + ' 处',
       moreMethods: n => '另外 ' + n + ' 处',
       needsProblem: list => '它需要的以下模组已关闭、未安装或版本不符，所以它不会启动：' + list + '。',
@@ -897,6 +915,7 @@
 #slmm .cf-name { font-family: var(--mono); font-size: .78rem; color: #ccc; }
 #slmm .cf-eff { font-size: .82rem; color: #888; }
 #slmm .cf-eff b { font-weight: 600; color: #aaa; }
+#slmm .cf-r { grid-column: 2 / 4; font-size: .78rem; color: #999; margin-top: -2px; }
 #slmm .fit-names { margin-top: 6px; font-family: var(--mono); font-size: .78rem; color: #ccc; line-height: 1.6; word-break: break-all; }
 #slmm .cf-more { font-family: var(--mono); font-size: .72rem; color: #666; padding: 3px 0 0 20px; }
 #slmm .er { border-left: 2px solid #e8813a; padding: 8px 0 8px 14px; margin: 12px 0; max-width: 900px; }
@@ -1981,7 +2000,10 @@
     const risks = ['likely', 'may', 'harmless'];
     const shown = 8;
     const effects = list => list.map(e => word('effect')[e]).join(', ');
-    const methodRow = (o, x) => '<div class="cf-m"><span class="rd ' + x.risk + '"></span><span class="cf-name">' + esc(x.name) + '</span><span class="cf-eff"><b>' + esc(word('thisMod')) + '</b> ' + esc(effects(x.mine)) + ' &middot; <b>' + esc(otherName(o)) + '</b> ' + esc(effects(x.theirs)) + '</span></div>';
+    const lastWordName = x => x.lastWord === m.guid ? word('thisModInLine') : otherName({ guid: x.lastWord });
+    const reasonText = x => x.reason === 'bothResult' ? word('reason').bothResult(lastWordName(x)) : word('reason')[x.reason];
+    const reasonLine = x => x.reason ? '<span class="cf-r">' + esc(reasonText(x)) + '</span>' : '';
+    const methodRow = (o, x) => '<div class="cf-m"><span class="rd ' + x.risk + '"></span><span class="cf-name">' + esc(x.name) + '</span><span class="cf-eff"><b>' + esc(word('thisMod')) + '</b> ' + esc(effects(x.mine)) + ' &middot; <b>' + esc(otherName(o)) + '</b> ' + esc(effects(x.theirs)) + '</span>' + reasonLine(x) + '</div>';
     const modBlock = o => '<div class="cf-mod ' + o.risk + '"><div class="cf-head"><span class="rel" data-mod="' + esc(o.guid) + '">' + esc(otherName(o)) + '</span><span class="cf-count">' + esc(word('sharedCount')(o.methods.length)) + '</span></div>' +
       o.methods.slice(0, shown).map(x => methodRow(o, x)).join('') +
       (o.methods.length > shown ? '<div class="cf-more">' + esc(word('moreMethods')(o.methods.length - shown)) + '</div>' : '') + '</div>';

@@ -223,6 +223,20 @@ public class ModProblemsTests
     }
 
     [Fact]
+    public void An_error_through_an_overload_named_with_its_parameters_still_finds_the_clash()
+    {
+        var problem = Logged(Error("Crafting Hub", "boom\nat CraftingHub.Patches.Hook.Prefix()\nat DMD<GameCore.Grid::Update>(GameCore.Grid this)"));
+        var overlaps = new Dictionary<string, IReadOnlyList<PatchOverlap>>
+        {
+            ["com.a.hub"] = new[] { new PatchOverlap("com.b.trap", PatchRisk.MayClash, new[] { Shared("Grid.Update(Single)") }) },
+        };
+
+        var (byMod, _) = ProblemOwners.Assign(new[] { problem }, Owners, overlaps);
+
+        Assert.Equal("Grid.Update", byMod["com.a.hub"].Single().Clashes.Single().Method);
+    }
+
+    [Fact]
     public void An_owned_error_through_a_shared_method_names_the_other_mods()
     {
         var problem = Logged(Error("Crafting Hub", "boom\nat CraftingHub.Patches.Hook.Prefix()\nat DMD<GameCore.Grid::Update>(GameCore.Grid this)"));

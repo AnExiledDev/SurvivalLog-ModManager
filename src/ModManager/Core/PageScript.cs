@@ -323,7 +323,7 @@ public static class PageScript
 
     private static string OverlapJson(PatchOverlap overlap) =>
         "{\"guid\":" + Str(overlap.Guid) + ",\"risk\":" + Str(RiskName(overlap.Risk)) + ",\"methods\":" + List(overlap.Methods, method =>
-            "{\"name\":" + Str(method.Method) + ",\"risk\":" + Str(RiskName(method.Risk)) + ",\"mine\":" + List(method.Mine, effect => Str(EffectName(effect))) + ",\"theirs\":" + List(method.Theirs, effect => Str(EffectName(effect))) + "}") + "}";
+            "{\"name\":" + Str(method.Method) + ",\"risk\":" + Str(RiskName(method.Risk)) + ",\"mine\":" + List(method.Mine, effect => Str(EffectName(effect))) + ",\"theirs\":" + List(method.Theirs, effect => Str(EffectName(effect))) + ",\"reason\":" + Str(ReasonName(method.Reason)) + ",\"lastWord\":" + (method.LastWord == null ? "null" : Str(method.LastWord)) + "}") + "}";
 
     private static string ErrorJson(ModProblem error) =>
         "{\"level\":" + Str(error.Problem.Level == ProblemLevel.Error ? "error" : "warning") +
@@ -345,9 +345,23 @@ public static class PageScript
     {
         PatchEffect.RunsBefore => "before",
         PatchEffect.RunsAfter => "after",
+        PatchEffect.ChangesArgs => "args",
+        PatchEffect.SetsResult => "result",
         PatchEffect.CanSkip => "skip",
         PatchEffect.Rewrites => "rewrite",
         _ => throw new ArgumentOutOfRangeException(nameof(effect), effect, null),
+    };
+
+    private static string ReasonName(ClashReason reason) => reason switch
+    {
+        ClashReason.None => "",
+        ClashReason.BothSetResult => "bothResult",
+        ClashReason.BothRewrite => "bothRewrite",
+        ClashReason.SkipDropsRewrite => "skipRewrite",
+        ClashReason.BothChangeArgs => "bothArgs",
+        ClashReason.Skips => "skip",
+        ClashReason.Rewrites => "rewrite",
+        _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null),
     };
 
     private static string RelationJson(Relation relation)

@@ -244,7 +244,7 @@ public static class ProblemOwners
     }
 
     private static IReadOnlyList<ClashHint> ClashesOf(Problem problem, IReadOnlyList<PatchOverlap> overlaps) =>
-        overlaps.SelectMany(overlap => overlap.Methods.Where(method => problem.Methods.Contains(method.Method)).Select(method => (method.Method, overlap.Guid)))
+        overlaps.SelectMany(overlap => overlap.Methods.Where(method => problem.Methods.Contains(method.Name)).Select(method => (Method: method.Name, overlap.Guid)))
             .GroupBy(pair => pair.Method)
             .Select(group => new ClashHint(group.Key, group.Select(pair => pair.Guid).Distinct().ToList()))
             .ToList();
