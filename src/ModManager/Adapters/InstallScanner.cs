@@ -21,6 +21,9 @@ internal sealed class InstallScanner
     private readonly string _config;
     private readonly Action<string> _log;
     private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
+    // A worker never writes to the BepInEx console; what it finds waits here for the next scan on the main thread.
+    private readonly List<string> _heldLines = new();
+    private readonly int _mainThread = Environment.CurrentManagedThreadId;
     private readonly Dictionary<string, (long Size, DateTime Written, string? Sha256, IReadOnlyList<string> Guids)> _plugin = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (long Size, DateTime Written, IReadOnlyList<string> Guids)> _patcher = new(StringComparer.OrdinalIgnoreCase);
 
@@ -43,7 +46,7 @@ internal sealed class InstallScanner
             }
             catch (Exception ex)
             {
-                _log("could not look at the BepInEx folder for the health check: " + ex.Message);
+                lock (_gate) _heldLines.Add("could not look at the BepInEx folder for the health check: " + ex.Message);
             }
         }) { IsBackground = true, Priority = ThreadPriority.BelowNormal, Name = "Mod Manager health check" }.Start();
 
@@ -53,6 +56,13 @@ internal sealed class InstallScanner
     {
         lock (_gate)
         {
+            if (Environment.CurrentManagedThreadId == _mainThread)
+            {
+                foreach (var line in _heldLines) _log(line);
+
+                _heldLines.Clear();
+            }
+
             var dlls = Files(_plugins, "*.dll").Select(PluginDll).ToList();
             var patchers = Files(_patchers, "*.dll").ToList();
             var patcherGuids = patchers.SelectMany(PatcherGuids);
@@ -168,6 +178,9 @@ internal sealed class InstallScanner
 
     private void ReportOnce(string key, string message)
     {
-        if (_reported.Add(key)) _log(message);
+        if (!_reported.Add(key)) return;
+
+        if (Environment.CurrentManagedThreadId == _mainThread) _log(message);
+        else _heldLines.Add(message);
     }
 }
