@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using ExiledToolkit.Game;
+using ExiledToolkit.Kit;
 using UnityEngine;
 
 namespace ModManager.Adapters;
@@ -29,7 +31,8 @@ public sealed class Ticker : MonoBehaviour
 
         try
         {
-            session.Update(Time.realtimeSinceStartup, Time.frameCount);
+            // Unity's clock and frame number through interop box their answer on every read.
+            session.Update(Clock.Now, UnityFrame.Count());
         }
         catch (Exception ex)
         {

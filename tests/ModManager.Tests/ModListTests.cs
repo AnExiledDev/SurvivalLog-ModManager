@@ -106,6 +106,28 @@ public class ModListTests
 
     private static readonly UpdateState NotChecked = new UpdateState.NotChecked();
 
+    [Fact]
+    public void A_setting_is_found_by_its_id_only_in_a_running_mod()
+    {
+        var settings = ModList.Arrange("g", new[] { Found("A", "Speed"), Found("A", "Mode") }, new StartValues());
+        var running = Mod("g", "G") with { State = new ModState.Loaded(settings) };
+        var mode = new SettingId("g", "A", "Mode");
+
+        Assert.Same(settings[1], ModList.SettingOf(running, mode));
+        Assert.Null(ModList.SettingOf(running, new SettingId("g", "A", "Missing")));
+        Assert.Null(ModList.SettingOf(Mod("g", "G"), mode));
+        Assert.Null(ModList.SettingOf(null, mode));
+    }
+
+    [Fact]
+    public void A_mod_is_found_in_a_list_by_its_guid()
+    {
+        var mods = new[] { Mod("a", "A"), Mod("b", "B") };
+
+        Assert.Same(mods[1], ModList.Find(mods, "b"));
+        Assert.Null(ModList.Find(mods, "c"));
+    }
+
     private static ModEntry Mod(string guid, string name) => new(guid, name, "1.0", guid + ".dll", new ModState.NotLoaded(), ModInfo.None, new ModSwitch.Unavailable(), NotChecked);
 
     [Fact]

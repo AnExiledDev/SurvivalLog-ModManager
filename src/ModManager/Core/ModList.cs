@@ -274,6 +274,13 @@ public static class ModList
     public static IReadOnlyList<ModEntry> SortByName(IEnumerable<ModEntry> mods) =>
         mods.OrderBy(mod => mod.DisplayName, StringComparer.OrdinalIgnoreCase).ThenBy(mod => mod.Guid, StringComparer.Ordinal).ToList();
 
+    /// <summary>The mod with this GUID in a list of mods, or null.</summary>
+    public static ModEntry? Find(IReadOnlyList<ModEntry> mods, string guid) => mods.FirstOrDefault(mod => mod.Guid == guid);
+
+    /// <summary>The mod's setting with this id, or null when there is no mod, it is not running, or it has no such setting.</summary>
+    public static Setting? SettingOf(ModEntry? mod, SettingId id) =>
+        mod?.State is ModState.Loaded loaded ? loaded.Settings.FirstOrDefault(setting => setting.Id == id) : null;
+
     /// <summary>Give-back lists whose ReturnsOf names no setting of the mod, for the log.</summary>
     public static IReadOnlyList<string> LinkProblems(IReadOnlyList<FoundSetting> settings) =>
         settings

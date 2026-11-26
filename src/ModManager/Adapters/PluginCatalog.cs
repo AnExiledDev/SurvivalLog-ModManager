@@ -205,7 +205,7 @@ internal sealed class PluginCatalog
     /// <summary>True when a turned-off DLL of this name waits at the top of an off folder, so a fresh copy would meet it when turned on.</summary>
     public bool IsOffThere(string dllName) => _folders.OffFolders.Any(folder => File.Exists(Path.Combine(folder, dllName)));
 
-    public ModEntry? Mod(string guid) => Mods().FirstOrDefault(mod => mod.Guid == guid);
+    public ModEntry? Mod(string guid) => ModList.Find(Mods(), guid);
 
     public ModLink? Link(string guid, LinkKind kind) => Mod(guid)?.Info.Link(kind);
 
@@ -399,8 +399,7 @@ internal sealed class PluginCatalog
         return entries.TryGetValue(new ConfigDefinition(id.Section, id.Key), out var entry) ? entry : null;
     }
 
-    public Setting? Setting(SettingId id) =>
-        Mod(id.Guid)?.State is ModState.Loaded loaded ? loaded.Settings.FirstOrDefault(setting => setting.Id == id) : null;
+    public Setting? Setting(SettingId id) => ModList.SettingOf(Mod(id.Guid), id);
 
     /// <summary>The assembly of a loaded plugin, or null when it is not loaded.</summary>
     public Assembly? AssemblyOf(string guid) => Find(guid)?.Instance?.GetType().Assembly;

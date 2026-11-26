@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.3
+
+- USE THIS SETUP and RESET ALL TO DEFAULT are faster. The Mod Manager now reads the list of mods once for the whole job instead of once for each setting.
+- The Mod Manager does a little less work on each frame. It no longer asks the game for the time.
+- Made for Survival Log 1.1.21671.
+
 ## 0.21.2
 
 - Fixed: after you uninstall a mod and remove its settings, searching the settings no longer lists that mod's settings. Changing one used to bring its settings file back, and RESTORE could then fail.

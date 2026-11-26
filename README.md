@@ -79,7 +79,7 @@ The Mod Manager adds nothing to your save and does not edit game files. It write
 
 ## Requirements
 
-- Survival Log 1.1.21271. Built and tested on this version. A game update can break it until the mod is updated.
+- Survival Log 1.1.21671. Built and tested on this version. A game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
 - [Exiled's Toolkit](https://www.nexusmods.com/survivallog/mods/61) 0.28.0 or later. The Mods screen does not open without it. Its UI size setting also draws the Mods screen bigger or smaller, and Mod Manager's own `UiScale` under Interface sets a size for this mod alone. At 0, the default, it follows the Toolkit's.
 
@@ -101,9 +101,9 @@ Settings live in `BepInEx\config\com.dev.survivallog.modmanager.cfg`, created th
 
 ## Troubleshooting
 
-Tested on Survival Log 1.1.21271 with BepInEx `6.0.0-be.788`.
+Tested on Survival Log 1.1.21671 with BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.21.2 started`. If it is missing, check that Exiled's Toolkit 0.28.0 or newer is installed: BepInEx does not load Mod Manager without it.
+Check `BepInEx\LogOutput.log` for `===== Mod Manager 0.21.3 started`. If it is missing, check that Exiled's Toolkit 0.28.0 or newer is installed: BepInEx does not load Mod Manager without it.
 
 - Every setting the screen changes is logged as `set <mod>/<section>/<key> from <old> to <new>`, and every DLL it moves as `turned off <mod> from the next start: moved <from> to <to>`.
 - Update checks log `checking GitHub for updates of <n> repositories`, then `latest release of <owner/repository>: <tag>` for each one, or the reason it could not be checked.

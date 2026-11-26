@@ -28,8 +28,8 @@ internal sealed class ModsSession
     private const int FramesAfterTyping = 2;
 
     /// <summary>Seconds between looks at new log errors, and between redraws of an open screen for them.</summary>
-    private const float ErrorLookSeconds = 1f;
-    private const float ErrorRedrawSeconds = 2f;
+    private const double ErrorLookSeconds = 1;
+    private const double ErrorRedrawSeconds = 2;
 
     private readonly WebPage _page;
     private readonly PluginCatalog _catalog;
@@ -62,8 +62,8 @@ internal sealed class ModsSession
     private bool _hasStarted;
     private bool _hasToldUpdates;
     private int _typingEndedAtFrame = -100;
-    private float _errorsLookedAt = float.MinValue;
-    private float _errorsDrawnAt = float.MinValue;
+    private double _errorsLookedAt = double.MinValue;
+    private double _errorsDrawnAt = double.MinValue;
 
     /// <summary>The error book's version the open screen last showed.</summary>
     private int _errorsShown;
@@ -118,7 +118,7 @@ internal sealed class ModsSession
         _profileFile = profileFile;
     }
 
-    public void Update(float now, int frame)
+    public void Update(double now, int frame)
     {
         if (!_hasStarted)
         {
@@ -692,8 +692,13 @@ internal sealed class ModsSession
         var (switched, installs, set) = (0, 0, 0);
         var failed = new List<string>();
 
+        // Building the mod list is slow, so a run of settings shares one. A switch or an install can change it.
+        IReadOnlyList<ModEntry>? listed = null;
+
         foreach (var step in steps)
         {
+            if (step is not ProfileStep.Set) listed = null;
+
             switch (step)
             {
                 case ProfileStep.TurnOn on:
@@ -709,7 +714,9 @@ internal sealed class ModsSession
                     installs++;
                     break;
                 case ProfileStep.Set change:
-                    if (_catalog.Setting(change.Id) is not { } setting || Apply(setting, change.To) is { IsWarning: true }) failed.Add(change.ModName + ": " + change.Label);
+                    var owner = ModList.Find(listed ??= _catalog.Mods(), change.Id.Guid);
+
+                    if (ModList.SettingOf(owner, change.Id) is not { } setting || Apply(setting, change.To, IsUninstalled(owner)) is { IsWarning: true }) failed.Add(change.ModName + ": " + change.Label);
                     else set++;
                     break;
             }
@@ -833,7 +840,7 @@ internal sealed class ModsSession
     }
 
     /// <summary>An open screen shows errors as they are logged, redrawn at most every two seconds through an error storm.</summary>
-    private void RedrawForNewErrors(float now)
+    private void RedrawForNewErrors(double now)
     {
         if (now - _errorsLookedAt < ErrorLookSeconds) return;
 
@@ -1047,7 +1054,8 @@ internal sealed class ModsSession
 
     private void Write(SettingId id, Func<Setting, string> valueFor)
     {
-        var setting = _catalog.Setting(id);
+        var mod = _catalog.Mod(id.Guid);
+        var setting = ModList.SettingOf(mod, id);
 
         if (setting == null)
         {
@@ -1057,7 +1065,7 @@ internal sealed class ModsSession
             return;
         }
 
-        var note = Apply(setting, valueFor(setting));
+        var note = Apply(setting, valueFor(setting), IsUninstalled(mod));
 
         Refresh(id.Guid, note);
     }
@@ -1073,16 +1081,19 @@ internal sealed class ModsSession
 
     private void ResetMod(string guid)
     {
-        if (_catalog.Mod(guid)?.State is not ModState.Loaded loaded) return;
+        var mod = _catalog.Mod(guid);
 
-        foreach (var setting in loaded.Settings.Where(setting => setting.IsChanged && !setting.IsReadOnly)) Apply(setting, setting.Default);
+        if (mod?.State is not ModState.Loaded loaded) return;
+
+        foreach (var setting in loaded.Settings.Where(setting => setting.IsChanged && !setting.IsReadOnly)) Apply(setting, setting.Default, IsUninstalled(mod));
 
         Refresh(guid, null);
     }
 
-    private SettingNote? Apply(Setting setting, string raw)
+    /// <param name="isModUninstalled">Read from the same mod list as the setting, so writing many settings builds the list once.</param>
+    private SettingNote? Apply(Setting setting, string raw, bool isModUninstalled)
     {
-        switch (WritePlan.For(setting, raw, _catalog.Mod(setting.Id.Guid)?.Switch is ModSwitch.Uninstalled))
+        switch (WritePlan.For(setting, raw, isModUninstalled))
         {
             case WritePlan.Refuse refuse:
                 return refuse.Note;
@@ -1092,6 +1103,8 @@ internal sealed class ModsSession
                 throw new InvalidOperationException("unknown write plan");
         }
     }
+
+    private static bool IsUninstalled(ModEntry? mod) => mod?.Switch is ModSwitch.Uninstalled;
 
     private void Refresh(string guid, SettingNote? note)
     {
