@@ -12,8 +12,11 @@ public abstract record WritePlan
 
     public sealed record Refuse(SettingNote Note) : WritePlan;
 
-    public static WritePlan For(Setting setting, string raw)
+    /// <param name="isModUninstalled">The mod was uninstalled this session. Writing would bring back a settings file the player chose to remove.</param>
+    public static WritePlan For(Setting setting, string raw, bool isModUninstalled = false)
     {
+        if (isModUninstalled) return Refused(setting, new BilingualText("This mod is uninstalled. Restore it before you change its settings.", "此模组已卸载。请先恢复它，再修改它的设置。"));
+
         if (setting.IsReadOnly) return Refused(setting, new BilingualText("This setting can't be changed here.", "此设置不能在这里修改。"));
 
         return ValueInput.Normalize(setting.Kind, raw) switch

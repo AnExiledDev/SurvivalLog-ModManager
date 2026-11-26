@@ -44,4 +44,12 @@ public class WritePlanTests
         Assert.True(plan.Note.IsWarning);
         Assert.Equal(new SettingId("g", "S", "K"), plan.Note.Id);
     }
+
+    [Fact]
+    public void A_setting_of_an_uninstalled_mod_is_never_written()
+    {
+        var plan = WritePlan.For(Setting(new SettingKind.Toggle()), "true", isModUninstalled: true);
+
+        Assert.True(Assert.IsType<WritePlan.Refuse>(plan).Note.IsWarning);
+    }
 }

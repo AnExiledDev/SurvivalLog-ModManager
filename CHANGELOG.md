@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.21.2
+
+- Fixed: after you uninstall a mod and remove its settings, searching the settings no longer lists that mod's settings. Changing one used to bring its settings file back, and RESTORE could then fail.
+- Made for Survival Log 1.1.21671.
+
 ## 0.21.1
 
 - **Warning:** needs Exiled's Toolkit 0.28.0 or newer. Update the Toolkit first.

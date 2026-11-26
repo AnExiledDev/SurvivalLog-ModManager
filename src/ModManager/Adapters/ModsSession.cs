@@ -1082,7 +1082,7 @@ internal sealed class ModsSession
 
     private SettingNote? Apply(Setting setting, string raw)
     {
-        switch (WritePlan.For(setting, raw))
+        switch (WritePlan.For(setting, raw, _catalog.Mod(setting.Id.Guid)?.Switch is ModSwitch.Uninstalled))
         {
             case WritePlan.Refuse refuse:
                 return refuse.Note;

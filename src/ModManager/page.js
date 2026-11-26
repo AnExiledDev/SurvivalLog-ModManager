@@ -2606,7 +2606,8 @@
     let count = 0;
     let html = '';
 
-    for (const m of visibleMods()) {
+    // An uninstalled mod's settings are not drawn, so a search can't bring back a settings file the player chose to remove.
+    for (const m of visibleMods().filter(m => m.switch.kind !== 'uninstalled')) {
       const hits = shownSettings(m).filter(s => matchesQuery(s, words));
 
       if (!hits.length) continue;
